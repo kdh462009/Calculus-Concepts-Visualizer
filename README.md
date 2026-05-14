@@ -8,6 +8,6 @@ Riemann Sum: show the rectangles with different types going to infinity in an an
 Derivatives: slope at tangents + MVT visualizer within the derivative visualizer.
 
 
-TBD: divergence/convergence visualizers
+TBD: divergence/convergence visualizers, Lagrange Error bounds
 
 have one app from each unit
