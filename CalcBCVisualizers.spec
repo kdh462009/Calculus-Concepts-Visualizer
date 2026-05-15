@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['app.py', 'graph.py', 'taylor.py'],
+    ['app.py'],
     pathex=[],
     binaries=[],
     datas=[('ui', 'ui')],
-    hiddenimports=[],
+    hiddenimports=['graph', 'taylor', 'riemann'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -21,7 +21,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='TaylorSeries',
+    name='CalcBCVisualizers',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -40,11 +40,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='TaylorSeries',
+    name='CalcBCVisualizers',
 )
 app = BUNDLE(
     coll,
-    name='TaylorSeries.app',
+    name='CalcBCVisualizers.app',
     icon=None,
     bundle_identifier=None,
 )
