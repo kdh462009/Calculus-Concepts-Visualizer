@@ -32,6 +32,7 @@ pyinstaller \
   --hidden-import graph \
   --hidden-import taylor \
   --hidden-import riemann \
+  --hidden-import derivatives \
   app.py
 
 if [[ ! -d "$APP_BUNDLE" ]]; then
