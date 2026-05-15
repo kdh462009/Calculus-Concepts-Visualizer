@@ -281,9 +281,10 @@ function frameLoop(ts) {
   }
 
   if (anim.index >= anim.nValues.length) {
-    stopAnimation();
-    setStatus("animation complete. higher n gets closer to the integral.");
-    return;
+    anim.index = 0;
+    anim.elapsed = 0;
+    anim.lastTs = ts;
+    setStatus("looping animation... higher n gets closer to the integral.");
   }
 
   const n = anim.nValues[anim.index];

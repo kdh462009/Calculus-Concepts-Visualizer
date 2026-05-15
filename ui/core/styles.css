@@ -50,6 +50,13 @@ body {
   font-size: 14px;
 }
 
+.error-bound {
+  color: #7df0cd;
+  font-size: 14px;
+  margin: 2px 0 6px;
+  letter-spacing: 0.02em;
+}
+
 .latex-row {
   min-height: 48px;
   display: flex;

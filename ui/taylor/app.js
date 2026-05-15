@@ -26,6 +26,28 @@ function setTermCounter(text) {
   el.termCounter.textContent = text;
 }
 
+function updateTaylorHeader(termIdx) {
+  if (!viewer?.data) return;
+  const idx = Math.max(0, Math.min(termIdx, (viewer.data.termCount || 1) - 1));
+  const bounds = viewer.data.errorBoundPct;
+  const pngs = viewer.data.latexPngSteps;
+  if (bounds?.length) {
+    const pct = bounds[idx];
+    el.errorBound.textContent =
+      `Lagrange error bound ≤ ~${pct.toFixed(2)}% of max |f(x)| on plot window`;
+  }
+  if (pngs?.length) {
+    el.latexImage.src = pngs[idx];
+  } else if (viewer.data.latexPng) {
+    el.latexImage.src = viewer.data.latexPng;
+  }
+}
+
+function clearTaylorHeader() {
+  el.errorBound.textContent = "Lagrange error bound will appear after ANIMATE.";
+  el.latexImage.src = "";
+}
+
 function easeGravity(t) {
   if (t < 0.72) {
     return ((t / 0.72) ** 2) * 0.82;
@@ -127,13 +149,16 @@ function loop(ts) {
   }
 
   drawTaylorFrame(curve);
+  updateTaylorHeader(anim.termIndex);
   setStatus(`animating... term ${Math.min(displayTerm, partials.length)}`);
   setTermCounter(`term ${Math.min(displayTerm, partials.length)} / ${partials.length}`);
 
   if (anim.termIndex >= maxTerm && anim.elapsedInTerm >= speed) {
-    stopAnimation();
-    setStatus("animation complete.");
-    return;
+    anim.termIndex = 0;
+    anim.elapsedInTerm = 0;
+    anim.lastTs = ts;
+    setStatus("looping animation...");
+    setTermCounter(`term 1 / ${partials.length}`);
   }
 
   anim.rafId = requestAnimationFrame(loop);
@@ -172,7 +197,7 @@ async function runAnimation() {
   await FunctionPreview.delay(FunctionPreview.PREVIEW_HOLD_MS);
 
   view.showApprox = true;
-  el.latexImage.src = result.latexPng;
+  updateTaylorHeader(0);
   anim.animating = true;
   setStatus("animating...");
   setTermCounter(`term 1 / ${result.termCount}`);
@@ -210,7 +235,7 @@ function wireInteractions() {
     viewer.clearData();
     viewer.resetView();
     drawTaylorFrame(null);
-    el.latexImage.src = "";
+    clearTaylorHeader();
     setStatus("reset.");
     setTermCounter("");
   });
@@ -239,6 +264,7 @@ async function bootstrap() {
   el.status = $("status");
   el.termCounter = $("termCounter");
   el.latexImage = $("latexImage");
+  el.errorBound = $("errorBound");
   el.termsValue = $("termsValue");
   el.speedValue = $("speedValue");
 
@@ -256,6 +282,7 @@ async function bootstrap() {
     viewer.setData(result, payload);
     if (anim.animating || view.showApprox) {
       drawTaylorFrame(currentDisplayedCurve());
+      updateTaylorHeader(anim.termIndex);
     } else {
       FunctionPreview.drawFunctionOnly(viewer);
     }
@@ -302,7 +329,7 @@ async function bootstrap() {
     onBeforePlot: () => {
       stopAnimation();
       view.showApprox = false;
-      el.latexImage.src = "";
+      clearTaylorHeader();
       setTermCounter("");
     },
     onPlotted: () => setStatus("f(x) plotted. press ANIMATE for Taylor approximation."),

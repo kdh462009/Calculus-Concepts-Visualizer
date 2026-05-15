@@ -7,6 +7,7 @@ import threading
 
 import webview
 
+from derivatives import DerivativesApi
 from graph import compute_function_preview, resolve_resource
 from riemann import RiemannApi
 from taylor import TaylorApi
@@ -26,6 +27,13 @@ VISUALIZERS = [
         "symbol": "∫",
         "path": "ui/riemann/index.html",
     },
+    {
+        "id": "derivatives",
+        "title": "Derivatives",
+        "subtitle": "Animate tangent slope, first derivative, and second-derivative concavity",
+        "symbol": "f′",
+        "path": "ui/derivatives/index.html",
+    },
 ]
 
 
@@ -34,6 +42,7 @@ class AppApi:
         self._window = None
         self._taylor = TaylorApi()
         self._riemann = RiemannApi()
+        self._derivatives = DerivativesApi()
 
     def bind_window(self, window) -> None:
         self._window = window
@@ -80,6 +89,12 @@ class AppApi:
 
     def compute_riemann(self, payload):
         return self._riemann.compute(payload)
+
+    def get_derivatives_bootstrap(self):
+        return self._derivatives.get_bootstrap()
+
+    def compute_derivatives(self, payload):
+        return self._derivatives.compute(payload)
 
     def preview_function(self, payload):
         return compute_function_preview(payload)
