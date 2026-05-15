@@ -7,7 +7,8 @@ import threading
 
 import webview
 
-from graph import resolve_resource
+from graph import compute_function_preview, resolve_resource
+from riemann import RiemannApi
 from taylor import TaylorApi
 
 VISUALIZERS = [
@@ -18,6 +19,13 @@ VISUALIZERS = [
         "symbol": "∑",
         "path": "ui/taylor/index.html",
     },
+    {
+        "id": "riemann",
+        "title": "Riemann Sums",
+        "subtitle": "Compare left/right/mid/trapezoid sums against the definite integral",
+        "symbol": "∫",
+        "path": "ui/riemann/index.html",
+    },
 ]
 
 
@@ -25,6 +33,7 @@ class AppApi:
     def __init__(self):
         self._window = None
         self._taylor = TaylorApi()
+        self._riemann = RiemannApi()
 
     def bind_window(self, window) -> None:
         self._window = window
@@ -65,6 +74,15 @@ class AppApi:
 
     def compute(self, payload):
         return self._taylor.compute(payload)
+
+    def get_riemann_bootstrap(self):
+        return self._riemann.get_bootstrap()
+
+    def compute_riemann(self, payload):
+        return self._riemann.compute(payload)
+
+    def preview_function(self, payload):
+        return compute_function_preview(payload)
 
 
 def main():

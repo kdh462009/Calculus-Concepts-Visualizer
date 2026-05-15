@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Taylor Series Visualizer</title>
+  <title>Riemann Sum Visualizer</title>
   <link rel="stylesheet" href="../core/styles.css">
   <link rel="stylesheet" href="../core/transitions.css">
   <script src="../core/transitions.js"></script>
@@ -13,13 +13,13 @@
     <header class="header">
       <div class="header-top">
         <div class="title-row">
-          <h1>∑ TAYLOR SERIES</h1>
-          <span>animated approximation engine</span>
+          <h1>∫ RIEMANN SUMS</h1>
+          <span>left/right/midpoint/trapezoidal approximation engine</span>
         </div>
         <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">⌂ Home</button>
       </div>
       <div class="latex-row">
-        <img id="latexImage" alt="Taylor polynomial expression">
+        <div id="analysis" class="status">Set values and press ANIMATE.</div>
       </div>
     </header>
 
@@ -32,18 +32,32 @@
         <label class="section-label">PRESETS</label>
         <div id="presets" class="preset-grid"></div>
 
-        <label class="section-label">EXPANSION CENTER a</label>
-        <input id="centerInput" type="number" value="0" step="0.25">
+        <label class="section-label">SUM TYPE</label>
+        <select id="sumTypeInput">
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+          <option value="midpoint">Midpoint</option>
+          <option value="trapezoidal">Trapezoidal</option>
+        </select>
 
-        <label class="section-label">MAX TERMS <span id="termsValue">8</span></label>
-        <input id="termsInput" type="range" min="1" max="20" value="8">
-
-        <label class="section-label">ANIMATION SPEED <span id="speedValue">600 ms</span></label>
-        <input id="speedInput" type="range" min="100" max="2000" value="600">
-
-        <label class="section-label">X RANGE</label>
+        <label class="section-label">INTEGRATION INTERVAL [a, b]</label>
         <div class="row">
-          <input id="xminInput" type="number" value="-4" step="0.5">
+          <input id="aInput" type="number" value="0" step="0.25">
+          <input id="bInput" type="number" value="3.14159" step="0.25">
+        </div>
+
+        <label class="section-label">START SUBDIVISIONS n <span id="nValue">8</span></label>
+        <input id="nInput" type="range" min="1" max="120" value="8">
+
+        <label class="section-label">ANIMATE UP TO n <span id="nMaxValue">64</span></label>
+        <input id="nMaxInput" type="range" min="2" max="320" value="64">
+
+        <label class="section-label">ANIMATION SPEED <span id="speedValue">260 ms</span></label>
+        <input id="speedInput" type="range" min="60" max="1200" value="260">
+
+        <label class="section-label">PLOT X RANGE</label>
+        <div class="row">
+          <input id="xminInput" type="number" value="-1" step="0.5">
           <input id="xmaxInput" type="number" value="4" step="0.5">
         </div>
 

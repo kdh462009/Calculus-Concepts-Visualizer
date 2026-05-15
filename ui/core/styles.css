@@ -95,7 +95,8 @@ body {
 
 input[type="text"],
 input[type="number"],
-input[list] {
+input[list],
+select {
   width: 100%;
   background: var(--glass);
   color: var(--gold);

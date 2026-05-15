@@ -8,6 +8,7 @@ from __future__ import annotations
 import sympy as sp
 
 from graph import (
+    compute_function_preview,
     launch_app,
     parse_expr,
     plot_payload,
@@ -92,6 +93,12 @@ class TaylorApi:
             "hints": FUNCTION_HINTS,
             "presets": PRESETS,
         }
+
+    def preview(self, payload):
+        return compute_function_preview(payload)
+
+    def preview_function(self, payload):
+        return self.preview(payload)
 
     def compute(self, payload):
         try:

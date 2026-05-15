@@ -37,6 +37,7 @@ PARSE_LOCALS = {
     "acos": sp.acos,
     "atan": sp.atan,
     "arctan": sp.atan,
+    "abs": sp.Abs,
 }
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -110,6 +111,32 @@ def render_latex_png(latex_body: str, color: str = "#f5c842") -> str:
     canvas.print_png(buf)
     encoded = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
+
+
+def compute_function_preview(payload):
+    """Sample f(x) over the plot window without approximation data."""
+    try:
+        expr_text = (payload or {}).get("expr", "").strip()
+        if not expr_text:
+            return {"ok": False, "error": "Please enter a function."}
+
+        xmin = float((payload or {}).get("xmin", -4.0))
+        xmax = float((payload or {}).get("xmax", 4.0))
+        samples = int((payload or {}).get("samples", 1400))
+        if xmin >= xmax:
+            return {"ok": False, "error": "xmin must be < xmax."}
+
+        expr = parse_expr(expr_text)
+        x_vals = sample_domain(xmin, xmax, samples)
+        y_true = safe_eval(expr, x_vals)
+        return plot_payload(
+            x_vals,
+            y_true,
+            x_range=[xmin, xmax],
+            extra={"preview": True},
+        )
+    except Exception as exc:
+        return {"ok": False, "error": f"{exc}"}
 
 
 def plot_payload(

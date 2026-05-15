@@ -7,7 +7,12 @@ const anim = {
   lastTs: 0,
 };
 
+const view = {
+  showApprox: false,
+};
+
 const el = {};
+let functionPreview;
 
 function $(id) {
   return document.getElementById(id);
@@ -43,8 +48,17 @@ function blendedCurve(curA, curB, t) {
   return out;
 }
 
+function previewPayload() {
+  return {
+    expr: el.exprInput.value.trim(),
+    xmin: Number(el.xminInput.value),
+    xmax: Number(el.xmaxInput.value),
+    samples: 1400,
+  };
+}
+
 function currentDisplayedCurve() {
-  if (!viewer.data) return null;
+  if (!viewer.data || !view.showApprox) return null;
   const partials = viewer.data.partials;
   if (!partials || !partials.length) return null;
   const idx = Math.min(anim.termIndex, partials.length - 1);
@@ -134,8 +148,12 @@ async function runAnimation() {
     xmax: Number(el.xmaxInput.value),
     samples: 1400,
   };
-  setStatus("computing series...");
+  if (!payload.expr) {
+    setStatus("Please enter a function.");
+    return;
+  }
 
+  setStatus("computing series...");
   const result = await window.pywebview.api.compute(payload);
   if (!result.ok) {
     setStatus(`error: ${result.error}`);
@@ -146,8 +164,15 @@ async function runAnimation() {
   anim.termIndex = 0;
   anim.elapsedInTerm = 0;
   anim.lastTs = 0;
-  el.latexImage.src = result.latexPng;
   stopAnimation();
+  view.showApprox = false;
+  FunctionPreview.drawFunctionOnly(viewer);
+  setStatus("showing f(x)...");
+  setTermCounter("");
+  await FunctionPreview.delay(FunctionPreview.PREVIEW_HOLD_MS);
+
+  view.showApprox = true;
+  el.latexImage.src = result.latexPng;
   anim.animating = true;
   setStatus("animating...");
   setTermCounter(`term 1 / ${result.termCount}`);
@@ -181,6 +206,7 @@ function wireInteractions() {
 
   el.resetBtn.addEventListener("click", () => {
     stopAnimation();
+    view.showApprox = false;
     viewer.clearData();
     viewer.resetView();
     drawTaylorFrame(null);
@@ -217,16 +243,32 @@ async function bootstrap() {
   el.speedValue = $("speedValue");
 
   viewer = new GraphViewer($("plotCanvas"));
-  viewer.onDomainExpand = (payload) => window.pywebview.api.compute(payload);
-  viewer.onDataExpanded = (result, payload) => {
-    anim.termIndex = Math.min(anim.termIndex, Math.max(0, result.termCount - 1));
-    viewer.setData(result, payload);
+  viewer.onDomainExpand = (payload) => {
+    if (anim.animating || view.showApprox) {
+      return window.pywebview.api.compute(payload);
+    }
+    return window.pywebview.api.preview_function(payload);
   };
-  viewer.setRedrawHandler(() => {
-    if (viewer.data) {
+  viewer.onDataExpanded = (result, payload) => {
+    if (result.termCount) {
+      anim.termIndex = Math.min(anim.termIndex, Math.max(0, result.termCount - 1));
+    }
+    viewer.setData(result, payload);
+    if (anim.animating || view.showApprox) {
       drawTaylorFrame(currentDisplayedCurve());
     } else {
+      FunctionPreview.drawFunctionOnly(viewer);
+    }
+  };
+  viewer.setRedrawHandler(() => {
+    if (!viewer.data) {
       viewer.drawGrid();
+      return;
+    }
+    if (anim.animating || view.showApprox) {
+      drawTaylorFrame(currentDisplayedCurve());
+    } else {
+      FunctionPreview.drawFunctionOnly(viewer);
     }
   });
 
@@ -246,12 +288,30 @@ async function bootstrap() {
     btn.addEventListener("click", () => {
       el.exprInput.value = expr;
       setStatus(`preset: ${expr}`);
+      functionPreview.schedule();
     });
     presets.appendChild(btn);
   });
 
+  functionPreview = FunctionPreview.wire({
+    viewer,
+    exprInput: el.exprInput,
+    extraInputs: [el.xminInput, el.xmaxInput],
+    getPayload: previewPayload,
+    previewApi: (payload) => window.pywebview.api.preview_function(payload),
+    onBeforePlot: () => {
+      stopAnimation();
+      view.showApprox = false;
+      el.latexImage.src = "";
+      setTermCounter("");
+    },
+    onPlotted: () => setStatus("f(x) plotted. press ANIMATE for Taylor approximation."),
+    onError: (msg) => setStatus(`error: ${msg}`),
+  });
+
   wireInteractions();
   viewer.drawGrid();
+  functionPreview.plot();
 }
 
 whenApiReady(bootstrap);
