@@ -33,6 +33,7 @@ pyinstaller \
   --hidden-import taylor \
   --hidden-import riemann \
   --hidden-import derivatives \
+  --hidden-import volume_rotation \
   app.py
 
 if [[ ! -d "$APP_BUNDLE" ]]; then

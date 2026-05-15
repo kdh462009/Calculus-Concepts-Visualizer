@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Volume Rotation Visualizer</title>
+  <link rel="stylesheet" href="../core/styles.css">
+  <link rel="stylesheet" href="../core/transitions.css">
+  <script src="../core/transitions.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="header">
+      <div class="header-top">
+        <div class="title-row">
+          <h1>⟳V VOLUME ROTATION</h1>
+          <span>solid of revolution animator</span>
+        </div>
+        <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">⌂ Home</button>
+      </div>
+      <div id="formulaLine" class="error-bound">Enter a function and bounds, then press COMPUTE.</div>
+      <div class="latex-row">
+        <div id="volumeReadout" style="color:#f5c842;font-weight:700;">Volume: --</div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel glass">
+        <label class="section-label">FUNCTION f(x)</label>
+        <input id="exprInput" list="functionHints" value="x**2" autocomplete="off">
+        <datalist id="functionHints"></datalist>
+
+        <label class="section-label">PRESETS</label>
+        <div id="presets" class="preset-grid"></div>
+
+        <label class="section-label">ROTATION AXIS</label>
+        <select id="axisInput"></select>
+
+        <label class="section-label">BOUNDS [a, b]</label>
+        <div class="row">
+          <input id="aInput" type="number" value="0" step="0.25">
+          <input id="bInput" type="number" value="2" step="0.25">
+        </div>
+
+        <label class="section-label">X WINDOW</label>
+        <div class="row">
+          <input id="xminInput" type="number" value="-1" step="0.5">
+          <input id="xmaxInput" type="number" value="3" step="0.5">
+        </div>
+
+        <label class="section-label">ROTATION SPEED <span id="speedValue">7000 ms</span></label>
+        <input id="speedInput" type="range" min="3000" max="14000" value="7000" step="250">
+
+        <button id="computeBtn" class="btn btn-primary">∫ COMPUTE</button>
+        <button id="animateBtn" class="btn btn-secondary">▶ ANIMATE ROTATION</button>
+        <button id="pauseBtn" class="btn btn-ghost">⏸ PAUSE</button>
+        <button id="resetBtn" class="btn btn-ghost">↺ RESET VIEW</button>
+
+        <div id="status" class="status">ready.</div>
+        <div id="areaReadout" class="term-counter"></div>
+      </aside>
+
+      <section class="plot-wrap glass">
+        <canvas id="volumeCanvas"></canvas>
+      </section>
+    </main>
+    <footer class="credit-row">
+      <span>Made by </span>
+      <a href="https://knivier.com" target="_blank" rel="noopener noreferrer">knivier</a>
+    </footer>
+  </div>
+
+  <script src="../core/nav.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -11,6 +11,7 @@ from derivatives import DerivativesApi
 from graph import compute_function_preview, resolve_resource
 from riemann import RiemannApi
 from taylor import TaylorApi
+from volume_rotation import VolumeRotationApi
 
 VISUALIZERS = [
     {
@@ -34,6 +35,13 @@ VISUALIZERS = [
         "symbol": "f′",
         "path": "ui/derivatives/index.html",
     },
+    {
+        "id": "volume_rotation",
+        "title": "Volume Rotation",
+        "subtitle": "Rotate bounded regions around an axis to visualize solids of revolution",
+        "symbol": "⟳V",
+        "path": "ui/volume_rotation/index.html",
+    },
 ]
 
 
@@ -43,6 +51,7 @@ class AppApi:
         self._taylor = TaylorApi()
         self._riemann = RiemannApi()
         self._derivatives = DerivativesApi()
+        self._volume_rotation = VolumeRotationApi()
 
     def bind_window(self, window) -> None:
         self._window = window
@@ -98,6 +107,12 @@ class AppApi:
 
     def preview_function(self, payload):
         return compute_function_preview(payload)
+
+    def get_volume_bootstrap(self):
+        return self._volume_rotation.get_bootstrap()
+
+    def compute_volume(self, payload):
+        return self._volume_rotation.compute(payload)
 
 
 def main():
