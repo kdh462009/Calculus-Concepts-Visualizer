@@ -1,0 +1,104 @@
+/**
+ * Woosh transitions between launcher and visualizers.
+ * forward = into a visualizer, back = return to home
+ */
+(function applyPendingEnter() {
+  const dir = sessionStorage.getItem("vizTransitionDir");
+  if (dir === "forward" || dir === "back") {
+    document.documentElement.classList.add(`woosh-pending-${dir}`);
+  }
+})();
+
+const TRANSITION_KEY = "vizTransitionDir";
+const WOOSH_MS = 520;
+
+function ensureOverlay() {
+  let overlay = document.getElementById("wooshOverlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "wooshOverlay";
+  overlay.className = "woosh-overlay";
+  overlay.setAttribute("aria-hidden", "true");
+  overlay.innerHTML = '<div class="woosh-streak"></div><div class="woosh-glow"></div>';
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function playWooshOut(direction) {
+  if (prefersReducedMotion()) return wait(80);
+
+  const overlay = ensureOverlay();
+  const shell = document.querySelector(".app-shell");
+  const exitClass = `woosh-exit-${direction}`;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      overlay.classList.remove("active", "forward", "back");
+      shell?.classList.remove(exitClass);
+      resolve();
+    };
+
+    overlay.classList.add("active", direction);
+    shell?.classList.add(exitClass);
+
+    overlay.addEventListener("animationend", finish, { once: true });
+    setTimeout(finish, WOOSH_MS + 80);
+  });
+}
+
+function playWooshEnter(direction) {
+  document.documentElement.classList.remove(`woosh-pending-${direction}`);
+
+  if (prefersReducedMotion()) return;
+
+  const shell = document.querySelector(".app-shell");
+  if (!shell) return;
+
+  const enterClass = `woosh-enter-${direction}`;
+  shell.classList.add(enterClass);
+  shell.addEventListener(
+    "animationend",
+    () => shell.classList.remove(enterClass),
+    { once: true },
+  );
+}
+
+function initPageTransition() {
+  const dir = sessionStorage.getItem(TRANSITION_KEY);
+  if (dir !== "forward" && dir !== "back") return;
+  sessionStorage.removeItem(TRANSITION_KEY);
+  requestAnimationFrame(() => playWooshEnter(dir));
+}
+
+let _navigating = false;
+
+async function navigateWithWoosh(direction, navigateFn) {
+  if (_navigating) return;
+  _navigating = true;
+  try {
+    sessionStorage.setItem(TRANSITION_KEY, direction);
+    await playWooshOut(direction);
+    await navigateFn();
+  } finally {
+    _navigating = false;
+  }
+}
+
+window.VizTransition = {
+  forward: "forward",
+  back: "back",
+  navigateWithWoosh,
+  initPageTransition,
+};
