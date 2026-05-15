@@ -137,7 +137,13 @@ def lagrange_bounds_for_partials(expr, center, nonzero_terms, xmin, xmax):
         deriv = sp.diff(expr, x, order)
         try:
             f_d = sp.lambdify(x, deriv, modules=["numpy"])
-            dvals = np.abs(np.asarray(f_d(xs), dtype=float))
+            with np.errstate(
+                divide="ignore",
+                invalid="ignore",
+                over="ignore",
+                under="ignore",
+            ):
+                dvals = np.abs(np.asarray(f_d(xs), dtype=float))
             M = float(np.nanmax(dvals[np.isfinite(dvals)])) if np.any(np.isfinite(dvals)) else 0.0
         except Exception:
             M = 0.0

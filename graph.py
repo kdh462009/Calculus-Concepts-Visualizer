@@ -57,7 +57,8 @@ def parse_expr(text: str):
 def safe_eval(expr_sympy, x_vals, clip=50):
     try:
         f = sp.lambdify(x, expr_sympy, modules=["numpy"])
-        y = np.asarray(f(x_vals), dtype=float)
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore", under="ignore"):
+            y = np.asarray(f(x_vals), dtype=float)
         if y.ndim == 0:
             y = np.full_like(x_vals, float(y), dtype=float)
         elif y.shape != x_vals.shape:
