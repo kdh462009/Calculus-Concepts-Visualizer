@@ -21,3 +21,33 @@ have one app from each unit
 
 # AI Usage
 AI was used to create the GUI and ensure MacOS compatibility (in order to have a runnable DMG), but all core logic and all the Calculus is human hand made. 
+
+# Units and visualizers:
+Unit 1: Limits & Continuity
+Limit visualizer
+
+Unit 2: Differentiation Fundamentals
+Derivatives visulizer (complete)
+
+Unit 3: Composite, Implicit, inverse functions
+Inverse derivatives visualizer
+
+Unit 4: Contextual applications of derivatives
+Physics Visualizer 
+
+Unit 5: Analytical applications of derivatives
+
+Unit 6: Integrals
+Riemann Sum Visualizer (Complete)
+
+Unit 7: DiffEQs
+
+Unit 8: Applications of Integration
+Shape rotation visualizer on a graph
+Disk/Washer visualizer by rotation (3d graph rotation required, core moddable or sep core)
+
+Unit 9: Parametrics/Polar
+
+Unit 10: Series Convergence Determination
+Series convergence test visualizers?
+Taylor series visualizer (complete except for Lagrange error bound which is off by sextillions)
