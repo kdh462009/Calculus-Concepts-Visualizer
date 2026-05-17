@@ -30,7 +30,7 @@ Unit 2: Differentiation Fundamentals
 Derivatives visulizer (complete)
 
 Unit 3: Composite, Implicit, inverse functions
-Inverse derivatives visualizer
+Inverse derivatives visualizer DONE
 
 Unit 4: Contextual applications of derivatives
 Physics Visualizer 
@@ -43,8 +43,7 @@ Riemann Sum Visualizer (Complete)
 Unit 7: DiffEQs
 
 Unit 8: Applications of Integration
-Shape rotation visualizer on a graph
-Disk/Washer visualizer by rotation (3d graph rotation required, core moddable or sep core)
+Shape rotation visualizer on a graph DONE
 
 Unit 9: Parametrics/Polar
 

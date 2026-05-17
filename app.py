@@ -9,6 +9,8 @@ import webview
 
 from derivatives import DerivativesApi
 from graph import compute_function_preview, resolve_resource
+from limit import LimitApi
+from inverse import InverseApi
 from riemann import RiemannApi
 from taylor import TaylorApi
 from volume_rotation import VolumeRotationApi
@@ -42,6 +44,20 @@ VISUALIZERS = [
         "symbol": "⟳V",
         "path": "ui/volume_rotation/index.html",
     },
+    {
+        "id": "limit",
+        "title": "Limits (Epsilon-Delta)",
+        "subtitle": "Animate shrinking epsilon bands and delta neighborhoods to visualize convergence",
+        "symbol": "εδ",
+        "path": "ui/limit/index.html",
+    },
+    {
+        "id": "inverse",
+        "title": "Inverse Visualizer",
+        "subtitle": "Animate f(x), f⁻¹(x), and derivative relationships on a shared view",
+        "symbol": "f⁻¹",
+        "path": "ui/inverse/index.html",
+    },
 ]
 
 
@@ -52,6 +68,8 @@ class AppApi:
         self._riemann = RiemannApi()
         self._derivatives = DerivativesApi()
         self._volume_rotation = VolumeRotationApi()
+        self._limit = LimitApi()
+        self._inverse = InverseApi()
 
     def bind_window(self, window) -> None:
         self._window = window
@@ -113,6 +131,18 @@ class AppApi:
 
     def compute_volume(self, payload):
         return self._volume_rotation.compute(payload)
+
+    def get_limit_bootstrap(self):
+        return self._limit.get_bootstrap()
+
+    def compute_limit(self, payload):
+        return self._limit.compute(payload)
+
+    def get_inverse_bootstrap(self):
+        return self._inverse.get_bootstrap()
+
+    def compute_inverse(self, payload):
+        return self._inverse.compute(payload)
 
 
 def main():

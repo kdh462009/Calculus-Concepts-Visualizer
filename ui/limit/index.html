@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Limit Visualizer</title>
+  <link rel="stylesheet" href="../core/styles.css">
+  <link rel="stylesheet" href="../core/transitions.css">
+  <script src="../core/transitions.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="header">
+      <div class="header-top">
+        <div class="title-row">
+          <h1>εδ LIMIT VISUALIZER</h1>
+          <span>formal convergence tightening</span>
+        </div>
+        <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">⌂ Home</button>
+      </div>
+      <div id="definitionLine" class="error-bound">For every ε > 0, there exists δ > 0 ...</div>
+      <div class="latex-row">
+        <div id="bandLine" style="color:#f5c842;font-weight:700;">Band: --</div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel glass">
+        <label class="section-label">FUNCTION f(x)</label>
+        <input id="exprInput" list="functionHints" value="(x**2-1)/(x-1)" autocomplete="off">
+        <datalist id="functionHints"></datalist>
+
+        <label class="section-label">PRESETS</label>
+        <div id="presets" class="preset-grid"></div>
+
+        <label class="section-label">APPROACH POINT a</label>
+        <input id="aInput" type="number" value="1" step="0.25">
+
+        <label class="section-label">LIMIT VALUE L (optional)</label>
+        <input id="limitInput" type="text" value="">
+
+        <label class="section-label">EPSILON START / END</label>
+        <div class="row">
+          <input id="epsStartInput" type="number" value="1.2" step="0.05" min="0.01">
+          <input id="epsEndInput" type="number" value="0.1" step="0.01" min="0.001">
+        </div>
+
+        <label class="section-label">X WINDOW</label>
+        <div class="row">
+          <input id="xminInput" type="number" value="-2" step="0.5">
+          <input id="xmaxInput" type="number" value="4" step="0.5">
+        </div>
+
+        <label class="section-label">ANIMATION DURATION <span id="durationValue">7000 ms</span></label>
+        <input id="durationInput" type="range" min="2500" max="16000" value="7000" step="250">
+
+        <button id="computeBtn" class="btn btn-primary">∫ COMPUTE</button>
+        <button id="animateBtn" class="btn btn-secondary">▶ ANIMATE ε-δ</button>
+        <button id="pauseBtn" class="btn btn-ghost">⏸ PAUSE</button>
+        <button id="resetBtn" class="btn btn-ghost">↺ RESET</button>
+
+        <div id="status" class="status">ready.</div>
+        <div id="readout" class="term-counter"></div>
+      </aside>
+
+      <section class="plot-wrap glass">
+        <canvas id="limitCanvas"></canvas>
+      </section>
+    </main>
+    <footer class="credit-row">
+      <span>Made by </span>
+      <a href="https://knivier.com" target="_blank" rel="noopener noreferrer">knivier</a>
+    </footer>
+  </div>
+
+  <script src="../core/nav.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
