@@ -46,6 +46,7 @@ Unit 8: Applications of Integration
 Shape rotation visualizer on a graph DONE
 
 Unit 9: Parametrics/Polar
+make visualizer which x(t) and y(t) merges and makes new functions
 
 Unit 10: Series Convergence Determination
 Series convergence test visualizers?
