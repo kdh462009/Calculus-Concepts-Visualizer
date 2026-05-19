@@ -15,6 +15,7 @@ from riemann import RiemannApi
 from taylor import TaylorApi
 from volume_rotation import VolumeRotationApi
 from Parametric import ParametricApi
+from polar import PolarApi
 
 VISUALIZERS = [
     {
@@ -66,6 +67,13 @@ VISUALIZERS = [
         "symbol": "(x,y)",
         "path": "ui/parametric/index.html",
     },
+    {
+        "id": "polar",
+        "title": "Polar Area",
+        "subtitle": "Shade polar regions with sector slices and compare two curves",
+        "symbol": "rθ",
+        "path": "ui/polar/index.html",
+    },
 ]
 
 
@@ -79,6 +87,7 @@ class AppApi:
         self._limit = LimitApi()
         self._inverse = InverseApi()
         self._parametric = ParametricApi()
+        self._polar = PolarApi()
 
     def bind_window(self, window) -> None:
         self._window = window
@@ -158,6 +167,12 @@ class AppApi:
 
     def compute_parametric(self, payload):
         return self._parametric.compute(payload)
+
+    def get_polar_bootstrap(self):
+        return self._polar.get_bootstrap()
+
+    def compute_polar(self, payload):
+        return self._polar.compute(payload)
 
 
 def main():

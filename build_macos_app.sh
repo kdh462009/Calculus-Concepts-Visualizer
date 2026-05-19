@@ -37,6 +37,7 @@ pyinstaller \
   --hidden-import limit \
   --hidden-import inverse \
   --hidden-import Parametric \
+  --hidden-import polar \
   app.py
 
 if [[ ! -d "$APP_BUNDLE" ]]; then
