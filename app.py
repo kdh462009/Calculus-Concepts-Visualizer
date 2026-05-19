@@ -14,7 +14,7 @@ from inverse import InverseApi
 from riemann import RiemannApi
 from taylor import TaylorApi
 from volume_rotation import VolumeRotationApi
-from parametric import ParametricApi
+from Parametric import ParametricApi
 
 VISUALIZERS = [
     {

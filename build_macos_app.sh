@@ -36,6 +36,7 @@ pyinstaller \
   --hidden-import volume_rotation \
   --hidden-import limit \
   --hidden-import inverse \
+  --hidden-import Parametric \
   app.py
 
 if [[ ! -d "$APP_BUNDLE" ]]; then
