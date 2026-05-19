@@ -14,6 +14,7 @@ from inverse import InverseApi
 from riemann import RiemannApi
 from taylor import TaylorApi
 from volume_rotation import VolumeRotationApi
+from parametric import ParametricApi
 
 VISUALIZERS = [
     {
@@ -58,6 +59,13 @@ VISUALIZERS = [
         "symbol": "f⁻¹",
         "path": "ui/inverse/index.html",
     },
+    {
+        "id": "parametric",
+        "title": "Parametric Curves",
+        "subtitle": "Animate x(t), y(t), velocity, and motion vectors",
+        "symbol": "(x,y)",
+        "path": "ui/parametric/index.html",
+    },
 ]
 
 
@@ -70,6 +78,7 @@ class AppApi:
         self._volume_rotation = VolumeRotationApi()
         self._limit = LimitApi()
         self._inverse = InverseApi()
+        self._parametric = ParametricApi()
 
     def bind_window(self, window) -> None:
         self._window = window
@@ -143,6 +152,12 @@ class AppApi:
 
     def compute_inverse(self, payload):
         return self._inverse.compute(payload)
+
+    def get_parametric_bootstrap(self):
+        return self._parametric.get_bootstrap()
+
+    def compute_parametric(self, payload):
+        return self._parametric.compute(payload)
 
 
 def main():
