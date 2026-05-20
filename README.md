@@ -1,70 +1,56 @@
-# Calculus-Concepts-Visualizer
-Coleman 2026 AP Calc BC Final Project
+# Calculus Concepts Visualizer
 
-# Dev Only
+AP Calculus BC visualizer suite built with Python + PyWebView.  
+The app opens a launcher home screen and lets you jump into interactive visualizers by unit.
 
-To run this project, run app.py which will open all the visualizers.
+## Run Locally
 
-To add visualizers, add underneath core. Do not modify the core libraries that build upon the universal schematics for each visualizer. 
+1. Install dependencies:
+   - `pip install -r requirements-webapp.txt`
+2. Start the app:
+   - `python app.py`
 
-# Goal
-create a bunch of apps to visualize different Calculus concepts using GUIs so the class can understand
+## Current Visualizers
 
-Taylor Series: show an approximater. 
-Riemann Sum: show the rectangles with different types going to infinity in an animation. 
-Derivatives: slope at tangents + MVT visualizer within the derivative visualizer.
+- **Unit 1** — Limits (Epsilon-Delta)
+- **Unit 2** — Derivatives
+- **Unit 3** — Inverse Visualizer
+- **Unit 6** — Riemann Sums
+- **Unit 8** — Volume Rotation
+- **Unit 9** — Parametric Curves, Polar Area
+- **Unit 10** — Taylor Series
 
+## Highlights
 
-TBD: divergence/convergence visualizers, Lagrange Error bounds
+- **Taylor Series**
+  - Animated partial sums with rendered polynomial steps
+  - Lagrange error bound + observed error readout on a fixed user window
+- **Riemann Sums**
+  - Left, right, midpoint, and trapezoidal approximations
+  - Error percent uses stable scaling when the true integral is near zero
+- **Polar Area**
+  - Single-curve and two-curve area shading
+  - Angle bounds accept expressions in terms of pi (for example `pi`, `2*pi`, `-pi/2`)
+- **Parametric Curves**
+  - Velocity vectors, tangent slope, speed, and arc length
+- **Inverse Visualizer**
+  - Staged animation for `f(x)`, `f^{-1}(x)`, and `(f^{-1})'(x)`
+- **Volume Rotation**
+  - x-axis and y-axis rotation with area/volume formulas and 3D view controls
 
-have one app from each unit
+## Project Structure
 
-# AI Usage
-AI was used to create the GUI and ensure MacOS compatibility (in order to have a runnable DMG), but all core logic and all the Calculus is human hand made. 
+- `app.py` — launcher + routing to all visualizers
+- `graph.py` — shared graphing/parsing/sampling helpers
+- `ui/core/` — shared frontend graph + transition utilities
+- `ui/<visualizer>/` — per-visualizer frontend
+- `<visualizer>.py` — per-visualizer backend API
 
-# Units and visualizers:
-- Unit 1: Limits & Continuity
-    - Limit visualizer
-<br>
- 
-- Unit 2: Differentiation Fundamentals
-    - Derivatives visulizer **(complete)**
-<br>
- 
-- Unit 3: Composite, Implicit, inverse functions
-    - Inverse derivatives visualizer DONE
-<br>
- 
-- Unit 4: Contextual applications of derivatives
-    - Physics Visualizer (Car)
-<br>
- 
-- Unit 5: Analytical applications of derivatives
-    - hi
-<br>
- 
-- Unit 6: Integrals
-    - Riemann Sum Visualizer **(Complete)**
-<br>
- 
-- Unit 7: DiffEQs
-    - hi
-<br>
- 
-- Unit 8: Applications of Integration
-    - Shape rotation visualizer on a graph DONE
-<br>
- 
-- Unit 9: Parametrics/Polar
-    - Parametic
-        - visualizer which x(t) and y(t) merges and makes new functions
+## Build
 
-    - polar
-        - hi
-<br>
- 
-- Unit 10: Series Convergence Determination
-    - Series convergence test visualizers?
-    - Taylor series visualizer (complete except for Lagrange error bound which is off by sextillions)
-<br>
- 
+- macOS packaging script: `build_macos_app.sh`
+- PyInstaller spec: `CalcBCVisualizers.spec`
+
+## Notes
+
+AI assistance was used for UI acceleration and desktop packaging workflow; calculus logic and feature decisions were authored and validated in-project.

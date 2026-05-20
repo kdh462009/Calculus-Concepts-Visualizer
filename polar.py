@@ -28,17 +28,61 @@ PARSE_LOCALS = {
     "abs": sp.Abs,
 }
 
+ANGLE_PARSE_LOCALS = {
+    "pi": sp.pi,
+    "e": sp.E,
+    "E": sp.E,
+    "sqrt": sp.sqrt,
+}
+
 PRESETS = [
-    ("Cardioid", "1 + cos(theta)", None, 0.0, float(2 * np.pi)),
-    ("Rose r=sin(3θ)", "sin(3*theta)", None, 0.0, float(np.pi)),
-    ("Circle r=2cosθ", "2*cos(theta)", None, -float(np.pi) / 2, float(np.pi) / 2),
-    ("Two circles", "2*cos(theta)", "1", -float(np.pi) / 2, float(np.pi) / 2),
-    ("Limacon", "2 + cos(theta)", None, 0.0, float(2 * np.pi)),
+    ("Cardioid", "1 + cos(theta)", None, "0", "2*pi"),
+    ("Rose r=sin(3θ)", "sin(3*theta)", None, "0", "pi"),
+    ("Circle r=2cosθ", "2*cos(theta)", None, "-pi/2", "pi/2"),
+    ("Two circles", "2*cos(theta)", "1", "-pi/2", "pi/2"),
+    ("Limacon", "2 + cos(theta)", None, "0", "2*pi"),
 ]
 
 
 def parse_polar_expr(text: str):
     return sp.sympify(text, locals=PARSE_LOCALS)
+
+
+def parse_angle_bound(value, default: float) -> float:
+    """Parse α/β inputs: plain numbers or expressions like pi, 2*pi, -pi/2."""
+    if value is None:
+        return float(default)
+    if isinstance(value, (int, float, np.floating)):
+        out = float(value)
+        if not np.isfinite(out):
+            raise ValueError("Angle bound must be a finite number.")
+        return out
+
+    text = str(value).strip()
+    if not text:
+        return float(default)
+
+    try:
+        out = float(text)
+        if not np.isfinite(out):
+            raise ValueError(f"Could not evaluate angle bound: {text!r}")
+        return out
+    except ValueError:
+        pass
+
+    try:
+        expr = sp.sympify(text, locals=ANGLE_PARSE_LOCALS)
+    except (sp.SympifyError, TypeError, SyntaxError) as exc:
+        raise ValueError(f"Could not parse angle bound: {text!r}") from exc
+    if expr.has(theta):
+        raise ValueError("Angle bounds must not depend on θ.")
+    try:
+        out = float(sp.N(expr))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Could not evaluate angle bound: {text!r}") from exc
+    if not np.isfinite(out):
+        raise ValueError(f"Could not evaluate angle bound: {text!r}")
+    return out
 
 
 def safe_eval_theta(expr, th_vals, clip=1.0e6):
@@ -200,8 +244,11 @@ class PolarApi:
             mode = str((payload or {}).get("mode", "single")).strip().lower()
             r_text = (payload or {}).get("rExpr", "1 + cos(theta)").strip()
             r2_text = (payload or {}).get("r2Expr", "1").strip()
-            alpha = float((payload or {}).get("alpha", 0.0))
-            beta = float((payload or {}).get("beta", float(2 * np.pi)))
+            try:
+                alpha = parse_angle_bound((payload or {}).get("alpha"), 0.0)
+                beta = parse_angle_bound((payload or {}).get("beta"), float(2 * np.pi))
+            except (ValueError, sp.SympifyError) as exc:
+                return {"ok": False, "error": f"Invalid angle bound: {exc}"}
             n_sectors = int((payload or {}).get("nSectors", 16))
             samples = int((payload or {}).get("samples", 1800))
 

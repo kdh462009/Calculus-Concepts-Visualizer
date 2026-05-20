@@ -119,17 +119,29 @@ def _f_scale(expr, xmin: float, xmax: float) -> float:
     return scale if scale > 1e-12 else 1.0
 
 
-def lagrange_bounds_for_partials(expr, center, nonzero_terms, xmin, xmax):
+def lagrange_bounds_for_partials(
+    expr,
+    center,
+    nonzero_terms,
+    bound_xmin,
+    bound_xmax,
+    partial_exprs,
+):
     """
-    Lagrange remainder bound on [xmin, xmax]:
-    |R_n(x)| <= M * r^(n+1) / (n+1)!,  n = polynomial degree.
-    Returns percent of max|f| on the window for each partial step.
+    Lagrange remainder bound on the user-selected window [bound_xmin, bound_xmax]:
+    |R_n(x)| <= M * r^(n+1) / (n+1)!, where n is the Taylor polynomial degree.
+    Also tracks the sampled max |f - P_n| for a realistic error readout.
     """
     a = float(center)
-    r = max(abs(xmin - a), abs(xmax - a))
-    xs = np.linspace(min(xmin, xmax), max(xmin, xmax), 4000)
-    scale = _f_scale(expr, xmin, xmax)
+    lo = float(min(bound_xmin, bound_xmax))
+    hi = float(max(bound_xmin, bound_xmax))
+    r = max(abs(lo - a), abs(hi - a))
+    xs = np.linspace(lo, hi, 4000)
+    x_bound = sample_domain(lo, hi, 2000)
+    y_true_bound = safe_eval(expr, x_bound)
+    scale = _f_scale(expr, lo, hi)
     bounds_pct = []
+    empirical_pct = []
 
     for i in range(len(nonzero_terms)):
         max_degree = nonzero_terms[i][0]
@@ -144,15 +156,28 @@ def lagrange_bounds_for_partials(expr, center, nonzero_terms, xmin, xmax):
                 under="ignore",
             ):
                 dvals = np.abs(np.asarray(f_d(xs), dtype=float))
-            M = float(np.nanmax(dvals[np.isfinite(dvals)])) if np.any(np.isfinite(dvals)) else 0.0
+            finite = dvals[np.isfinite(dvals)]
+            if finite.size:
+                M = float(np.nanmax(finite))
+            else:
+                M = 0.0
         except Exception:
             M = 0.0
         if not np.isfinite(M):
             M = 0.0
-        bound = M * (r**order) / float(sp.factorial(order))
-        bounds_pct.append((bound / scale) * 100.0)
 
-    return bounds_pct
+        bound = M * (r**order) / float(sp.factorial(order))
+        if not np.isfinite(bound):
+            bound = 0.0
+        bounds_pct.append((bound / scale) * 100.0 if scale > 0 else 0.0)
+
+        y_partial = safe_eval(partial_exprs[i], x_bound, clip=1.0e9)
+        err_vals = np.abs(y_true_bound - y_partial)
+        err_finite = err_vals[np.isfinite(err_vals)]
+        empirical = float(np.nanmax(err_finite)) if err_finite.size else 0.0
+        empirical_pct.append((empirical / scale) * 100.0 if scale > 0 else 0.0)
+
+    return bounds_pct, empirical_pct
 
 
 class TaylorApi:
@@ -178,6 +203,8 @@ class TaylorApi:
             n_terms = int((payload or {}).get("terms", 8))
             xmin = float((payload or {}).get("xmin", -4.0))
             xmax = float((payload or {}).get("xmax", 4.0))
+            bound_xmin = float((payload or {}).get("boundXmin", xmin))
+            bound_xmax = float((payload or {}).get("boundXmax", xmax))
             samples = int((payload or {}).get("samples", 1400))
             if xmin >= xmax:
                 return {"ok": False, "error": "xmin must be < xmax."}
@@ -201,8 +228,13 @@ class TaylorApi:
                 for i in range(len(nonzero_terms))
             ]
             latex_png_steps = [render_latex_png(body) for body in latex_steps]
-            error_bound_pct = lagrange_bounds_for_partials(
-                expr, center, nonzero_terms, xmin, xmax
+            error_bound_pct, empirical_error_pct = lagrange_bounds_for_partials(
+                expr,
+                center,
+                nonzero_terms,
+                bound_xmin,
+                bound_xmax,
+                partial_exprs,
             )
 
             return plot_payload(
@@ -216,6 +248,8 @@ class TaylorApi:
                     "latexSteps": latex_steps,
                     "latexPngSteps": latex_png_steps,
                     "errorBoundPct": error_bound_pct,
+                    "empiricalErrorPct": empirical_error_pct,
+                    "errorWindow": [bound_xmin, bound_xmax],
                     "termCount": len(partial_exprs),
                 },
             )

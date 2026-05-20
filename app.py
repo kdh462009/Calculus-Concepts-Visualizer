@@ -19,49 +19,54 @@ from polar import PolarApi
 
 VISUALIZERS = [
     {
-        "id": "taylor",
-        "title": "Taylor Series",
-        "subtitle": "Animated polynomial approximations around a center point",
-        "symbol": "∑",
-        "path": "ui/taylor/index.html",
-    },
-    {
-        "id": "riemann",
-        "title": "Riemann Sums",
-        "subtitle": "Compare left/right/mid/trapezoid sums against the definite integral",
-        "symbol": "∫",
-        "path": "ui/riemann/index.html",
-    },
-    {
-        "id": "derivatives",
-        "title": "Derivatives",
-        "subtitle": "Animate tangent slope, first derivative, and second-derivative concavity",
-        "symbol": "f′",
-        "path": "ui/derivatives/index.html",
-    },
-    {
-        "id": "volume_rotation",
-        "title": "Volume Rotation",
-        "subtitle": "Rotate bounded regions around an axis to visualize solids of revolution",
-        "symbol": "⟳V",
-        "path": "ui/volume_rotation/index.html",
-    },
-    {
         "id": "limit",
+        "unit": 1,
+        "unitTitle": "Limits & Continuity",
         "title": "Limits (Epsilon-Delta)",
         "subtitle": "Animate shrinking epsilon bands and delta neighborhoods to visualize convergence",
         "symbol": "εδ",
         "path": "ui/limit/index.html",
     },
     {
+        "id": "derivatives",
+        "unit": 2,
+        "unitTitle": "Differentiation Fundamentals",
+        "title": "Derivatives",
+        "subtitle": "Animate tangent slope, first derivative, and second-derivative concavity",
+        "symbol": "f′",
+        "path": "ui/derivatives/index.html",
+    },
+    {
         "id": "inverse",
+        "unit": 3,
+        "unitTitle": "Composite, Implicit & Inverse Functions",
         "title": "Inverse Visualizer",
         "subtitle": "Animate f(x), f⁻¹(x), and derivative relationships on a shared view",
         "symbol": "f⁻¹",
         "path": "ui/inverse/index.html",
     },
     {
+        "id": "riemann",
+        "unit": 6,
+        "unitTitle": "Integration & Accumulation",
+        "title": "Riemann Sums",
+        "subtitle": "Compare left/right/mid/trapezoid sums against the definite integral",
+        "symbol": "∫",
+        "path": "ui/riemann/index.html",
+    },
+    {
+        "id": "volume_rotation",
+        "unit": 8,
+        "unitTitle": "Applications of Integration",
+        "title": "Volume Rotation",
+        "subtitle": "Rotate bounded regions around an axis to visualize solids of revolution",
+        "symbol": "⟳V",
+        "path": "ui/volume_rotation/index.html",
+    },
+    {
         "id": "parametric",
+        "unit": 9,
+        "unitTitle": "Parametric, Polar & Vector-Valued Functions",
         "title": "Parametric Curves",
         "subtitle": "Animate x(t), y(t), velocity, and motion vectors",
         "symbol": "(x,y)",
@@ -69,10 +74,21 @@ VISUALIZERS = [
     },
     {
         "id": "polar",
+        "unit": 9,
+        "unitTitle": "Parametric, Polar & Vector-Valued Functions",
         "title": "Polar Area",
         "subtitle": "Shade polar regions with sector slices and compare two curves",
         "symbol": "rθ",
         "path": "ui/polar/index.html",
+    },
+    {
+        "id": "taylor",
+        "unit": 10,
+        "unitTitle": "Infinite Sequences & Series",
+        "title": "Taylor Series",
+        "subtitle": "Animated polynomial approximations around a center point",
+        "symbol": "∑",
+        "path": "ui/taylor/index.html",
     },
 ]
 
@@ -101,9 +117,10 @@ class AppApi:
         threading.Timer(0.12, _navigate).start()
 
     def get_visualizers(self):
+        items = sorted(VISUALIZERS, key=lambda item: (item["unit"], item["title"]))
         return [
             {k: v for k, v in item.items() if k != "path"}
-            for item in VISUALIZERS
+            for item in items
         ]
 
     def open_visualizer(self, visualizer_id: str):

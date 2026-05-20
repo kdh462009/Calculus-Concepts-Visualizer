@@ -442,8 +442,8 @@ function payloadFromInputs() {
     mode: el.modeInput.value,
     rExpr: el.rExprInput.value.trim(),
     r2Expr: el.r2ExprInput.value.trim(),
-    alpha: Number(el.alphaInput.value),
-    beta: Number(el.betaInput.value),
+    alpha: el.alphaInput.value.trim(),
+    beta: el.betaInput.value.trim(),
     nSectors: Number(el.nInput.value),
     samples: 1800,
   };

@@ -87,14 +87,43 @@ let _navigating = false;
 async function navigateWithWoosh(direction, navigateFn) {
   if (_navigating) return;
   _navigating = true;
+  window.__vizNavigating = true;
   try {
     sessionStorage.setItem(TRANSITION_KEY, direction);
     await playWooshOut(direction);
     await navigateFn();
   } finally {
     _navigating = false;
+    window.__vizNavigating = false;
   }
 }
+
+// PyWebView can throw when a page navigates away while an async API call is in-flight,
+// because the callback map is cleared on the new page. Suppress those navigation-time
+// callback errors so they don't surface as noisy uncaught exceptions.
+(function installPyWebviewNavigationGuards() {
+  if (window.__pywebviewNavGuardsInstalled) return;
+  window.__pywebviewNavGuardsInstalled = true;
+
+  function isPyWebviewCallbackGoneError(reason) {
+    const msg = String(
+      reason?.message || reason?.error || reason?.reason || reason || "",
+    );
+    return msg.includes("_returnValuesCallbacks") && msg.includes("is undefined");
+  }
+
+  window.addEventListener("unhandledrejection", (event) => {
+    if (!window.__vizNavigating) return;
+    if (!isPyWebviewCallbackGoneError(event.reason)) return;
+    event.preventDefault();
+  });
+
+  window.addEventListener("error", (event) => {
+    if (!window.__vizNavigating) return;
+    if (!isPyWebviewCallbackGoneError(event?.error || event?.message)) return;
+    event.preventDefault();
+  });
+})();
 
 window.VizTransition = {
   forward: "forward",

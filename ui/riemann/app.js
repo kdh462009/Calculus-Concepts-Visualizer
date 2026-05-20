@@ -262,6 +262,20 @@ function nextAnimationValues(n0, nMax) {
   return values;
 }
 
+function riemannPayload(extra = {}) {
+  return {
+    expr: el.exprInput.value.trim(),
+    sumType: el.sumTypeInput.value,
+    a: Number(el.aInput.value),
+    b: Number(el.bInput.value),
+    n: Number(el.nInput.value),
+    xmin: Number(el.xminInput.value),
+    xmax: Number(el.xmaxInput.value),
+    samples: 2200,
+    ...extra,
+  };
+}
+
 function frameLoop(ts) {
   if (!anim.animating) return;
   if (!anim.lastTs) anim.lastTs = ts;
@@ -294,16 +308,7 @@ function frameLoop(ts) {
 }
 
 async function runAnimation() {
-  const payload = {
-    expr: el.exprInput.value.trim(),
-    sumType: el.sumTypeInput.value,
-    a: Number(el.aInput.value),
-    b: Number(el.bInput.value),
-    n: Number(el.nInput.value),
-    xmin: Number(el.xminInput.value),
-    xmax: Number(el.xmaxInput.value),
-    samples: 2200,
-  };
+  const payload = riemannPayload();
 
   if (!payload.expr) {
     setStatus("Please enter a function.");
@@ -410,7 +415,7 @@ async function bootstrap() {
   viewer = new GraphViewer($("plotCanvas"));
   viewer.onDomainExpand = (payload) => {
     if (anim.animating || view.showApprox) {
-      return window.pywebview.api.compute_riemann(payload);
+      return window.pywebview.api.compute_riemann(riemannPayload(payload));
     }
     return window.pywebview.api.preview_function(payload);
   };

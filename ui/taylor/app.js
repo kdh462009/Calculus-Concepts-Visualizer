@@ -26,15 +26,37 @@ function setTermCounter(text) {
   el.termCounter.textContent = text;
 }
 
+function formatErrorPct(pct) {
+  if (!Number.isFinite(pct)) return "—";
+  if (pct >= 1e6) return ">1,000,000";
+  if (pct >= 100) return pct.toFixed(1);
+  if (pct >= 1) return pct.toFixed(2);
+  return pct.toFixed(3);
+}
+
+function errorWindowLabel(data) {
+  const w = data?.errorWindow;
+  if (Array.isArray(w) && w.length === 2) {
+    return `x ∈ [${w[0]}, ${w[1]}]`;
+  }
+  return "plot window";
+}
+
 function updateTaylorHeader(termIdx) {
   if (!viewer?.data) return;
   const idx = Math.max(0, Math.min(termIdx, (viewer.data.termCount || 1) - 1));
   const bounds = viewer.data.errorBoundPct;
+  const observed = viewer.data.empiricalErrorPct;
   const pngs = viewer.data.latexPngSteps;
   if (bounds?.length) {
-    const pct = bounds[idx];
-    el.errorBound.textContent =
-      `Lagrange error bound ≤ ~${pct.toFixed(2)}% of max |f(x)| on plot window`;
+    const lagrange = bounds[idx];
+    const maxErr = observed?.[idx];
+    const window = errorWindowLabel(viewer.data);
+    let text = `Lagrange error bound ≤ ~${formatErrorPct(lagrange)}% of max |f(x)| on ${window}`;
+    if (Number.isFinite(maxErr)) {
+      text += ` (max observed error ~${formatErrorPct(maxErr)}%)`;
+    }
+    el.errorBound.textContent = text;
   }
   if (pngs?.length) {
     el.latexImage.src = pngs[idx];
@@ -70,13 +92,22 @@ function blendedCurve(curA, curB, t) {
   return out;
 }
 
-function previewPayload() {
+function computePayload(extra = {}) {
   return {
     expr: el.exprInput.value.trim(),
+    center: Number(el.centerInput.value),
+    terms: Number(el.termsInput.value),
     xmin: Number(el.xminInput.value),
     xmax: Number(el.xmaxInput.value),
+    boundXmin: Number(el.xminInput.value),
+    boundXmax: Number(el.xmaxInput.value),
     samples: 1400,
+    ...extra,
   };
+}
+
+function previewPayload() {
+  return computePayload();
 }
 
 function currentDisplayedCurve() {
@@ -165,14 +196,7 @@ function loop(ts) {
 }
 
 async function runAnimation() {
-  const payload = {
-    expr: el.exprInput.value.trim(),
-    center: Number(el.centerInput.value),
-    terms: Number(el.termsInput.value),
-    xmin: Number(el.xminInput.value),
-    xmax: Number(el.xmaxInput.value),
-    samples: 1400,
-  };
+  const payload = computePayload();
   if (!payload.expr) {
     setStatus("Please enter a function.");
     return;
@@ -270,10 +294,15 @@ async function bootstrap() {
 
   viewer = new GraphViewer($("plotCanvas"));
   viewer.onDomainExpand = (payload) => {
+    const withBounds = {
+      ...payload,
+      boundXmin: Number(el.xminInput.value),
+      boundXmax: Number(el.xmaxInput.value),
+    };
     if (anim.animating || view.showApprox) {
-      return window.pywebview.api.compute(payload);
+      return window.pywebview.api.compute(withBounds);
     }
-    return window.pywebview.api.preview_function(payload);
+    return window.pywebview.api.preview_function(withBounds);
   };
   viewer.onDataExpanded = (result, payload) => {
     if (result.termCount) {
