@@ -1,3 +1,5 @@
+const PLOT_PAD = 12;
+
 const state = {
   data: null,
   animating: false,
@@ -62,30 +64,44 @@ class LimitRenderer {
     return [ymin - pad, ymax + pad];
   }
 
+  plotArea() {
+    return {
+      left: PLOT_PAD,
+      top: PLOT_PAD,
+      width: this.w - 2 * PLOT_PAD,
+      height: this.h - 2 * PLOT_PAD,
+      right: this.w - PLOT_PAD,
+      bottom: this.h - PLOT_PAD,
+    };
+  }
+
   mapX(x, xmin, xmax) {
-    return 54 + ((x - xmin) / (xmax - xmin)) * (this.w - 74);
+    const p = this.plotArea();
+    return p.left + ((x - xmin) / (xmax - xmin)) * p.width;
   }
 
   mapY(y, ymin, ymax) {
-    return 16 + (1 - (y - ymin) / (ymax - ymin)) * (this.h - 38);
+    const p = this.plotArea();
+    return p.top + (1 - (y - ymin) / (ymax - ymin)) * p.height;
   }
 
   drawGrid(xmin, xmax, ymin, ymax) {
     const ctx = this.ctx;
+    const p = this.plotArea();
     ctx.strokeStyle = "rgba(142, 164, 230, 0.18)";
     ctx.lineWidth = 1;
     for (let i = 0; i <= 8; i += 1) {
-      const x = 54 + (i / 8) * (this.w - 74);
+      const x = p.left + (i / 8) * p.width;
       ctx.beginPath();
-      ctx.moveTo(x, 16);
-      ctx.lineTo(x, this.h - 22);
+      ctx.moveTo(x, p.top);
+      ctx.lineTo(x, p.bottom);
       ctx.stroke();
     }
     for (let j = 0; j <= 8; j += 1) {
-      const y = 16 + (j / 8) * (this.h - 38);
+      const y = p.top + (j / 8) * p.height;
       ctx.beginPath();
-      ctx.moveTo(54, y);
-      ctx.lineTo(this.w - 20, y);
+      ctx.moveTo(p.left, y);
+      ctx.lineTo(p.right, y);
       ctx.stroke();
     }
 
@@ -93,10 +109,10 @@ class LimitRenderer {
     const y0 = this.mapY(0, ymin, ymax);
     ctx.strokeStyle = "rgba(142, 164, 230, 0.52)";
     ctx.beginPath();
-    ctx.moveTo(x0, 16);
-    ctx.lineTo(x0, this.h - 22);
-    ctx.moveTo(54, y0);
-    ctx.lineTo(this.w - 20, y0);
+    ctx.moveTo(x0, p.top);
+    ctx.lineTo(x0, p.bottom);
+    ctx.moveTo(p.left, y0);
+    ctx.lineTo(p.right, y0);
     ctx.stroke();
   }
 
@@ -134,31 +150,32 @@ class LimitRenderer {
     const xLeft = this.mapX(a - delta, xmin, xmax);
     const xRight = this.mapX(a + delta, xmin, xmax);
 
+    const p = this.plotArea();
     ctx.fillStyle = "rgba(245, 200, 66, 0.17)";
-    ctx.fillRect(54, yTop, this.w - 74, yBot - yTop);
+    ctx.fillRect(p.left, yTop, p.width, yBot - yTop);
     ctx.strokeStyle = "rgba(245, 200, 66, 0.95)";
     ctx.lineWidth = 1.3;
     ctx.setLineDash([7, 5]);
     ctx.beginPath();
-    ctx.moveTo(54, yTop);
-    ctx.lineTo(this.w - 20, yTop);
-    ctx.moveTo(54, yBot);
-    ctx.lineTo(this.w - 20, yBot);
+    ctx.moveTo(p.left, yTop);
+    ctx.lineTo(p.right, yTop);
+    ctx.moveTo(p.left, yBot);
+    ctx.lineTo(p.right, yBot);
     ctx.stroke();
     ctx.setLineDash([]);
 
     ctx.fillStyle = "rgba(124, 106, 247, 0.14)";
     const xA = this.mapX(a, xmin, xmax);
-    ctx.fillRect(xLeft, 16, xRight - xLeft, this.h - 38);
+    ctx.fillRect(xLeft, p.top, xRight - xLeft, p.height);
     ctx.strokeStyle = "rgba(124, 106, 247, 0.95)";
     ctx.setLineDash([7, 5]);
     ctx.beginPath();
-    ctx.moveTo(xLeft, 16);
-    ctx.lineTo(xLeft, this.h - 22);
-    ctx.moveTo(xRight, 16);
-    ctx.lineTo(xRight, this.h - 22);
-    ctx.moveTo(xA, 16);
-    ctx.lineTo(xA, this.h - 22);
+    ctx.moveTo(xLeft, p.top);
+    ctx.lineTo(xLeft, p.bottom);
+    ctx.moveTo(xRight, p.top);
+    ctx.lineTo(xRight, p.bottom);
+    ctx.moveTo(xA, p.top);
+    ctx.lineTo(xA, p.bottom);
     ctx.stroke();
     ctx.setLineDash([]);
 

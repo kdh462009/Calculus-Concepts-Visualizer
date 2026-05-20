@@ -1,3 +1,5 @@
+const PLOT_PAD = 12;
+
 const state = {
   data: null,
   params: null,
@@ -63,17 +65,30 @@ class PolarRenderer {
     this.draw();
   }
 
+  plotArea() {
+    return {
+      left: PLOT_PAD,
+      top: PLOT_PAD,
+      width: this.w - 2 * PLOT_PAD,
+      height: this.h - 2 * PLOT_PAD,
+      right: this.w - PLOT_PAD,
+      bottom: this.h - PLOT_PAD,
+    };
+  }
+
   worldToScreen(x, y) {
     const v = state.view;
-    const sx = 54 + ((x - v.xmin) / (v.xmax - v.xmin)) * (this.w - 74);
-    const sy = 16 + (1 - (y - v.ymin) / (v.ymax - v.ymin)) * (this.h - 38);
+    const p = this.plotArea();
+    const sx = p.left + ((x - v.xmin) / (v.xmax - v.xmin)) * p.width;
+    const sy = p.top + (1 - (y - v.ymin) / (v.ymax - v.ymin)) * p.height;
     return [sx, sy];
   }
 
   screenToWorld(sx, sy) {
     const v = state.view;
-    const x = v.xmin + ((sx - 54) / (this.w - 74)) * (v.xmax - v.xmin);
-    const y = v.ymax - ((sy - 16) / (this.h - 38)) * (v.ymax - v.ymin);
+    const p = this.plotArea();
+    const x = v.xmin + ((sx - p.left) / p.width) * (v.xmax - v.xmin);
+    const y = v.ymax - ((sy - p.top) / p.height) * (v.ymax - v.ymin);
     return [x, y];
   }
 
@@ -121,15 +136,16 @@ class PolarRenderer {
       ctx.stroke();
     }
 
+    const p = this.plotArea();
     const [x0] = this.worldToScreen(0, v.ymin);
     const [, y0] = this.worldToScreen(v.xmin, 0);
     ctx.strokeStyle = "rgba(188, 200, 240, 0.72)";
     ctx.lineWidth = 1.3;
     ctx.beginPath();
-    ctx.moveTo(x0, 16);
-    ctx.lineTo(x0, this.h - 22);
-    ctx.moveTo(54, y0);
-    ctx.lineTo(this.w - 20, y0);
+    ctx.moveTo(x0, p.top);
+    ctx.lineTo(x0, p.bottom);
+    ctx.moveTo(p.left, y0);
+    ctx.lineTo(p.right, y0);
     ctx.stroke();
   }
 

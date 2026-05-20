@@ -226,12 +226,20 @@ input[type="range"]::-webkit-slider-thumb {
 .plot-wrap {
   padding: 12px;
   overflow: hidden;
+  min-height: 0;
+  display: flex;
+}
+
+.plot-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  border-radius: 16px;
 }
 
 #plotCanvas {
-  width: 100%;
-  height: 100%;
-  border-radius: 16px;
   cursor: crosshair;
 }
 
