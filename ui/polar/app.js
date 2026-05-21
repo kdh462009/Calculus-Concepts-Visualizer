@@ -177,32 +177,33 @@ class PolarRenderer {
   }
 
   sectorBoundaryPoints(sector, compare) {
-    const steps = 10;
+    const steps = 16;
     const t0 = sector.theta0;
     const t1 = sector.theta1;
     const outer = [];
     const inner = [];
     for (let s = 0; s <= steps; s += 1) {
       const th = t0 + (s / steps) * (t1 - t0);
-      let ro;
-      let ri;
-      if (compare) {
-        const ro0 = sector.rOuter0;
-        const ri0 = sector.rInner0;
-        const ro1 = sector.rOuter1;
-        const ri1 = sector.rInner1;
-        const u = s / steps;
-        ro = ro0 * (1 - u) + ro1 * u;
-        ri = ri0 * (1 - u) + ri1 * u;
+      const u = s / steps;
+      if (compare && sector.r1_0 != null) {
+        const r1 = sector.r1_0 * (1 - u) + sector.r1_1 * u;
+        const r2 = sector.r2_0 * (1 - u) + sector.r2_1 * u;
+        let rout;
+        let rin;
+        if (Math.abs(r1) >= Math.abs(r2)) {
+          rout = r1;
+          rin = r2;
+        } else {
+          rout = r2;
+          rin = r1;
+        }
+        outer.push(this.polarPoint(rout, th));
+        inner.push(this.polarPoint(rin, th));
       } else {
-        const ro0 = sector.rOuter0;
-        const ro1 = sector.rOuter1;
-        const u = s / steps;
-        ro = ro0 * (1 - u) + ro1 * u;
-        ri = 0;
+        const r = sector.rOuter0 * (1 - u) + sector.rOuter1 * u;
+        outer.push(this.polarPoint(r, th));
+        inner.push([0, 0]);
       }
-      outer.push(this.polarPoint(ro, th));
-      inner.push(this.polarPoint(ri, th));
     }
     return { outer, inner };
   }
@@ -210,9 +211,8 @@ class PolarRenderer {
   drawSector(sector, compare, fillAlpha, strokeOnly = false) {
     const ctx = this.ctx;
     const { outer, inner } = this.sectorBoundaryPoints(sector, compare);
-    ctx.beginPath();
-    const [ox0, oy0] = outer[0];
     const [isx, isy] = this.worldToScreen(0, 0);
+    ctx.beginPath();
     ctx.moveTo(isx, isy);
     for (const [x, y] of outer) {
       const [sx, sy] = this.worldToScreen(x, y);

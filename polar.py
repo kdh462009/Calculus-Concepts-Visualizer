@@ -118,8 +118,9 @@ def _interp_r(th_vals, r_vals, t):
 
 
 def _outer_inner(r1: float, r2: float) -> tuple[float, float]:
-    a1 = max(float(r1), 0.0)
-    a2 = max(float(r2), 0.0)
+    """Farthest / nearest distance from pole (signed r may be negative)."""
+    a1 = abs(float(r1))
+    a2 = abs(float(r2))
     return (max(a1, a2), min(a1, a2))
 
 
@@ -157,8 +158,23 @@ def _find_intersections_eval(f1, f2, th_vals):
     return out
 
 
-def _sector_payload(i, t0, t1, r_inner_0, r_inner_1, r_outer_0, r_outer_1, area, cumulative):
-    return {
+def _sector_payload(
+    i,
+    t0,
+    t1,
+    r_inner_0,
+    r_inner_1,
+    r_outer_0,
+    r_outer_1,
+    area,
+    cumulative,
+    *,
+    r1_0=None,
+    r1_1=None,
+    r2_0=None,
+    r2_1=None,
+):
+    out = {
         "index": i,
         "theta0": t0,
         "theta1": t1,
@@ -169,6 +185,12 @@ def _sector_payload(i, t0, t1, r_inner_0, r_inner_1, r_outer_0, r_outer_1, area,
         "area": area,
         "cumulative": cumulative,
     }
+    if r1_0 is not None:
+        out["r1_0"] = r1_0
+        out["r1_1"] = r1_1
+        out["r2_0"] = r2_0
+        out["r2_1"] = r2_1
+    return out
 
 
 def _build_sectors_single(th_vals, r_vals, n_sectors):
@@ -179,12 +201,14 @@ def _build_sectors_single(th_vals, r_vals, n_sectors):
     for i in range(n_sectors):
         t0, t1 = float(edges[i]), float(edges[i + 1])
         d_theta = t1 - t0
-        r0 = max(_interp_r(th_vals, r_vals, t0), 0.0)
-        r1 = max(_interp_r(th_vals, r_vals, t1), 0.0)
-        rm = max(_interp_r(th_vals, r_vals, 0.5 * (t0 + t1)), 0.0)
-        area = 0.5 * (rm ** 2) * d_theta
+        r0s = _interp_r(th_vals, r_vals, t0)
+        r1s = _interp_r(th_vals, r_vals, t1)
+        rms = _interp_r(th_vals, r_vals, 0.5 * (t0 + t1))
+        area = 0.5 * (rms ** 2) * d_theta
         cumulative += area
-        sectors.append(_sector_payload(i, t0, t1, 0.0, 0.0, r0, r1, area, cumulative))
+        sectors.append(
+            _sector_payload(i, t0, t1, 0.0, 0.0, r0s, r1s, area, cumulative)
+        )
     return sectors, cumulative
 
 
@@ -203,11 +227,33 @@ def _build_sectors_compare(th_vals, r1_vals, r2_vals, n_sectors):
         rm1 = _interp_r(th_vals, r1_vals, 0.5 * (t0 + t1))
         rm2 = _interp_r(th_vals, r2_vals, 0.5 * (t0 + t1))
         ro, ri = _outer_inner(rm1, rm2)
-        ro0, ri0 = _outer_inner(r1_0, r2_0)
-        ro1, ri1 = _outer_inner(r1_1, r2_1)
         area = 0.5 * (ro ** 2 - ri ** 2) * d_theta
         cumulative += area
-        sectors.append(_sector_payload(i, t0, t1, ri0, ri1, ro0, ro1, area, cumulative))
+        if abs(r1_0) >= abs(r2_0):
+            rout0, rin0 = r1_0, r2_0
+        else:
+            rout0, rin0 = r2_0, r1_0
+        if abs(r1_1) >= abs(r2_1):
+            rout1, rin1 = r1_1, r2_1
+        else:
+            rout1, rin1 = r2_1, r1_1
+        sectors.append(
+            _sector_payload(
+                i,
+                t0,
+                t1,
+                rin0,
+                rin1,
+                rout0,
+                rout1,
+                area,
+                cumulative,
+                r1_0=r1_0,
+                r1_1=r1_1,
+                r2_0=r2_0,
+                r2_1=r2_1,
+            )
+        )
     return sectors, cumulative
 
 
@@ -215,7 +261,7 @@ def _high_res_area_single(r_expr, alpha, beta):
     th = np.linspace(alpha, beta, 8000)
     r = safe_eval_theta(r_expr, th)
     valid = np.isfinite(r)
-    return float(np.trapezoid(0.5 * np.clip(r[valid], 0, None) ** 2, th[valid]))
+    return float(np.trapezoid(0.5 * r[valid] ** 2, th[valid]))
 
 
 def _high_res_area_compare(r1_expr, r2_expr, alpha, beta):
@@ -223,8 +269,8 @@ def _high_res_area_compare(r1_expr, r2_expr, alpha, beta):
     r1 = safe_eval_theta(r1_expr, th)
     r2 = safe_eval_theta(r2_expr, th)
     valid = np.isfinite(r1) & np.isfinite(r2)
-    r1v = np.clip(r1[valid], 0, None)
-    r2v = np.clip(r2[valid], 0, None)
+    r1v = np.abs(r1[valid])
+    r2v = np.abs(r2[valid])
     integrand = 0.5 * (np.maximum(r1v, r2v) ** 2 - np.minimum(r1v, r2v) ** 2)
     return float(np.trapezoid(integrand, th[valid]))
 
