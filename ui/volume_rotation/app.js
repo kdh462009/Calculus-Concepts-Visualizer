@@ -160,6 +160,9 @@ class VolumeRenderer {
     const ctx = this.ctx;
     if (!profile.length) return;
 
+    const axis = data.axis === "y" ? "y" : "x";
+    const maxY = 1.02 * (data.scaleHints.maxAbsY || 1);
+
     ctx.beginPath();
     const p0 = this.project({ x: profile[0].x, y: 0, z: 0 }, scale, yaw, pitch);
     ctx.moveTo(p0.x, p0.y);
@@ -179,9 +182,9 @@ class VolumeRenderer {
     const a = data.bounds[0];
     const b = data.bounds[1];
     const pa0 = this.project({ x: a, y: 0, z: 0 }, scale, yaw, pitch);
-    const pa1 = this.project({ x: a, y: 1.02 * (data.scaleHints.maxAbsY || 1), z: 0 }, scale, yaw, pitch);
+    const pa1 = this.project({ x: a, y: maxY, z: 0 }, scale, yaw, pitch);
     const pb0 = this.project({ x: b, y: 0, z: 0 }, scale, yaw, pitch);
-    const pb1 = this.project({ x: b, y: 1.02 * (data.scaleHints.maxAbsY || 1), z: 0 }, scale, yaw, pitch);
+    const pb1 = this.project({ x: b, y: maxY, z: 0 }, scale, yaw, pitch);
     ctx.strokeStyle = "rgba(245, 200, 66, 0.6)";
     ctx.setLineDash([5, 4]);
     ctx.beginPath();
@@ -191,6 +194,30 @@ class VolumeRenderer {
     ctx.lineTo(pb1.x, pb1.y);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    const rotColor = axis === "x" ? "#6fb8ff" : "#8ef6c7";
+    const rotLabel = axis === "x" ? "rotation axis (x)" : "rotation axis (y)";
+    const rotFrom =
+      axis === "x"
+        ? { x: Math.min(a, b) - 0.2, y: 0, z: 0 }
+        : { x: 0, y: 0, z: 0 };
+    const rotTo =
+      axis === "x"
+        ? { x: Math.max(a, b) + 0.2, y: 0, z: 0 }
+        : { x: 0, y: maxY, z: 0 };
+    const rp0 = this.project(rotFrom, scale, yaw, pitch);
+    const rp1 = this.project(rotTo, scale, yaw, pitch);
+    ctx.strokeStyle = rotColor;
+    ctx.lineWidth = 2.4;
+    ctx.setLineDash([8, 5]);
+    ctx.beginPath();
+    ctx.moveTo(rp0.x, rp0.y);
+    ctx.lineTo(rp1.x, rp1.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = rotColor;
+    ctx.font = "12px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillText(rotLabel, rp1.x + 6, rp1.y - 4);
   }
 
   drawSurface(data, profile, maxTheta, scale, yaw, pitch) {
@@ -253,7 +280,7 @@ class VolumeRenderer {
     if (!data) {
       ctx.fillStyle = "#94a3d9";
       ctx.font = "15px -apple-system, BlinkMacSystemFont, sans-serif";
-      ctx.fillText("Compute a function first.", 20, 34);
+      ctx.fillText("Press ANIMATE ROTATION to compute and animate.", 20, 34);
       return;
     }
 
@@ -338,9 +365,19 @@ function payloadFromInputs() {
 }
 
 function renderReadouts(data) {
+  const axisLabel = data.axis === "y" ? "y-axis" : "x-axis";
   el.areaReadout.textContent = `Area [a,b]: ${data.area.toFixed(6)}`;
-  el.volumeReadout.textContent = `Volume: ${data.volume.toFixed(6)}`;
+  el.volumeReadout.textContent = `Volume (${axisLabel}): ${data.volume.toFixed(6)}`;
   el.formulaLine.textContent = `${data.areaFormula}   |   ${data.volumeFormula}`;
+}
+
+function invalidateModel() {
+  state.data = null;
+  stopAnimation();
+  el.volumeReadout.textContent = "Volume: --";
+  el.areaReadout.textContent = "";
+  el.formulaLine.textContent = "Press ▶ ANIMATE ROTATION to compute and animate.";
+  drawCurrentFrame();
 }
 
 async function computeModel() {
@@ -365,8 +402,28 @@ async function computeModel() {
   state.zoom = 1;
   renderReadouts(result);
   drawCurrentFrame();
-  setStatus(`computed on [${payload.a}, ${payload.b}] around ${payload.axis}-axis. drag to move view.`);
+  const axisLabel = payload.axis === "y" ? "y-axis" : "x-axis";
+  setStatus(`computed on [${payload.a}, ${payload.b}] around ${axisLabel}. drag to move view.`);
   return true;
+}
+
+async function startAnimation() {
+  stopAnimation();
+  const ok = await computeModel();
+  if (!ok) return;
+
+  state.animating = true;
+  state.paused = false;
+  state.lastTs = 0;
+  state.elapsed = 0;
+  state.sweepAngle = 0;
+  state.camPitch = 0;
+  state.camYaw = 0;
+  state.viewOffsetX = 0;
+  state.viewOffsetY = 0;
+  state.zoom = 1;
+  setStatus("animating rotation...");
+  state.rafId = requestAnimationFrame(loop);
 }
 
 function wireInteractions() {
@@ -445,27 +502,13 @@ function wireInteractions() {
     });
   }
 
-  el.computeBtn.addEventListener("click", async () => {
-    stopAnimation();
-    await computeModel();
+  el.animateBtn.addEventListener("click", () => {
+    startAnimation();
   });
 
-  el.animateBtn.addEventListener("click", async () => {
-    stopAnimation();
-    const ok = state.data ? true : await computeModel();
-    if (!ok) return;
-    state.animating = true;
-    state.paused = false;
-    state.lastTs = 0;
-    state.elapsed = 0;
-    state.sweepAngle = 0;
-    state.camPitch = 0;
-    state.camYaw = 0;
-    state.viewOffsetX = 0;
-    state.viewOffsetY = 0;
-    state.zoom = 1;
-    setStatus("animating rotation...");
-    state.rafId = requestAnimationFrame(loop);
+  [el.exprInput, el.axisInput, el.aInput, el.bInput, el.xminInput, el.xmaxInput].forEach((input) => {
+    input.addEventListener("input", invalidateModel);
+    input.addEventListener("change", invalidateModel);
   });
 
   el.pauseBtn.addEventListener("click", () => {
@@ -508,7 +551,6 @@ async function bootstrap() {
   el.xmaxInput = $("xmaxInput");
   el.speedInput = $("speedInput");
   el.speedValue = $("speedValue");
-  el.computeBtn = $("computeBtn");
   el.animateBtn = $("animateBtn");
   el.pauseBtn = $("pauseBtn");
   el.resetBtn = $("resetBtn");
@@ -542,13 +584,13 @@ async function bootstrap() {
     btn.textContent = label;
     btn.addEventListener("click", () => {
       el.exprInput.value = expr;
+      invalidateModel();
       setStatus(`preset: ${expr}`);
     });
     presets.appendChild(btn);
   });
 
   wireInteractions();
-  await computeModel();
 }
 
 whenApiReady(bootstrap);
