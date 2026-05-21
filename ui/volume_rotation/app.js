@@ -371,16 +371,19 @@ function renderReadouts(data) {
   el.formulaLine.textContent = `${data.areaFormula}   |   ${data.volumeFormula}`;
 }
 
-function invalidateModel() {
-  state.data = null;
-  stopAnimation();
-  el.volumeReadout.textContent = "Volume: --";
-  el.areaReadout.textContent = "";
-  el.formulaLine.textContent = "Press ▶ ANIMATE ROTATION to compute and animate.";
-  drawCurrentFrame();
+let previewTimer = null;
+
+function schedulePreview() {
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    previewTimer = null;
+    if (state.animating) return;
+    await computeModel({ preview: true });
+  }, 350);
 }
 
-async function computeModel() {
+async function computeModel(options = {}) {
+  const { preview = false } = options;
   const payload = payloadFromInputs();
   if (!payload.expr) {
     setStatus("Please enter a function.");
@@ -403,7 +406,11 @@ async function computeModel() {
   renderReadouts(result);
   drawCurrentFrame();
   const axisLabel = payload.axis === "y" ? "y-axis" : "x-axis";
-  setStatus(`computed on [${payload.a}, ${payload.b}] around ${axisLabel}. drag to move view.`);
+  if (preview) {
+    setStatus(`preview on [${payload.a}, ${payload.b}] around ${axisLabel}. press ANIMATE ROTATION to sweep.`);
+  } else {
+    setStatus(`computed on [${payload.a}, ${payload.b}] around ${axisLabel}. drag to move view.`);
+  }
   return true;
 }
 
@@ -507,8 +514,14 @@ function wireInteractions() {
   });
 
   [el.exprInput, el.axisInput, el.aInput, el.bInput, el.xminInput, el.xmaxInput].forEach((input) => {
-    input.addEventListener("input", invalidateModel);
-    input.addEventListener("change", invalidateModel);
+    input.addEventListener("input", () => {
+      stopAnimation();
+      schedulePreview();
+    });
+    input.addEventListener("change", () => {
+      stopAnimation();
+      schedulePreview();
+    });
   });
 
   el.pauseBtn.addEventListener("click", () => {
@@ -584,13 +597,15 @@ async function bootstrap() {
     btn.textContent = label;
     btn.addEventListener("click", () => {
       el.exprInput.value = expr;
-      invalidateModel();
+      stopAnimation();
+      schedulePreview();
       setStatus(`preset: ${expr}`);
     });
     presets.appendChild(btn);
   });
 
   wireInteractions();
+  await computeModel({ preview: true });
 }
 
 whenApiReady(bootstrap);
