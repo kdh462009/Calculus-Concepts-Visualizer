@@ -10,7 +10,7 @@
 })();
 
 const TRANSITION_KEY = "vizTransitionDir";
-const WOOSH_MS = 520;
+const WOOSH_MS = 340;
 
 function ensureOverlay() {
   let overlay = document.getElementById("wooshOverlay");
@@ -42,9 +42,11 @@ function playWooshOut(direction) {
 
   return new Promise((resolve) => {
     let settled = false;
+    let timeoutId = null;
     const finish = () => {
       if (settled) return;
       settled = true;
+      if (timeoutId) clearTimeout(timeoutId);
       overlay.classList.remove("active", "forward", "back");
       shell?.classList.remove(exitClass);
       resolve();
@@ -53,8 +55,11 @@ function playWooshOut(direction) {
     overlay.classList.add("active", direction);
     shell?.classList.add(exitClass);
 
+    // Listen on both shell and overlay so we can settle as soon as the
+    // first animation completes, while still having a hard fallback timeout.
     overlay.addEventListener("animationend", finish, { once: true });
-    setTimeout(finish, WOOSH_MS + 80);
+    shell?.addEventListener("animationend", finish, { once: true });
+    timeoutId = setTimeout(finish, WOOSH_MS + 120);
   });
 }
 
@@ -90,7 +95,9 @@ async function navigateWithWoosh(direction, navigateFn) {
   window.__vizNavigating = true;
   try {
     sessionStorage.setItem(TRANSITION_KEY, direction);
-    await playWooshOut(direction);
+    const wooshOutPromise = playWooshOut(direction);
+    // Start navigation before the full woosh completes to avoid a visible pause.
+    await Promise.race([wooshOutPromise, wait(Math.floor(WOOSH_MS * 0.55))]);
     await navigateFn();
   } finally {
     _navigating = false;

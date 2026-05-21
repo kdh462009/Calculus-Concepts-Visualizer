@@ -27,8 +27,9 @@
     rgba(245, 200, 66, 0.2) 72%,
     transparent 100%
   );
-  filter: blur(14px);
+  filter: blur(10px);
   opacity: 0;
+  will-change: transform, opacity;
 }
 
 .woosh-glow {
@@ -40,15 +41,16 @@
     transparent 70%
   );
   opacity: 0;
+  will-change: opacity;
 }
 
 .woosh-overlay.forward.active .woosh-streak {
   left: -30%;
-  animation: woosh-streak-forward 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: woosh-streak-forward 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .woosh-overlay.forward.active .woosh-glow {
-  animation: woosh-glow-pulse 0.52s ease-out forwards;
+  animation: woosh-glow-pulse 0.34s ease-out forwards;
 }
 
 .woosh-overlay.back.active .woosh-streak {
@@ -63,11 +65,11 @@
     rgba(245, 200, 66, 0.2) 72%,
     transparent 100%
   );
-  animation: woosh-streak-back 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: woosh-streak-back 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .woosh-overlay.back.active .woosh-glow {
-  animation: woosh-glow-pulse 0.52s ease-out forwards;
+  animation: woosh-glow-pulse 0.34s ease-out forwards;
 }
 
 @keyframes woosh-streak-forward {
@@ -112,13 +114,15 @@
 
 /* Exit: current page sweeps away */
 .app-shell.woosh-exit-forward {
-  animation: woosh-exit-forward 0.48s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  animation: woosh-exit-forward 0.3s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
   transform-origin: center center;
+  will-change: transform, opacity;
 }
 
 .app-shell.woosh-exit-back {
-  animation: woosh-exit-back 0.48s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  animation: woosh-exit-back 0.3s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
   transform-origin: center center;
+  will-change: transform, opacity;
 }
 
 @keyframes woosh-exit-forward {
@@ -130,7 +134,7 @@
   100% {
     transform: translateX(-14%) scale(0.96);
     opacity: 0;
-    filter: blur(6px);
+    filter: blur(2px);
   }
 }
 
@@ -143,7 +147,7 @@
   100% {
     transform: translateX(14%) scale(0.96);
     opacity: 0;
-    filter: blur(6px);
+    filter: blur(2px);
   }
 }
 
@@ -151,28 +155,30 @@
 html.woosh-pending-forward .app-shell {
   transform: translateX(12%) scale(0.97);
   opacity: 0;
-  filter: blur(8px);
+  filter: blur(4px);
 }
 
 html.woosh-pending-back .app-shell {
   transform: translateX(-12%) scale(0.97);
   opacity: 0;
-  filter: blur(8px);
+  filter: blur(4px);
 }
 
 .app-shell.woosh-enter-forward {
-  animation: woosh-enter-forward 0.58s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: woosh-enter-forward 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .app-shell.woosh-enter-back {
-  animation: woosh-enter-back 0.58s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: woosh-enter-back 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
 
 @keyframes woosh-enter-forward {
   0% {
     transform: translateX(12%) scale(0.97);
     opacity: 0;
-    filter: blur(8px);
+    filter: blur(4px);
   }
   100% {
     transform: translateX(0) scale(1);
@@ -185,7 +191,7 @@ html.woosh-pending-back .app-shell {
   0% {
     transform: translateX(-12%) scale(0.97);
     opacity: 0;
-    filter: blur(8px);
+    filter: blur(4px);
   }
   100% {
     transform: translateX(0) scale(1);
