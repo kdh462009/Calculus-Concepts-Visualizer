@@ -13,6 +13,14 @@
   opacity: 1;
 }
 
+.woosh-cover {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(1200px 700px at 10% -20%, #1b2d59 0%, #0a1020 60%);
+  opacity: 0;
+  will-change: opacity;
+}
+
 .woosh-streak {
   position: absolute;
   top: -20%;
@@ -49,6 +57,10 @@
   animation: woosh-streak-forward 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.woosh-overlay.forward.active .woosh-cover {
+  animation: woosh-cover-forward 0.34s linear forwards;
+}
+
 .woosh-overlay.forward.active .woosh-glow {
   animation: woosh-glow-pulse 0.34s ease-out forwards;
 }
@@ -66,6 +78,10 @@
     transparent 100%
   );
   animation: woosh-streak-back 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.woosh-overlay.back.active .woosh-cover {
+  animation: woosh-cover-back 0.34s linear forwards;
 }
 
 .woosh-overlay.back.active .woosh-glow {
@@ -109,6 +125,30 @@
   }
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes woosh-cover-forward {
+  0% {
+    opacity: 0.98;
+  }
+  70% {
+    opacity: 0.98;
+  }
+  100% {
+    opacity: 0.86;
+  }
+}
+
+@keyframes woosh-cover-back {
+  0% {
+    opacity: 0.98;
+  }
+  70% {
+    opacity: 0.98;
+  }
+  100% {
+    opacity: 0.86;
   }
 }
 
@@ -162,6 +202,17 @@ html.woosh-pending-back .app-shell {
   transform: translateX(-12%) scale(0.97);
   opacity: 0;
   filter: blur(4px);
+}
+
+html.woosh-pending-forward::before,
+html.woosh-pending-back::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: radial-gradient(1200px 700px at 10% -20%, #1b2d59 0%, #0a1020 60%);
+  opacity: 1;
 }
 
 .app-shell.woosh-enter-forward {

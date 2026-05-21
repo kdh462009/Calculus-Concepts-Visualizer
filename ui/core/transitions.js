@@ -20,7 +20,7 @@ function ensureOverlay() {
   overlay.id = "wooshOverlay";
   overlay.className = "woosh-overlay";
   overlay.setAttribute("aria-hidden", "true");
-  overlay.innerHTML = '<div class="woosh-streak"></div><div class="woosh-glow"></div>';
+  overlay.innerHTML = '<div class="woosh-cover"></div><div class="woosh-streak"></div><div class="woosh-glow"></div>';
   document.body.appendChild(overlay);
   return overlay;
 }
@@ -33,7 +33,17 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function playWooshOut(direction) {
+function clearWooshClasses() {
+  const overlay = document.getElementById("wooshOverlay");
+  overlay?.classList.remove("active", "forward", "back");
+  document.querySelector(".app-shell")?.classList.remove(
+    "woosh-exit-forward",
+    "woosh-exit-back",
+  );
+}
+
+function playWooshOut(direction, options = {}) {
+  const { holdVisualState = false } = options;
   if (prefersReducedMotion()) return wait(80);
 
   const overlay = ensureOverlay();
@@ -47,8 +57,10 @@ function playWooshOut(direction) {
       if (settled) return;
       settled = true;
       if (timeoutId) clearTimeout(timeoutId);
-      overlay.classList.remove("active", "forward", "back");
-      shell?.classList.remove(exitClass);
+      if (!holdVisualState) {
+        overlay.classList.remove("active", "forward", "back");
+        shell?.classList.remove(exitClass);
+      }
       resolve();
     };
 
@@ -83,8 +95,11 @@ function playWooshEnter(direction) {
 function initPageTransition() {
   const dir = sessionStorage.getItem(TRANSITION_KEY);
   if (dir !== "forward" && dir !== "back") return;
+  const shell = document.querySelector(".app-shell");
+  if (!shell) return;
   sessionStorage.removeItem(TRANSITION_KEY);
-  requestAnimationFrame(() => playWooshEnter(dir));
+  // Start immediately when shell exists; delaying until bootstrap causes a hitch.
+  playWooshEnter(dir);
 }
 
 let _navigating = false;
@@ -93,12 +108,23 @@ async function navigateWithWoosh(direction, navigateFn) {
   if (_navigating) return;
   _navigating = true;
   window.__vizNavigating = true;
+  let didPageHide = false;
+  const markPageHidden = () => {
+    didPageHide = true;
+  };
+  window.addEventListener("pagehide", markPageHidden, { once: true });
   try {
     sessionStorage.setItem(TRANSITION_KEY, direction);
-    const wooshOutPromise = playWooshOut(direction);
+    const wooshOutPromise = playWooshOut(direction, { holdVisualState: true });
     // Start navigation before the full woosh completes to avoid a visible pause.
     await Promise.race([wooshOutPromise, wait(Math.floor(WOOSH_MS * 0.55))]);
     await navigateFn();
+    // Give navigation a short window to commit; if it doesn't, recover locally.
+    await wait(120);
+    if (!didPageHide) {
+      sessionStorage.removeItem(TRANSITION_KEY);
+      clearWooshClasses();
+    }
   } finally {
     _navigating = false;
     window.__vizNavigating = false;
@@ -138,3 +164,10 @@ window.VizTransition = {
   navigateWithWoosh,
   initPageTransition,
 };
+
+// Run enter transition as soon as DOM is ready so it isn't delayed by app bootstrap.
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initPageTransition, { once: true });
+} else {
+  initPageTransition();
+}
