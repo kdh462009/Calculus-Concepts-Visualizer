@@ -108,23 +108,19 @@ async function navigateWithWoosh(direction, navigateFn) {
   if (_navigating) return;
   _navigating = true;
   window.__vizNavigating = true;
-  let didPageHide = false;
-  const markPageHidden = () => {
-    didPageHide = true;
-  };
-  window.addEventListener("pagehide", markPageHidden, { once: true });
   try {
     sessionStorage.setItem(TRANSITION_KEY, direction);
     const wooshOutPromise = playWooshOut(direction, { holdVisualState: true });
     // Start navigation before the full woosh completes to avoid a visible pause.
     await Promise.race([wooshOutPromise, wait(Math.floor(WOOSH_MS * 0.55))]);
     await navigateFn();
-    // Give navigation a short window to commit; if it doesn't, recover locally.
-    await wait(120);
-    if (!didPageHide) {
-      sessionStorage.removeItem(TRANSITION_KEY);
-      clearWooshClasses();
-    }
+    // Keep the held cover/exit classes until navigation commits to avoid
+    // any flashback of the old page during the handoff.
+  } catch (error) {
+    // If navigation fails and this page remains active, recover cleanly.
+    sessionStorage.removeItem(TRANSITION_KEY);
+    clearWooshClasses();
+    throw error;
   } finally {
     _navigating = false;
     window.__vizNavigating = false;
