@@ -44,17 +44,12 @@ async function playOpeningIntro() {
 
   splash.classList.add("hide");
   shell.classList.remove("opening-pending");
-  shell.classList.add("opening-reveal");
-  await wait(480);
-
   splash.remove();
-  shell.classList.remove("opening-reveal");
 }
 
 function createUnitNode(group, expanded = true, staggerIndex = 0) {
   const li = document.createElement("li");
-  li.className = `tree-unit tree-unit-enter${expanded ? " tree-unit-open" : ""}`;
-  li.style.animationDelay = `${staggerIndex * 70}ms`;
+  li.className = `tree-unit${expanded ? " tree-unit-open" : ""}`;
 
   const toggle = document.createElement("button");
   toggle.type = "button";
@@ -134,7 +129,7 @@ async function bootstrap() {
   const groups = groupByUnit(items);
 
   groups.forEach((group, index) => {
-    root.appendChild(createUnitNode(group, index === 0, index));
+    root.appendChild(createUnitNode(group, true, index));
   });
 }
 

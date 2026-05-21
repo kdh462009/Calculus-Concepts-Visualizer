@@ -1,20 +1,20 @@
 .launcher-shell {
   justify-content: center;
+  position: relative;
+  z-index: 2;
 }
 
 .launcher-header {
   text-align: center;
-  margin-bottom: 4px;
+  margin-bottom: 10px;
 }
 
 .launcher-header .title-row {
   justify-content: center;
 }
 
-.launcher-tagline {
-  margin: 8px 0 0;
-  color: var(--text-dim);
-  font-size: 15px;
+.launcher-header .title-row h1 {
+  margin: 0;
 }
 
 .launcher-panel {
@@ -24,6 +24,80 @@
   justify-content: center;
   min-height: 0;
   padding: 8px 0 12px;
+}
+
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.ambient-bg::before,
+.ambient-bg::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+}
+
+.ambient-bg::before {
+  background-image:
+    linear-gradient(rgba(143, 127, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(143, 127, 255, 0.06) 1px, transparent 1px);
+  background-size: 64px 64px, 64px 64px;
+  opacity: 0.22;
+  transform: perspective(900px) rotateX(58deg) translateY(16%);
+  transform-origin: center bottom;
+  animation: ambient-grid-drift 26s linear infinite;
+}
+
+.ambient-bg::after {
+  background: radial-gradient(ellipse at center, rgba(124, 106, 247, 0.12), transparent 68%);
+  opacity: 0.35;
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(34px);
+  opacity: 0.3;
+  will-change: transform, opacity;
+  mix-blend-mode: screen;
+}
+
+.ambient-orb-a {
+  width: 48vw;
+  height: 48vw;
+  min-width: 360px;
+  min-height: 360px;
+  top: -16%;
+  left: -8%;
+  background: radial-gradient(circle, rgba(124, 106, 247, 0.48), rgba(124, 106, 247, 0));
+  animation: ambient-float-a 16s ease-in-out infinite alternate;
+}
+
+.ambient-orb-b {
+  width: 44vw;
+  height: 44vw;
+  min-width: 320px;
+  min-height: 320px;
+  right: -12%;
+  top: 8%;
+  background: radial-gradient(circle, rgba(46, 232, 187, 0.3), rgba(46, 232, 187, 0));
+  animation: ambient-float-b 19s ease-in-out infinite alternate;
+}
+
+.ambient-orb-c {
+  width: 50vw;
+  height: 50vw;
+  min-width: 360px;
+  min-height: 360px;
+  left: 22%;
+  bottom: -26%;
+  background: radial-gradient(circle, rgba(245, 200, 66, 0.22), rgba(245, 200, 66, 0));
+  animation: ambient-float-c 22s ease-in-out infinite alternate;
 }
 
 .viz-tree-wrap {
@@ -346,6 +420,26 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes ambient-float-a {
+  from { transform: translate3d(0, 0, 0) scale(1); opacity: 0.24; }
+  to { transform: translate3d(8vw, 6vh, 0) scale(1.12); opacity: 0.38; }
+}
+
+@keyframes ambient-float-b {
+  from { transform: translate3d(0, 0, 0) scale(1); opacity: 0.22; }
+  to { transform: translate3d(-9vw, 7vh, 0) scale(1.14); opacity: 0.34; }
+}
+
+@keyframes ambient-float-c {
+  from { transform: translate3d(0, 0, 0) scale(1); opacity: 0.2; }
+  to { transform: translate3d(7vw, -7vh, 0) scale(1.15); opacity: 0.3; }
+}
+
+@keyframes ambient-grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 64px 48px, 64px 48px; }
+}
+
 @keyframes launcher-reveal {
   from { opacity: 0; transform: translateY(16px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -375,7 +469,8 @@
   .tree-children-wrap,
   .tree-chevron,
   .tree-leaf,
-  .tree-unit-btn {
+  .tree-unit-btn,
+  .ambient-orb {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
