@@ -170,10 +170,36 @@ function stopAnimation() {
   el.pauseBtn.textContent = "Pause";
 }
 
+function currentSampleX() {
+  if (anim.sampleXs.length) {
+    const i = Math.max(0, Math.min(anim.frameIndex, anim.sampleXs.length - 1));
+    return anim.sampleXs[i];
+  }
+  return Number(el.aInput.value);
+}
+
+function redrawOverlay() {
+  if (!viewer?.data) return;
+  if (view.showDerivatives || anim.animating) {
+    drawCurrentState(currentSampleX());
+    return;
+  }
+  drawFunctionOnly();
+}
+
+function applySecondDerivativeVisibility() {
+  view.includeSecond = Boolean(el.showSecondInput?.checked);
+  redrawOverlay();
+}
+
 function drawFunctionOnly() {
   FunctionPreview.drawFunctionOnly(viewer);
   el.analysis.textContent = "f(x) plotted. Press Animate to start slope animation.";
-  setConcavityText("Concavity insight appears when second derivative is enabled.");
+  setConcavityText(
+    view.includeSecond
+      ? "Concavity insight appears when you animate."
+      : "Second derivative hidden.",
+  );
 }
 
 function frameLoop(ts) {
@@ -217,7 +243,6 @@ async function runAnimation() {
     xmin: Number(el.xminInput.value),
     xmax: Number(el.xmaxInput.value),
     samples: 2200,
-    includeSecond: el.showSecondInput.checked,
   };
   if (!payload.expr) {
     setStatus("Please enter a function.");
@@ -232,7 +257,7 @@ async function runAnimation() {
   }
 
   stopAnimation();
-  view.includeSecond = payload.includeSecond;
+  view.includeSecond = Boolean(el.showSecondInput.checked);
   view.showDerivatives = false;
   viewer.setData(result, payload);
   drawFunctionOnly();
@@ -284,7 +309,11 @@ function wireInteractions() {
     setStatus("reset.");
     setCounter("");
     el.analysis.textContent = "Pick a function, then press Animate.";
-    setConcavityText("Concavity insight appears when second derivative is enabled.");
+    setConcavityText(
+      el.showSecondInput.checked
+        ? "Concavity insight appears when you animate."
+        : "Second derivative hidden.",
+    );
   });
 
   el.stepsInput.addEventListener("input", () => {
@@ -293,6 +322,7 @@ function wireInteractions() {
   el.speedInput.addEventListener("input", () => {
     el.speedValue.textContent = `${el.speedInput.value} ms`;
   });
+  el.showSecondInput.addEventListener("change", applySecondDerivativeVisibility);
 }
 
 async function bootstrap() {
@@ -307,6 +337,7 @@ async function bootstrap() {
   el.xminInput = $("xminInput");
   el.xmaxInput = $("xmaxInput");
   el.showSecondInput = $("showSecondInput");
+  view.includeSecond = Boolean(el.showSecondInput.checked);
   el.animateBtn = $("animateBtn");
   el.pauseBtn = $("pauseBtn");
   el.resetBtn = $("resetBtn");
@@ -324,33 +355,20 @@ async function bootstrap() {
         ...payload,
         a: Number(el.aInput.value),
         b: Number(el.bInput.value),
-        includeSecond: el.showSecondInput.checked,
       });
     }
     return window.pywebview.api.preview_function(payload);
   };
   viewer.onDataExpanded = (result, payload) => {
     viewer.setData(result, payload, { preserveView: true });
-    if (view.showDerivatives || anim.animating) {
-      const i = Math.max(0, Math.min(anim.frameIndex, Math.max(anim.sampleXs.length - 1, 0)));
-      const x = anim.sampleXs[i] ?? Number(el.aInput.value);
-      drawCurrentState(x);
-    } else {
-      drawFunctionOnly();
-    }
+    redrawOverlay();
   };
   viewer.setRedrawHandler(() => {
     if (!viewer.data) {
       viewer.drawGrid();
       return;
     }
-    if (view.showDerivatives || anim.animating) {
-      const i = Math.max(0, Math.min(anim.frameIndex, Math.max(anim.sampleXs.length - 1, 0)));
-      const x = anim.sampleXs[i] ?? Number(el.aInput.value);
-      drawCurrentState(x);
-    } else {
-      drawFunctionOnly();
-    }
+    redrawOverlay();
   });
 
   const boot = await window.pywebview.api.get_derivatives_bootstrap();

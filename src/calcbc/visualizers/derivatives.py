@@ -90,7 +90,6 @@ class DerivativesApi:
             xmin = float((payload or {}).get("xmin", min(a, b) - 2.0))
             xmax = float((payload or {}).get("xmax", max(a, b) + 2.0))
             samples = int((payload or {}).get("samples", 1800))
-            include_second = bool((payload or {}).get("includeSecond", True))
 
             if a >= b:
                 return {"ok": False, "error": "Interval must satisfy a < b."}
@@ -104,17 +103,9 @@ class DerivativesApi:
             x_vals = sample_domain(xmin, xmax, samples)
             y_true = safe_eval(expr, x_vals, clip=1.0e9)
             y_first = safe_eval(first_derivative, x_vals, clip=1.0e9)
-            y_second = safe_eval(second_derivative, x_vals, clip=1.0e9) if include_second else None
-
-            concavity_label = (
-                _concavity_snapshot(y_second, x_vals, a, b) if include_second else "Second derivative hidden"
-            )
-
-            y_range = combined_y_range(
-                y_true,
-                y_first,
-                y_second if include_second else None,
-            )
+            y_second = safe_eval(second_derivative, x_vals, clip=1.0e9)
+            concavity_label = _concavity_snapshot(y_second, x_vals, a, b)
+            y_range = combined_y_range(y_true, y_first, y_second)
 
             return plot_payload(
                 x_vals,
@@ -124,11 +115,10 @@ class DerivativesApi:
                 extra={
                     "interval": [a, b],
                     "firstDerivative": to_js_array(y_first),
-                    "secondDerivative": to_js_array(y_second) if y_second is not None else None,
+                    "secondDerivative": to_js_array(y_second),
                     "firstDerivativeExpr": str(first_derivative),
                     "secondDerivativeExpr": str(second_derivative),
                     "concavityInterval": concavity_label,
-                    "includeSecond": include_second,
                 },
             )
         except Exception as exc:
