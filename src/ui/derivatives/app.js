@@ -138,16 +138,19 @@ function drawCurrentState(sampleX) {
     ctx.fill();
   }
 
-  const curvature = view.includeSecond && ySecond !== null
-    ? ySecond > 1e-5
-      ? "Concave Up"
-      : ySecond < -1e-5
-        ? "Concave Down"
-        : "Inflection / Flat Curvature"
-    : "Second derivative hidden";
+  const showSecond = view.includeSecond && ySecond !== null;
   el.analysis.textContent = `x=${formatNum(sampleX)} | f(x)=${formatNum(yTrue)} | f'(x)=${formatNum(yPrime)}${
-    view.includeSecond && ySecond !== null ? ` | f''(x)=${formatNum(ySecond)}` : ""
+    showSecond ? ` | f''(x)=${formatNum(ySecond)}` : ""
   }`;
+  if (!showSecond) {
+    setConcavityText("Second derivative hidden.");
+    return;
+  }
+  const curvature = ySecond > 1e-5
+    ? "Concave Up"
+    : ySecond < -1e-5
+      ? "Concave Down"
+      : "Inflection / Flat Curvature";
   setConcavityText(`Interval concavity: ${viewer.data.concavityInterval} | At x: ${curvature}`);
 }
 

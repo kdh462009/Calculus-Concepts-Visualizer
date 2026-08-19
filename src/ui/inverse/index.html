@@ -39,24 +39,19 @@
           <input id="xmaxInput" type="number" value="3" step="0.5">
         </div>
 
-        <label class="section-label">ANIMATION SPEED <span id="speedValue">9000 ms</span></label>
-        <input id="speedInput" type="range" min="3500" max="16000" value="9000" step="250">
-
-        <button id="computeBtn" class="btn btn-primary">Compute</button>
-        <div class="btn-row">
-          <button id="animateBtn" class="btn btn-secondary">Animate</button>
-          <button id="pauseBtn" class="btn btn-ghost">Pause</button>
+        <div class="btn-row btn-row-2">
+          <button id="stageBtn" class="btn btn-primary">Plot Inverse</button>
           <button id="resetBtn" class="btn btn-ghost">Reset</button>
         </div>
 
         <div id="status" class="status">ready.</div>
         <div id="phaseLine" class="term-counter"></div>
         <div id="scaleLine" class="status">Scale: --</div>
-        <div id="legendLine" class="status">Legend: --</div>
       </aside>
 
       <section class="plot-wrap glass">
         <canvas id="plotCanvas"></canvas>
+        <div id="plotLegend" class="plot-legend" hidden></div>
       </section>
     </main>
     <footer class="credit-row">

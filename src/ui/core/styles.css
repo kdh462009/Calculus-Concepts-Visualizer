@@ -190,6 +190,10 @@ select:focus {
   margin-top: 10px;
 }
 
+.btn-row-2 {
+  grid-template-columns: 1.6fr 1fr;
+}
+
 .btn {
   width: 100%;
   border: 1px solid rgba(159, 182, 255, 0.45);
@@ -231,6 +235,19 @@ select:focus {
 .btn-ghost {
   color: var(--text);
   background: rgba(42, 55, 94, 0.92);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  filter: none;
+  transform: none;
+}
+
+.btn:disabled:hover,
+.btn:disabled:active {
+  filter: none;
+  transform: none;
 }
 
 input[type="range"] {
@@ -276,6 +293,7 @@ input[type="range"]::-webkit-slider-thumb {
   overflow: hidden;
   min-height: 0;
   display: flex;
+  position: relative;
 }
 
 .plot-wrap canvas {
@@ -285,6 +303,41 @@ input[type="range"]::-webkit-slider-thumb {
   flex: 1;
   min-height: 0;
   border-radius: 12px;
+}
+
+.plot-legend {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(12, 18, 36, 0.88);
+  border: 1px solid rgba(159, 182, 255, 0.38);
+  pointer-events: none;
+}
+
+.plot-legend[hidden] {
+  display: none;
+}
+
+.plot-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e8eaf6;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.plot-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 #plotCanvas {

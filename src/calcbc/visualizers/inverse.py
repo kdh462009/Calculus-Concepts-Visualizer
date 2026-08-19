@@ -51,19 +51,6 @@ def _combined_y_range(*arrays) -> list[float]:
     return [lo - pad, hi + pad]
 
 
-def _stable_derivative_range(arr: np.ndarray) -> list[float]:
-    vals = arr[np.isfinite(arr)]
-    if vals.size == 0:
-        return [-3.0, 3.0]
-    lo = float(np.nanpercentile(vals, 8))
-    hi = float(np.nanpercentile(vals, 92))
-    if not np.isfinite(lo) or not np.isfinite(hi) or hi - lo < 1e-8:
-        c = float(np.nanmedian(vals))
-        return [c - 1.0, c + 1.0]
-    pad = max(0.2, 0.2 * (hi - lo))
-    return [lo - pad, hi + pad]
-
-
 def _monotonic_direction(y_vals: np.ndarray) -> str | None:
     dy = np.diff(y_vals)
     if dy.size == 0:
@@ -143,7 +130,7 @@ class InverseApi:
             y_range = _combined_y_range(y_true, inv_f, y_prime, inv_prime, mirror_line)
             y_range_fn = _combined_y_range(y_true)
             y_range_inv = _combined_y_range(inv_f, mirror_line)
-            y_range_inv_prime = _stable_derivative_range(inv_prime)
+            y_range_inv_prime = _combined_y_range(y_true, inv_f, y_prime, inv_prime)
 
             return {
                 "ok": True,
