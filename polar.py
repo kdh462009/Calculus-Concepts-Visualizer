@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 
-from graph import launch_app, sample_domain, to_js_array
+from graph import launch_app, parse_user_expr, sample_domain, to_js_array
 
 theta = sp.symbols("theta", real=True)
 
@@ -45,7 +45,7 @@ PRESETS = [
 
 
 def parse_polar_expr(text: str):
-    return sp.sympify(text, locals=PARSE_LOCALS)
+    return parse_user_expr(text, PARSE_LOCALS)
 
 
 def parse_angle_bound(value, default: float) -> float:
@@ -71,10 +71,10 @@ def parse_angle_bound(value, default: float) -> float:
         pass
 
     try:
-        expr = sp.sympify(text, locals=ANGLE_PARSE_LOCALS)
-    except (sp.SympifyError, TypeError, SyntaxError) as exc:
+        expr = parse_user_expr(text, ANGLE_PARSE_LOCALS)
+    except ValueError as exc:
         raise ValueError(f"Could not parse angle bound: {text!r}") from exc
-    if expr.has(theta):
+    if getattr(expr, "free_symbols", None):
         raise ValueError("Angle bounds must not depend on θ.")
     try:
         out = float(sp.N(expr))

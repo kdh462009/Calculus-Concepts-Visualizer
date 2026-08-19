@@ -330,7 +330,7 @@ async function bootstrap() {
     return window.pywebview.api.preview_function(payload);
   };
   viewer.onDataExpanded = (result, payload) => {
-    viewer.setData(result, payload);
+    viewer.setData(result, payload, { preserveView: true });
     if (view.showDerivatives || anim.animating) {
       const i = Math.max(0, Math.min(anim.frameIndex, Math.max(anim.sampleXs.length - 1, 0)));
       const x = anim.sampleXs[i] ?? Number(el.aInput.value);

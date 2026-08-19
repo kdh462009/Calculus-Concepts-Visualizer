@@ -129,6 +129,19 @@ class LimitRenderer {
         started = false;
         continue;
       }
+      if (started && i > 0) {
+        const prev = data.yTrue[i - 1];
+        if (
+          prev !== null &&
+          Number.isFinite(prev) &&
+          prev * y < 0 &&
+          Math.abs(y - prev) > 12 &&
+          Math.abs(prev) > 6 &&
+          Math.abs(y) > 6
+        ) {
+          started = false;
+        }
+      }
       const px = this.mapX(x, xmin, xmax);
       const py = this.mapY(y, ymin, ymax);
       if (!started) {

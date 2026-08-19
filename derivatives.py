@@ -9,6 +9,7 @@ import numpy as np
 import sympy as sp
 
 from graph import (
+    combined_y_range,
     compute_function_preview,
     launch_app,
     parse_expr,
@@ -109,10 +110,17 @@ class DerivativesApi:
                 _concavity_snapshot(y_second, x_vals, a, b) if include_second else "Second derivative hidden"
             )
 
+            y_range = combined_y_range(
+                y_true,
+                y_first,
+                y_second if include_second else None,
+            )
+
             return plot_payload(
                 x_vals,
                 y_true,
                 x_range=[xmin, xmax],
+                y_range=y_range,
                 extra={
                     "interval": [a, b],
                     "firstDerivative": to_js_array(y_first),

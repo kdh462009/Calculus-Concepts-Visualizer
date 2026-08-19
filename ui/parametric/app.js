@@ -12,8 +12,6 @@ const state = {
   phase: "curve",
   view: { xmin: -4, xmax: 4, ymin: -4, ymax: 4 },
   drag: null,
-  expandTimer: null,
-  expandInFlight: false,
   legendVisible: true,
   recomputeTimer: null,
 };
@@ -343,7 +341,6 @@ class ParametricRenderer {
         ymax: v.ymax + (dy / rect.height) * spanY,
       };
       this.draw();
-      scheduleDomainExpansion();
     });
     this.canvas.addEventListener(
       "wheel",
@@ -359,7 +356,6 @@ class ParametricRenderer {
         state.view.ymin = wy + (state.view.ymin - wy) * zoom;
         state.view.ymax = wy + (state.view.ymax - wy) * zoom;
         this.draw();
-        scheduleDomainExpansion();
       },
       { passive: false },
     );
@@ -460,40 +456,6 @@ function scheduleRecompute() {
     stopAnimation();
     await computeModel();
   }, 350);
-}
-
-function scheduleDomainExpansion() {
-  if (!state.data || !state.params || state.expandInFlight) return;
-  if (state.expandTimer) clearTimeout(state.expandTimer);
-  state.expandTimer = setTimeout(async () => {
-    const bounds = state.data.xRange.concat(state.data.yRange);
-    const [xminD, xmaxD, yminD, ymaxD] = bounds;
-    const { xmin, xmax, ymin, ymax } = state.view;
-    if (xmin >= xminD && xmax <= xmaxD && ymin >= yminD && ymax <= ymaxD) return;
-
-    const span = Math.max(xmax - xmin, ymax - ymin);
-    const pad = Math.max(0.5, span * 0.22);
-    const needExtendT =
-      xmin < xminD - pad || xmax > xmaxD + pad || ymin < yminD - pad || ymax > ymaxD + pad;
-    if (!needExtendT) return;
-
-    state.expandInFlight = true;
-    const tSpan = state.params.tmax - state.params.tmin;
-    const payload = {
-      ...state.params,
-      tmin: state.params.tmin - tSpan * 0.35,
-      tmax: state.params.tmax + tSpan * 0.35,
-      samples: 2200,
-    };
-    const result = await window.pywebview.api.compute_parametric(payload);
-    state.expandInFlight = false;
-    if (!result?.ok) return;
-    state.data = result;
-    state.params = payload;
-    el.tminInput.value = String(payload.tmin);
-    el.tmaxInput.value = String(payload.tmax);
-    renderer.draw();
-  }, 220);
 }
 
 function wireInteractions() {

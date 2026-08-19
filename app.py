@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import threading
+import webbrowser
 
 import webview
 
@@ -93,6 +94,16 @@ VISUALIZERS = [
 ]
 
 
+EXTERNAL_URLS = frozenset(
+    {
+        "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en",
+        "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+        "https://github.com/kdh462009/Calculus-Concepts-Visualizer",
+        "https://knivier.com/tos-ssp.html",
+    }
+)
+
+
 class AppApi:
     def __init__(self):
         self._window = None
@@ -138,6 +149,13 @@ class AppApi:
             return {"ok": False, "error": "Window not ready."}
         url = resolve_resource("ui/home/index.html").as_uri()
         self._schedule_url(url)
+        return {"ok": True}
+
+    def open_external(self, url: str):
+        target = str(url or "").strip()
+        if target not in EXTERNAL_URLS:
+            return {"ok": False, "error": "URL not allowed."}
+        webbrowser.open(target)
         return {"ok": True}
 
     def get_bootstrap(self):

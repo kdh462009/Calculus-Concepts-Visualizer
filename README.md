@@ -3,6 +3,8 @@
 AP Calculus BC visualizer suite built with Python + PyWebView.  
 The app opens a launcher home screen and lets you jump into interactive visualizers by unit.
 
+How the hub, graph engine, JS bridge, and each visualizer fit together: [HOW_IT_WORKS.md](HOW_IT_WORKS.md).
+
 ## Run Locally
 
 1. Install dependencies:
@@ -50,6 +52,14 @@ The app opens a launcher home screen and lets you jump into interactive visualiz
 
 - macOS packaging script: `build_macos_app.sh`
 - PyInstaller spec: `CalcBCVisualizers.spec`
+
+## License
+
+This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en) (Attribution-NonCommercial-ShareAlike 4.0 International).
+
+Source: [github.com/kdh462009/Calculus-Concepts-Visualizer](https://github.com/kdh462009/Calculus-Concepts-Visualizer)
+
+This software is also covered under the [Knivier SSP/ToS (Open Source Restricted)](https://knivier.com/tos-ssp.html).
 
 ## Notes
 

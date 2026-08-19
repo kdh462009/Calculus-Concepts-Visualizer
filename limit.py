@@ -35,17 +35,42 @@ PRESETS = [
 ]
 
 
+_LIMIT_CLIP = 1.0e9
+
+
+def _side_limit(expr, xs: np.ndarray) -> tuple[float | None, float]:
+    """Median and spread of f on samples approaching a from one side."""
+    y = safe_eval(expr, xs, clip=_LIMIT_CLIP)
+    # Closest samples are first when xs is built from increasing |h|.
+    n_close = max(8, xs.size // 3)
+    close = y[:n_close]
+    finite = close[np.isfinite(close)]
+    if finite.size < 5:
+        finite = y[np.isfinite(y)]
+    if finite.size < 5:
+        return None, float("inf")
+    if np.count_nonzero(np.abs(finite) >= _LIMIT_CLIP * 0.5) >= max(3, finite.size // 5):
+        return None, float("inf")
+    med = float(np.median(finite))
+    spread = float(np.percentile(np.abs(finite - med), 85))
+    return med, spread
+
+
 def _estimate_limit(expr, a: float, radius: float) -> float | None:
-    hs = np.geomspace(max(radius * 1e-6, 1e-6), max(radius * 0.6, 1e-4), 120)
-    left_x = a - hs
-    right_x = a + hs
-    left_y = safe_eval(expr, left_x, clip=1.0e9)
-    right_y = safe_eval(expr, right_x, clip=1.0e9)
-    vals = np.concatenate([left_y[np.isfinite(left_y)], right_y[np.isfinite(right_y)]])
-    if vals.size < 20:
+    """Two-sided numerical limit. Returns None if sides disagree, blow up, or oscillate."""
+    h_min = max(abs(a) * 1e-8, 1e-8)
+    h_max = max(min(max(radius, 1e-3) * 0.08, 0.25), h_min * 10.0)
+    hs = np.geomspace(h_min, h_max, 64)
+    left_med, left_spread = _side_limit(expr, a - hs)
+    right_med, right_spread = _side_limit(expr, a + hs)
+    if left_med is None or right_med is None:
         return None
-    # Robust estimate against outliers near discontinuities.
-    return float(np.median(vals))
+    scale = max(abs(left_med), abs(right_med), 1.0)
+    if left_spread > 0.2 * scale or right_spread > 0.2 * scale:
+        return None
+    if abs(left_med - right_med) > max(0.08 * scale, 1e-3):
+        return None
+    return float(0.5 * (left_med + right_med))
 
 
 def _delta_for_epsilon(expr, a: float, limit_val: float, epsilon: float, max_radius: float) -> float:
@@ -106,7 +131,10 @@ class LimitApi:
                 limit_val = float(manual_limit)
 
             if limit_val is None:
-                return {"ok": False, "error": "Could not estimate a finite limit near a. Provide L manually."}
+                return {
+                    "ok": False,
+                    "error": "No finite two-sided limit at a (left/right disagree, or f blows up/oscillates). Enter L only to test a candidate.",
+                }
 
             if eps_start < eps_end:
                 eps_start, eps_end = eps_end, eps_start

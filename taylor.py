@@ -54,13 +54,13 @@ PRESETS = [
 ]
 
 
-def compute_taylor_partials(expr, center, n_terms):
+def compute_taylor_partials(expr, center, max_degree):
     a = sp.nsimplify(center)
     partial_exprs = []
     nonzero_terms = []
     acc = sp.Integer(0)
-    max_degree_scan = max(30, n_terms * 8)
-    for k in range(max_degree_scan):
+    degree = max(0, int(max_degree))
+    for k in range(degree + 1):
         deriv_at_a = sp.simplify(sp.diff(expr, x, k).subs(x, a))
         if deriv_at_a == 0:
             continue
@@ -68,8 +68,9 @@ def compute_taylor_partials(expr, center, n_terms):
         acc = sp.expand(acc + term_expr)
         partial_exprs.append(acc)
         nonzero_terms.append((k, deriv_at_a))
-        if len(partial_exprs) >= n_terms:
-            break
+    if not partial_exprs:
+        partial_exprs = [sp.Integer(0)]
+        nonzero_terms = [(0, sp.Integer(0))]
     return partial_exprs, nonzero_terms
 
 
@@ -200,7 +201,7 @@ class TaylorApi:
                 return {"ok": False, "error": "Please enter a function."}
 
             center = float((payload or {}).get("center", 0.0))
-            n_terms = int((payload or {}).get("terms", 8))
+            max_degree = int((payload or {}).get("terms", 8))
             xmin = float((payload or {}).get("xmin", -4.0))
             xmax = float((payload or {}).get("xmax", 4.0))
             bound_xmin = float((payload or {}).get("boundXmin", xmin))
@@ -208,12 +209,12 @@ class TaylorApi:
             samples = int((payload or {}).get("samples", 1400))
             if xmin >= xmax:
                 return {"ok": False, "error": "xmin must be < xmax."}
-            if n_terms < 1:
-                n_terms = 1
+            if max_degree < 0:
+                max_degree = 0
 
             expr = parse_expr(expr_text)
             x_vals = sample_domain(xmin, xmax, samples)
-            partial_exprs, nonzero_terms = compute_taylor_partials(expr, center, n_terms)
+            partial_exprs, nonzero_terms = compute_taylor_partials(expr, center, max_degree)
 
             if not partial_exprs:
                 return {
@@ -251,6 +252,8 @@ class TaylorApi:
                     "empiricalErrorPct": empirical_error_pct,
                     "errorWindow": [bound_xmin, bound_xmax],
                     "termCount": len(partial_exprs),
+                    "degrees": [int(k) for k, _ in nonzero_terms],
+                    "maxDegree": max_degree,
                 },
             )
         except Exception as exc:

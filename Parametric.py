@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 
-from graph import launch_app, sample_domain, to_js_array
+from graph import launch_app, parse_user_expr, sample_domain, to_js_array
 
 t = sp.symbols("t")
 
@@ -35,11 +35,16 @@ PARSE_LOCALS = {
 }
 
 FUNCTION_HINTS = [
-    "cos(t), sin(t)",
-    "t - sin(t), 1 - cos(t)",
-    "sin(3*t), sin(4*t)",
-    "t*cos(t), t*sin(t)",
-    "e^t*cos(t), e^t*sin(t)",
+    "cos(t)",
+    "sin(t)",
+    "t - sin(t)",
+    "1 - cos(t)",
+    "sin(3*t)",
+    "sin(4*t)",
+    "t*cos(t)",
+    "t*sin(t)",
+    "exp(0.15*t)*cos(t)",
+    "exp(0.15*t)*sin(t)",
 ]
 
 PRESETS = [
@@ -52,7 +57,7 @@ PRESETS = [
 
 
 def parse_param_expr(text: str):
-    return sp.sympify(text, locals=PARSE_LOCALS)
+    return parse_user_expr(text, PARSE_LOCALS)
 
 
 def safe_eval_t(expr, t_vals, clip=1.0e9):

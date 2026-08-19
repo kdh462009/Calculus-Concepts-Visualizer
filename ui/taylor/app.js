@@ -181,15 +181,17 @@ function loop(ts) {
 
   drawTaylorFrame(curve);
   updateTaylorHeader(anim.termIndex);
-  setStatus(`animating... term ${Math.min(displayTerm, partials.length)}`);
-  setTermCounter(`term ${Math.min(displayTerm, partials.length)} / ${partials.length}`);
+  const deg = viewer.data.degrees?.[anim.termIndex] ?? anim.termIndex;
+  setStatus(`animating... P_${deg}(x)`);
+  setTermCounter(`P_${deg}(x)  (${Math.min(displayTerm, partials.length)} / ${partials.length})`);
 
   if (anim.termIndex >= maxTerm && anim.elapsedInTerm >= speed) {
     anim.termIndex = 0;
     anim.elapsedInTerm = 0;
     anim.lastTs = ts;
     setStatus("looping animation...");
-    setTermCounter(`term 1 / ${partials.length}`);
+    const d0 = viewer.data.degrees?.[0] ?? 0;
+    setTermCounter(`P_${d0}(x)  (1 / ${partials.length})`);
   }
 
   anim.rafId = requestAnimationFrame(loop);
@@ -224,7 +226,7 @@ async function runAnimation() {
   updateTaylorHeader(0);
   anim.animating = true;
   setStatus("animating...");
-  setTermCounter(`term 1 / ${result.termCount}`);
+  setTermCounter(`P_${result.degrees?.[0] ?? 0}(x)  (1 / ${result.termCount})`);
   el.pauseBtn.textContent = "⏸ PAUSE";
   anim.rafId = requestAnimationFrame(loop);
 }
@@ -308,7 +310,7 @@ async function bootstrap() {
     if (result.termCount) {
       anim.termIndex = Math.min(anim.termIndex, Math.max(0, result.termCount - 1));
     }
-    viewer.setData(result, payload);
+    viewer.setData(result, payload, { preserveView: true });
     if (anim.animating || view.showApprox) {
       drawTaylorFrame(currentDisplayedCurve());
       updateTaylorHeader(anim.termIndex);

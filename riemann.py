@@ -49,29 +49,46 @@ SUM_TYPES = [
 ]
 
 
+def _reject_if_singular(xs: np.ndarray, ys: np.ndarray, *, label: str) -> None:
+    """Refuse Cauchy principal-value stand-ins for blow-ups and interior holes."""
+    if xs.size < 8:
+        raise ValueError(f"{label} could not be estimated on this interval.")
+    interior = ys[1:-1]
+    if np.any(~np.isfinite(interior)):
+        raise ValueError(
+            f"{label} is undefined or unbounded inside (a, b). "
+            "The definite integral may not exist as a proper Riemann integral."
+        )
+    finite = ys[np.isfinite(ys)]
+    if finite.size < max(10, xs.size // 3):
+        raise ValueError(f"{label} could not be estimated on this interval.")
+    for i in range(ys.size - 1):
+        a, b = ys[i], ys[i + 1]
+        if not (np.isfinite(a) and np.isfinite(b)):
+            continue
+        if a * b < 0 and abs(a) > 20 and abs(b) > 20 and abs(b - a) > 40:
+            raise ValueError(
+                f"{label} appears to have a vertical asymptote on [a, b]. "
+                "The definite integral may not exist as a proper Riemann integral."
+            )
+
+
 def _high_res_integral(expr, a: float, b: float) -> float:
     sample_count = 24000
     xs = np.linspace(a, b, sample_count)
     ys = safe_eval(expr, xs, clip=1.0e9)
-    valid = np.isfinite(ys)
-    if np.count_nonzero(valid) < max(10, sample_count // 3):
-        raise ValueError("Integral could not be estimated on this interval.")
-    xs_v = xs[valid]
-    ys_v = ys[valid]
-    return float(np.trapezoid(ys_v, xs_v))
+    _reject_if_singular(xs, ys, label="Integral")
+    return float(np.trapezoid(ys, xs))
 
 
 def _integral_abs_f(expr, a: float, b: float) -> float:
     """Total area under |f| on [a, b] — stable scale when ∫f ≈ 0."""
     sample_count = 24000
     xs = np.linspace(a, b, sample_count)
-    ys = np.abs(safe_eval(expr, xs, clip=1.0e9))
-    valid = np.isfinite(ys)
-    if np.count_nonzero(valid) < max(10, sample_count // 3):
-        raise ValueError("Could not estimate area scale on this interval.")
-    xs_v = xs[valid]
-    ys_v = ys[valid]
-    return float(np.trapezoid(ys_v, xs_v))
+    signed = safe_eval(expr, xs, clip=1.0e9)
+    _reject_if_singular(xs, signed, label="Area scale")
+    ys = np.abs(signed)
+    return float(np.trapezoid(ys, xs))
 
 
 def _riemann_estimate(expr, a: float, b: float, n: int, sum_type: str) -> float:

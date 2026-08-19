@@ -257,8 +257,7 @@ async function bootstrap() {
   viewer.onDataExpanded = (result, payload) => {
     if (!result?.ok) return;
     state.data = result;
-    viewer.setData(result, payload);
-    applyPhaseView(state.phase);
+    viewer.setData(result, payload, { preserveView: true });
     drawFromProgress(state.progress);
   };
   viewer.drawGrid();

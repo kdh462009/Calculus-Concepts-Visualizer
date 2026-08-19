@@ -17,10 +17,10 @@ class GraphViewer {
     this._wireInteractions();
   }
 
-  setData(data, activeParams = null) {
+  setData(data, activeParams = null, options = {}) {
     this.data = data;
     this.activeParams = activeParams;
-    if (data?.xRange && data?.yRange) {
+    if (!options.preserveView && data?.xRange && data?.yRange) {
       this.view = {
         xmin: data.xRange[0],
         xmax: data.xRange[1],
@@ -96,6 +96,13 @@ class GraphViewer {
       if (y === null) {
         drawing = false;
         continue;
+      }
+      if (drawing && i > 0 && ys[i - 1] !== null) {
+        const prev = ys[i - 1];
+        const jump = Math.abs(y - prev);
+        if (jump > 12 && prev * y < 0 && Math.abs(prev) > 6 && Math.abs(y) > 6) {
+          drawing = false;
+        }
       }
       const [sx, sy] = this.worldToScreen(xs[i], y);
       if (!drawing) {
@@ -191,16 +198,19 @@ class GraphViewer {
       xmin: reqMin,
       xmax: reqMax,
     };
-    const result = await this.onDomainExpand(payload);
-    this.domainExpandInFlight = false;
-    if (!result?.ok) return;
+    try {
+      const result = await this.onDomainExpand(payload);
+      if (!result?.ok) return;
 
-    if (this.onDataExpanded) {
-      this.onDataExpanded(result, payload);
-    } else {
-      this.setData(result, payload);
+      if (this.onDataExpanded) {
+        this.onDataExpanded(result, payload);
+      } else {
+        this.setData(result, payload, { preserveView: true });
+      }
+      this.redraw();
+    } finally {
+      this.domainExpandInFlight = false;
     }
-    this.redraw();
   }
 
   setRedrawHandler(fn) {

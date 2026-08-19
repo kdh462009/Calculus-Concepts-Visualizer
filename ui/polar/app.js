@@ -211,20 +211,26 @@ class PolarRenderer {
   drawSector(sector, compare, fillAlpha, strokeOnly = false) {
     const ctx = this.ctx;
     const { outer, inner } = this.sectorBoundaryPoints(sector, compare);
-    const [isx, isy] = this.worldToScreen(0, 0);
     ctx.beginPath();
-    ctx.moveTo(isx, isy);
-    for (const [x, y] of outer) {
-      const [sx, sy] = this.worldToScreen(x, y);
-      ctx.lineTo(sx, sy);
-    }
     if (compare) {
+      const [x0, y0] = outer[0];
+      const [sx0, sy0] = this.worldToScreen(x0, y0);
+      ctx.moveTo(sx0, sy0);
+      for (let i = 1; i < outer.length; i += 1) {
+        const [sx, sy] = this.worldToScreen(outer[i][0], outer[i][1]);
+        ctx.lineTo(sx, sy);
+      }
       for (let i = inner.length - 1; i >= 0; i -= 1) {
-        const [x, y] = inner[i];
-        const [sx, sy] = this.worldToScreen(x, y);
+        const [sx, sy] = this.worldToScreen(inner[i][0], inner[i][1]);
         ctx.lineTo(sx, sy);
       }
     } else {
+      const [isx, isy] = this.worldToScreen(0, 0);
+      ctx.moveTo(isx, isy);
+      for (const [x, y] of outer) {
+        const [sx, sy] = this.worldToScreen(x, y);
+        ctx.lineTo(sx, sy);
+      }
       ctx.lineTo(isx, isy);
     }
     ctx.closePath();
@@ -242,8 +248,10 @@ class PolarRenderer {
     if (!data?.intersections?.length) return;
     const ctx = this.ctx;
     for (const th of data.intersections) {
-      const r = data.mode === "compare" ? 0.15 : 0.12;
-      const [x, y] = this.polarPoint(r * 3, th);
+      const r1 = interpSeries(data.theta, data.r, th);
+      const r2 = data.mode === "compare" ? interpSeries(data.theta, data.r2, th) : r1;
+      const r = Number.isFinite(r1) ? r1 : r2;
+      const [x, y] = this.polarPoint(r, th);
       const [sx, sy] = this.worldToScreen(x, y);
       ctx.fillStyle = "#f06090";
       ctx.beginPath();
@@ -317,7 +325,7 @@ class PolarRenderer {
         ? 0.12 + 0.55 * ((i + 1) / nSectors)
         : 0.08;
       const strokeOnly = seg.phase === "slices" && i === visibleCount - 1;
-      this.drawSector(sector, compare, fillAlpha, seg.phase === "slices");
+      this.drawSector(sector, compare, fillAlpha, strokeOnly);
     }
 
     if (compare && data.intersections?.length) {
@@ -373,6 +381,29 @@ class PolarRenderer {
       { passive: false },
     );
   }
+}
+
+function interpSeries(xs, ys, x) {
+  if (!xs?.length || !ys?.length) return 0;
+  if (x <= xs[0]) return ys[0] ?? 0;
+  const last = xs.length - 1;
+  if (x >= xs[last]) return ys[last] ?? 0;
+  let lo = 0;
+  let hi = last;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (xs[mid] === x) return ys[mid] ?? 0;
+    if (xs[mid] < x) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  const i = Math.max(1, lo);
+  const x0 = xs[i - 1];
+  const x1 = xs[i];
+  const y0 = ys[i - 1];
+  const y1 = ys[i];
+  if (y0 == null || y1 == null || x1 === x0) return y0 ?? y1 ?? 0;
+  const t = (x - x0) / (x1 - x0);
+  return y0 * (1 - t) + y1 * t;
 }
 
 function sectorEstimate(data, count) {

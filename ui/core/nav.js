@@ -6,3 +6,16 @@ function whenApiReady(fn) {
     window.addEventListener("pywebviewready", () => fn(), { once: true });
   }
 }
+
+document.addEventListener("click", (event) => {
+  const node = event.target instanceof Element ? event.target : event.target.parentElement;
+  const link = node?.closest?.("a[data-external]");
+  if (!link) return;
+  event.preventDefault();
+  const url = link.href;
+  if (window.pywebview?.api?.open_external) {
+    window.pywebview.api.open_external(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener");
+});

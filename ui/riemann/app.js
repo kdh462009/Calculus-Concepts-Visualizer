@@ -420,7 +420,7 @@ async function bootstrap() {
     return window.pywebview.api.preview_function(payload);
   };
   viewer.onDataExpanded = (result, payload) => {
-    viewer.setData(result, payload);
+    viewer.setData(result, payload, { preserveView: true });
     if (anim.animating || view.showApprox) {
       if (anim.nValues.length) {
         const i = Math.max(0, Math.min(anim.index, anim.nValues.length - 1));

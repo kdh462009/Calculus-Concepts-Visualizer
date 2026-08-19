@@ -44,7 +44,16 @@ async function playOpeningIntro() {
 
   splash.classList.add("hide");
   shell.classList.remove("opening-pending");
+  await wait(420);
   splash.remove();
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function createUnitNode(group, expanded = true, staggerIndex = 0) {
@@ -58,7 +67,7 @@ function createUnitNode(group, expanded = true, staggerIndex = 0) {
   toggle.innerHTML = `
     <span class="tree-chevron">▾</span>
     <span class="tree-unit-label">Unit ${group.unit}</span>
-    <span class="tree-unit-title">${group.unitTitle}</span>
+    <span class="tree-unit-title">${escapeHtml(group.unitTitle)}</span>
     <span class="tree-unit-count">${group.items.length}</span>
   `;
 
@@ -76,10 +85,10 @@ function createUnitNode(group, expanded = true, staggerIndex = 0) {
     btn.className = "tree-leaf";
     btn.innerHTML = `
       <span class="tree-leaf-marker">└</span>
-      <span class="tree-leaf-symbol">${viz.symbol}</span>
+      <span class="tree-leaf-symbol">${escapeHtml(viz.symbol)}</span>
       <span class="tree-leaf-text">
-        <span class="tree-leaf-title">${viz.title}</span>
-        <span class="tree-leaf-sub">${viz.subtitle}</span>
+        <span class="tree-leaf-title">${escapeHtml(viz.title)}</span>
+        <span class="tree-leaf-sub">${escapeHtml(viz.subtitle)}</span>
       </span>
     `;
     btn.addEventListener("click", async () => {

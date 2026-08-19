@@ -15,8 +15,19 @@ import sympy as sp
 import webview
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
+from sympy.parsing.sympy_parser import (
+    convert_xor,
+    implicit_multiplication_application,
+    parse_expr as sympy_parse_expr,
+    standard_transformations,
+)
 
 x = sp.symbols("x")
+
+_PARSE_TRANSFORMATIONS = standard_transformations + (
+    convert_xor,
+    implicit_multiplication_application,
+)
 
 PARSE_LOCALS = {
     "x": x,
@@ -50,11 +61,56 @@ def resolve_resource(path: str, base: Path | None = None) -> Path:
     return root / path
 
 
+def parse_user_expr(text: str, local_dict):
+    """Parse classroom notation: 2x, 3sin(x), x^2, e^x. Reject comma-pairs."""
+    raw = (text or "").strip()
+    if not raw:
+        raise ValueError("Please enter an expression.")
+    try:
+        expr = sympy_parse_expr(
+            raw,
+            local_dict=local_dict,
+            transformations=_PARSE_TRANSFORMATIONS,
+        )
+    except Exception as exc:
+        raise ValueError(f"Could not parse expression: {raw}") from exc
+    if isinstance(expr, (tuple, list, sp.Tuple)):
+        raise ValueError("Enter a single expression, not a comma-separated pair.")
+    return expr
+
+
 def parse_expr(text: str):
-    return sp.sympify(text, locals=PARSE_LOCALS)
+    return parse_user_expr(text, PARSE_LOCALS)
 
 
-def safe_eval(expr_sympy, x_vals, clip=50):
+def mask_vertical_jumps(y):
+    """Insert NaNs at sign-changing spikes so polylines break at asymptotes."""
+    y = np.asarray(y, dtype=float).copy()
+    if y.size < 3:
+        return y
+    dy = np.abs(np.diff(y))
+    finite_dy = dy[np.isfinite(dy)]
+    if finite_dy.size < 4:
+        typical = 1.0
+    else:
+        typical = float(np.median(finite_dy))
+    thresh = max(8.0, typical * 18.0)
+    for i in range(y.size - 1):
+        a, b = y[i], y[i + 1]
+        if not (np.isfinite(a) and np.isfinite(b)):
+            continue
+        gap = abs(b - a)
+        if a * b < 0 and gap > max(1.25, typical * 8.0):
+            y[i + 1] = np.nan
+            continue
+        if gap < thresh:
+            continue
+        if abs(a) > thresh or abs(b) > thresh:
+            y[i + 1] = np.nan
+    return y
+
+
+def safe_eval(expr_sympy, x_vals, clip=1.0e6, break_jumps=True):
     try:
         f = sp.lambdify(x, expr_sympy, modules=["numpy"])
         with np.errstate(divide="ignore", invalid="ignore", over="ignore", under="ignore"):
@@ -64,7 +120,13 @@ def safe_eval(expr_sympy, x_vals, clip=50):
         elif y.shape != x_vals.shape:
             y = np.broadcast_to(y, x_vals.shape).astype(float, copy=False)
         y = np.where(np.isfinite(y), y, np.nan)
-        return np.clip(y, -clip, clip)
+        if clip is not None:
+            saturated = np.isfinite(y) & (np.abs(y) >= clip)
+            y = np.clip(y, -clip, clip)
+            y = np.where(saturated, np.nan, y)
+        if break_jumps:
+            y = mask_vertical_jumps(y)
+        return y
     except Exception:
         return np.full_like(x_vals, np.nan, dtype=float)
 
@@ -86,6 +148,29 @@ def compute_y_range(y_true, default=(-10.0, 10.0)):
         yr = float(max(np.percentile(np.abs(y_valid - yc), 95), 1.0) * 1.6)
         return yc - yr, yc + yr
     return default
+
+
+def combined_y_range(*arrays, default=(-10.0, 10.0)):
+    chunks = []
+    for arr in arrays:
+        if arr is None:
+            continue
+        a = np.asarray(arr, dtype=float)
+        if a.ndim == 0:
+            a = np.array([float(a)], dtype=float)
+        fin = a[np.isfinite(a)]
+        if fin.size:
+            chunks.append(fin)
+    if not chunks:
+        return default
+    all_vals = np.concatenate(chunks)
+    lo = float(np.nanpercentile(all_vals, 4))
+    hi = float(np.nanpercentile(all_vals, 96))
+    if not np.isfinite(lo) or not np.isfinite(hi) or hi - lo < 1e-8:
+        c = float(np.nanmedian(all_vals))
+        return c - 1.0, c + 1.0
+    pad = max(0.35, 0.16 * (hi - lo))
+    return lo - pad, hi + pad
 
 
 def sample_domain(xmin: float, xmax: float, samples: int = 1400):
