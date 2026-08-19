@@ -11,6 +11,10 @@ SRC = ROOT / "src"
 if SRC.is_dir() and str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from calcbc.runtime import clear_windows_download_block
+
+clear_windows_download_block()
+
 from calcbc.app import main
 
 

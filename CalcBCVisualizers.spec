@@ -6,6 +6,7 @@ hiddenimports = [
     "calcbc.app",
     "calcbc.graph",
     "calcbc.catalog",
+    "calcbc.runtime",
     "calcbc.subjects",
     "calcbc.subjects.calculus",
     "calcbc.visualizers",

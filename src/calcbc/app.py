@@ -17,6 +17,7 @@ from calcbc.visualizers.riemann import RiemannApi
 from calcbc.visualizers.taylor import TaylorApi
 from calcbc.visualizers.volume_rotation import VolumeRotationApi
 from calcbc.visualizers.parametric import ParametricApi
+from calcbc.runtime import start_webview
 from calcbc.visualizers.polar import PolarApi
 
 
@@ -151,7 +152,7 @@ def main():
         background_color="#0a1020",
     )
     api.bind_window(window)
-    webview.start(debug=False)
+    start_webview(debug=False)
 
 
 if __name__ == "__main__":

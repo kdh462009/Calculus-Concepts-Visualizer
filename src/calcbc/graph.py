@@ -273,4 +273,6 @@ def launch_app(
         min_size=min_size,
         background_color=background_color,
     )
-    webview.start(debug=debug)
+    from calcbc.runtime import start_webview
+
+    start_webview(debug=debug)

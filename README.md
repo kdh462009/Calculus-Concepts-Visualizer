@@ -66,4 +66,6 @@ This software is also covered under the [Knivier SSP/ToS (Open Source Restricted
 
 ## Notes
 
+If a Windows zip from GitHub (or email) will not start, right-click the zip → Properties → check **Unblock** → Apply, then unzip again. Windows marks internet downloads as untrusted, which can block the .NET library pywebview needs.
+
 AI assistance was used for UI acceleration and desktop packaging workflow; calculus logic and feature decisions were authored and validated in-project.
