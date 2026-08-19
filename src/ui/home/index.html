@@ -6,7 +6,7 @@
   <title>Calculus Concept Visualizers</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
-<body>
+<body data-page="home">
   <div class="ambient-bg" aria-hidden="true">
     <div class="ambient-orb ambient-orb-a"></div>
     <div class="ambient-orb ambient-orb-b"></div>
@@ -18,8 +18,8 @@
     <div class="opening-streak"></div>
     <div class="opening-content">
       <div class="opening-symbols"><span>∫</span><span>∑</span><span>f′</span><span>rθ</span></div>
-      <h1 class="opening-title">Calculus Visualizers</h1>
-      <p class="opening-sub">For Calculus 1 & 2 / AB / BC</p>
+      <h1 class="opening-title">Concept Visualizers</h1>
+      <p class="opening-sub">Calculus AB / BC</p>
       <p class="opening-version" data-app-version>Version 1.2</p>
       <div class="opening-loader" aria-live="polite">
         <p class="opening-load-label" id="openingLoadLabel">Starting…</p>
@@ -32,15 +32,40 @@
   <div class="app-shell launcher-shell opening-pending">
     <header class="header launcher-header">
       <div class="title-row">
-        <h1>Calculus Visualizers</h1>
-        <p class="opening-sub">AB / BC</p>
+        <h1>Concept Visualizers</h1>
+        <p class="opening-sub">Pick a subject</p>
       </div>
+      <button id="shortcutsBtn" class="shortcuts-toggle" type="button" aria-expanded="false" aria-controls="shortcutsPanel">
+        Shortcuts
+      </button>
     </header>
 
     <main class="launcher-panel" aria-label="Available visualizers">
       <div class="viz-hub glass">
-        <nav id="unitRail" class="unit-rail" role="tablist" aria-label="AP Calculus units"></nav>
-        <section id="vizStage" class="viz-stage" role="tabpanel"></section>
+        <nav id="subjectRail" class="subject-rail" role="tablist" aria-label="Subjects"></nav>
+        <div id="hubMain" class="hub-main">
+          <nav id="unitRail" class="unit-rail" role="tablist" aria-label="Units"></nav>
+          <section id="vizStage" class="viz-stage" role="tabpanel"></section>
+          <aside id="shortcutsPanel" class="shortcuts-panel" hidden>
+            <p class="shortcuts-title">Keyboard</p>
+            <ul class="shortcuts-list">
+              <li><kbd>[</kbd> <kbd>]</kbd> <span>Switch subject</span></li>
+              <li><kbd>←</kbd> <kbd>→</kbd> <span>Switch unit</span></li>
+              <li><kbd>↑</kbd> <kbd>↓</kbd> <span>Select visualizer</span></li>
+              <li><kbd>Enter</kbd> <span>Open selected</span></li>
+              <li><kbd>Esc</kbd> <span>Home from a visualizer</span></li>
+              <li><kbd>?</kbd> <span>Toggle this menu</span></li>
+            </ul>
+          </aside>
+          <div class="shortcut-strip" aria-hidden="true">
+            <span><kbd>[</kbd><kbd>]</kbd> subject</span>
+            <span><kbd>←</kbd><kbd>→</kbd> unit</span>
+            <span><kbd>↑</kbd><kbd>↓</kbd> select</span>
+            <span><kbd>Enter</kbd> open</span>
+            <span><kbd>Esc</kbd> home</span>
+            <span><kbd>?</kbd> shortcuts</span>
+          </div>
+        </div>
       </div>
     </main>
 

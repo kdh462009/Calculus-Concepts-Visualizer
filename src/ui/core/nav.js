@@ -33,3 +33,29 @@ document.addEventListener("click", (event) => {
   }
   window.open(url, "_blank", "noopener");
 });
+
+function isTypingTarget(target) {
+  return target instanceof HTMLElement && (
+    target.matches("input, textarea, select")
+    || target.isContentEditable
+  );
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || event.defaultPrevented) return;
+  if (document.body?.dataset.page === "home") {
+    if (isTypingTarget(event.target)) return;
+    if (typeof window.closeHomeShortcuts === "function" && window.closeHomeShortcuts()) {
+      event.preventDefault();
+    }
+    return;
+  }
+  if (typeof window.pywebview?.api?.go_home !== "function") return;
+  event.preventDefault();
+  const goHome = () => window.pywebview.api.go_home();
+  if (window.VizTransition?.navigateWithWoosh) {
+    window.VizTransition.navigateWithWoosh(window.VizTransition.back, goHome);
+  } else {
+    goHome();
+  }
+});

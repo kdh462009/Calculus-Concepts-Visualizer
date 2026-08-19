@@ -1,7 +1,7 @@
 # Calculus Concepts Visualizer
 
 AP Calculus BC visualizer suite built with Python + PyWebView.  
-The app opens a launcher home screen and lets you jump into interactive visualizers by unit.
+The app opens a launcher with a Calculus subject tab. Units and visualizers sit beside it, so more subjects can be added the same way.
 
 ## Run Locally
 
@@ -42,6 +42,8 @@ The app opens a launcher home screen and lets you jump into interactive visualiz
 
 - `app.py` — thin launcher (`python app.py`)
 - `src/calcbc/` — Python package (window, routing, graph engine)
+- `src/calcbc/subjects/` — one module per subject (Calculus today; add more here)
+- `src/calcbc/catalog.py` — subject/visualizer registry used by the home hub
 - `src/calcbc/visualizers/` — per-concept backends
 - `src/ui/core/` — shared frontend (graph, transitions, nav)
 - `src/ui/<visualizer>/` — per-visualizer HTML/JS

@@ -10,6 +10,7 @@ import webview
 
 from calcbc.visualizers.derivatives import DerivativesApi
 from calcbc.graph import compute_function_preview, resolve_resource
+from calcbc.catalog import find_visualizer, get_catalog as build_catalog
 from calcbc.visualizers.limit import LimitApi
 from calcbc.visualizers.inverse import InverseApi
 from calcbc.visualizers.riemann import RiemannApi
@@ -17,81 +18,6 @@ from calcbc.visualizers.taylor import TaylorApi
 from calcbc.visualizers.volume_rotation import VolumeRotationApi
 from calcbc.visualizers.parametric import ParametricApi
 from calcbc.visualizers.polar import PolarApi
-
-VISUALIZERS = [
-    {
-        "id": "limit",
-        "unit": 1,
-        "unitTitle": "Limits & Continuity",
-        "title": "Limits (Epsilon-Delta)",
-        "subtitle": "Animate shrinking epsilon bands and delta neighborhoods to visualize convergence",
-        "symbol": "εδ",
-        "path": "ui/limit/index.html",
-    },
-    {
-        "id": "derivatives",
-        "unit": 2,
-        "unitTitle": "Differentiation Fundamentals",
-        "title": "Derivatives",
-        "subtitle": "Animate tangent slope, first derivative, and second-derivative concavity",
-        "symbol": "f′",
-        "path": "ui/derivatives/index.html",
-    },
-    {
-        "id": "inverse",
-        "unit": 3,
-        "unitTitle": "Composite, Implicit & Inverse Functions",
-        "title": "Inverse Visualizer",
-        "subtitle": "Animate f(x), f⁻¹(x), and derivative relationships on a shared view",
-        "symbol": "f⁻¹",
-        "path": "ui/inverse/index.html",
-    },
-    {
-        "id": "riemann",
-        "unit": 6,
-        "unitTitle": "Integration & Accumulation",
-        "title": "Riemann Sums",
-        "subtitle": "Compare left/right/mid/trapezoid sums against the definite integral",
-        "symbol": "∫",
-        "path": "ui/riemann/index.html",
-    },
-    {
-        "id": "volume_rotation",
-        "unit": 8,
-        "unitTitle": "Applications of Integration",
-        "title": "Volume Rotation",
-        "subtitle": "Rotate bounded regions around an axis to visualize solids of revolution",
-        "symbol": "⟳V",
-        "path": "ui/volume_rotation/index.html",
-    },
-    {
-        "id": "parametric",
-        "unit": 9,
-        "unitTitle": "Parametric, Polar & Vector-Valued Functions",
-        "title": "Parametric Curves",
-        "subtitle": "Animate x(t), y(t), velocity, and motion vectors",
-        "symbol": "(x,y)",
-        "path": "ui/parametric/index.html",
-    },
-    {
-        "id": "polar",
-        "unit": 9,
-        "unitTitle": "Parametric, Polar & Vector-Valued Functions",
-        "title": "Polar Area",
-        "subtitle": "Shade polar regions with sector slices and compare two curves",
-        "symbol": "rθ",
-        "path": "ui/polar/index.html",
-    },
-    {
-        "id": "taylor",
-        "unit": 10,
-        "unitTitle": "Infinite Sequences & Series",
-        "title": "Taylor Series",
-        "subtitle": "Animated polynomial approximations around a center point",
-        "symbol": "∑",
-        "path": "ui/taylor/index.html",
-    },
-]
 
 
 EXTERNAL_URLS = frozenset(
@@ -127,22 +53,25 @@ class AppApi:
 
         threading.Timer(0.12, _navigate).start()
 
+    def get_catalog(self):
+        return build_catalog()
+
     def get_visualizers(self):
-        items = sorted(VISUALIZERS, key=lambda item: (item["unit"], item["title"]))
-        return [
-            {k: v for k, v in item.items() if k != "path"}
-            for item in items
-        ]
+        catalog = build_catalog()
+        items = []
+        for subject in catalog["subjects"]:
+            items.extend(subject["visualizers"])
+        return items
 
     def open_visualizer(self, visualizer_id: str):
         if not self._window:
             return {"ok": False, "error": "Window not ready."}
-        for item in VISUALIZERS:
-            if item["id"] == visualizer_id:
-                url = resolve_resource(item["path"]).as_uri()
-                self._schedule_url(url)
-                return {"ok": True}
-        return {"ok": False, "error": f"Unknown visualizer: {visualizer_id}"}
+        item = find_visualizer(visualizer_id)
+        if not item:
+            return {"ok": False, "error": f"Unknown visualizer: {visualizer_id}"}
+        url = resolve_resource(item["path"]).as_uri()
+        self._schedule_url(url)
+        return {"ok": True}
 
     def go_home(self):
         if not self._window:
@@ -213,7 +142,7 @@ class AppApi:
 def main():
     api = AppApi()
     window = webview.create_window(
-        title="Calc BC Visualizers 1.2",
+        title="Concept Visualizers 1.2",
         url=resolve_resource("ui/home/index.html").as_uri(),
         js_api=api,
         width=1320,

@@ -49,6 +49,11 @@ SUM_TYPES = [
 ]
 
 
+def _eval_for_integral(expr, xs: np.ndarray) -> np.ndarray:
+    """Sample f for quadrature — do not insert plot-only jump/clip NaNs."""
+    return safe_eval(expr, xs, clip=None, break_jumps=False)
+
+
 def _reject_if_singular(xs: np.ndarray, ys: np.ndarray, *, label: str) -> None:
     """Refuse Cauchy principal-value stand-ins for blow-ups and interior holes."""
     if xs.size < 8:
@@ -63,32 +68,44 @@ def _reject_if_singular(xs: np.ndarray, ys: np.ndarray, *, label: str) -> None:
     if finite.size < max(10, xs.size // 3):
         raise ValueError(f"{label} could not be estimated on this interval.")
     for i in range(ys.size - 1):
-        a, b = ys[i], ys[i + 1]
-        if not (np.isfinite(a) and np.isfinite(b)):
+        left, right = ys[i], ys[i + 1]
+        if not (np.isfinite(left) and np.isfinite(right)):
             continue
-        if a * b < 0 and abs(a) > 20 and abs(b) > 20 and abs(b - a) > 40:
+        if left * right < 0 and abs(left) > 20 and abs(right) > 20 and abs(right - left) > 40:
             raise ValueError(
                 f"{label} appears to have a vertical asymptote on [a, b]. "
                 "The definite integral may not exist as a proper Riemann integral."
             )
 
 
+def _trapezoid_skip_endpoint_nans(xs: np.ndarray, ys: np.ndarray, *, label: str) -> float:
+    """Integrate after dropping non-finite endpoints only (not interior holes)."""
+    lo, hi = 0, ys.size - 1
+    while lo <= hi and not np.isfinite(ys[lo]):
+        lo += 1
+    while hi >= lo and not np.isfinite(ys[hi]):
+        hi -= 1
+    if hi - lo + 1 < 8:
+        raise ValueError(f"{label} could not be estimated on this interval.")
+    value = float(np.trapezoid(ys[lo : hi + 1], xs[lo : hi + 1]))
+    if not np.isfinite(value):
+        raise ValueError(f"{label} could not be estimated on this interval.")
+    return value
+
+
 def _high_res_integral(expr, a: float, b: float) -> float:
-    sample_count = 24000
-    xs = np.linspace(a, b, sample_count)
-    ys = safe_eval(expr, xs, clip=1.0e9)
+    xs = np.linspace(a, b, 24000)
+    ys = _eval_for_integral(expr, xs)
     _reject_if_singular(xs, ys, label="Integral")
-    return float(np.trapezoid(ys, xs))
+    return _trapezoid_skip_endpoint_nans(xs, ys, label="Integral")
 
 
 def _integral_abs_f(expr, a: float, b: float) -> float:
     """Total area under |f| on [a, b] — stable scale when ∫f ≈ 0."""
-    sample_count = 24000
-    xs = np.linspace(a, b, sample_count)
-    signed = safe_eval(expr, xs, clip=1.0e9)
+    xs = np.linspace(a, b, 24000)
+    signed = _eval_for_integral(expr, xs)
     _reject_if_singular(xs, signed, label="Area scale")
-    ys = np.abs(signed)
-    return float(np.trapezoid(ys, xs))
+    return _trapezoid_skip_endpoint_nans(xs, np.abs(signed), label="Area scale")
 
 
 def _riemann_estimate(expr, a: float, b: float, n: int, sum_type: str) -> float:
@@ -98,22 +115,22 @@ def _riemann_estimate(expr, a: float, b: float, n: int, sum_type: str) -> float:
 
     if sum_type == "left":
         points = a + dx * np.arange(0, n)
-        ys = safe_eval(expr, points, clip=1.0e9)
+        ys = _eval_for_integral(expr, points)
         return float(np.nansum(ys) * dx)
 
     if sum_type == "right":
         points = a + dx * np.arange(1, n + 1)
-        ys = safe_eval(expr, points, clip=1.0e9)
+        ys = _eval_for_integral(expr, points)
         return float(np.nansum(ys) * dx)
 
     if sum_type == "midpoint":
         points = a + dx * (np.arange(0, n) + 0.5)
-        ys = safe_eval(expr, points, clip=1.0e9)
+        ys = _eval_for_integral(expr, points)
         return float(np.nansum(ys) * dx)
 
     if sum_type == "trapezoidal":
         points = a + dx * np.arange(0, n + 1)
-        ys = safe_eval(expr, points, clip=1.0e9)
+        ys = _eval_for_integral(expr, points)
         if len(ys) < 2:
             return float("nan")
         return float((ys[0] + ys[-1] + 2.0 * np.nansum(ys[1:-1])) * dx * 0.5)
