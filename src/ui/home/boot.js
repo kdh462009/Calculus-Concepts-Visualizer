@@ -5,6 +5,7 @@
     { name: "styles.css", url: "../core/styles.css", kind: "css" },
     { name: "transitions.css", url: "../core/transitions.css", kind: "css" },
     { name: "transitions.js", url: "../core/transitions.js", kind: "js" },
+    { name: "scale-bar.js", url: "../core/scale-bar.js", kind: "js" },
     { name: "graph.js", url: "../core/graph.js", kind: "js" },
     { name: "function-preview.js", url: "../core/function-preview.js", kind: "js" },
     { name: "nav.js", url: "../core/nav.js", kind: "js" },

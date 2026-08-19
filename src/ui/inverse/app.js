@@ -32,10 +32,7 @@ function setStatus(text) {
 }
 
 function updateScaleReadout() {
-  if (!viewer?.view) return;
-  const v = viewer.view;
-  el.scaleLine.textContent =
-    `Scale: x [${v.xmin.toFixed(2)}, ${v.xmax.toFixed(2)}], y [${v.ymin.toFixed(2)}, ${v.ymax.toFixed(2)}]`;
+  viewer?.notifyView?.();
 }
 
 function applyStageView(stage) {
@@ -49,6 +46,7 @@ function applyStageView(stage) {
     ymin: yRange[0],
     ymax: yRange[1],
   };
+  viewer.clampView();
 }
 
 function updateStageButton() {
@@ -246,7 +244,6 @@ async function bootstrap() {
   el.resetBtn = $("resetBtn");
   el.status = $("status");
   el.phaseLine = $("phaseLine");
-  el.scaleLine = $("scaleLine");
   el.plotLegend = $("plotLegend");
   el.ruleLine = $("ruleLine");
   el.exprLine = $("exprLine");

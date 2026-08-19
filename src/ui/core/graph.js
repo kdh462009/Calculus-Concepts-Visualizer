@@ -40,8 +40,36 @@ class GraphViewer {
     this._expandGen = 0;
     this.onDomainExpand = options.onDomainExpand || null;
     this.activeParams = null;
+    this.scaleBar = null;
 
     this._wireInteractions();
+    this.attachScaleBar();
+  }
+
+  attachScaleBar() {
+    if (typeof window.ScaleBar?.mount !== "function") return;
+    const host = this.canvas?.parentElement;
+    if (!host || this.scaleBar) return;
+    this.scaleBar = window.ScaleBar.mount(host, {
+      getView: () => this.view,
+      setView: (view) => this.setView(view),
+    });
+  }
+
+  notifyView() {
+    this.scaleBar?.sync();
+    this.onViewChange?.({ ...this.view });
+  }
+
+  setView(next) {
+    if (!next) return;
+    if (Number.isFinite(next.xmin)) this.view.xmin = next.xmin;
+    if (Number.isFinite(next.xmax)) this.view.xmax = next.xmax;
+    if (Number.isFinite(next.ymin)) this.view.ymin = next.ymin;
+    if (Number.isFinite(next.ymax)) this.view.ymax = next.ymax;
+    this.clampView();
+    this.redraw();
+    if (this.data) this.scheduleDomainExpansion();
   }
 
   setData(data, activeParams = null, options = {}) {
@@ -54,6 +82,8 @@ class GraphViewer {
         ymin: data.yRange[0],
         ymax: data.yRange[1],
       };
+      this.clampView();
+      this.notifyView();
     }
   }
 
@@ -77,6 +107,8 @@ class GraphViewer {
     } else {
       this.view = { ...defaultView };
     }
+    this.clampView();
+    this.notifyView();
   }
 
   setupCanvasResolution() {
@@ -241,11 +273,13 @@ class GraphViewer {
   draw(layers = []) {
     this.setupCanvasResolution();
     this.drawGrid();
-    if (!this.data) return;
-    for (const layer of layers) {
-      if (!layer?.ys) continue;
-      this.drawLine(this.data.x, layer.ys, layer.color, layer.width, layer.alpha);
+    if (this.data) {
+      for (const layer of layers) {
+        if (!layer?.ys) continue;
+        this.drawLine(this.data.x, layer.ys, layer.color, layer.width, layer.alpha);
+      }
     }
+    this.notifyView();
   }
 
   scheduleDomainExpansion() {
@@ -300,6 +334,7 @@ class GraphViewer {
     } else {
       this.draw();
     }
+    this.notifyView();
   }
 
   _wireInteractions() {

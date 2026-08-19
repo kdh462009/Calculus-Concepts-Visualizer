@@ -346,6 +346,7 @@ class ParametricRenderer {
       "wheel",
       (e) => {
         e.preventDefault();
+        if (!e.deltaY) return;
         const zoom = e.deltaY > 0 ? 1.08 : 0.92;
         const rect = this.canvas.getBoundingClientRect();
         const sx = e.clientX - rect.left;
@@ -363,9 +364,7 @@ class ParametricRenderer {
 }
 
 function updateReadouts() {
-  const v = state.view;
-  el.scaleLine.textContent =
-    `Scale: x [${v.xmin.toFixed(2)}, ${v.xmax.toFixed(2)}], y [${v.ymin.toFixed(2)}, ${v.ymax.toFixed(2)}]`;
+  renderer?.scaleBar?.sync();
   if (state.data?.arcLength != null && Number.isFinite(state.data.arcLength)) {
     el.metricLine.textContent = `Arc length ≈ ${state.data.arcLength.toFixed(5)}`;
   }
@@ -534,13 +533,19 @@ async function bootstrap() {
   el.legendToggleBtn = $("legendToggleBtn");
   el.status = $("status");
   el.phaseLine = $("phaseLine");
-  el.scaleLine = $("scaleLine");
   el.legendLine = $("legendLine");
   el.metricLine = $("metricLine");
   el.ruleLine = $("ruleLine");
   el.formulaLine = $("formulaLine");
 
   renderer = new ParametricRenderer($("paramCanvas"));
+  renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
+    getView: () => state.view,
+    setView: (view) => {
+      state.view = { ...state.view, ...view };
+      renderer.draw();
+    },
+  });
   renderer.draw();
 
   const boot = await window.pywebview.api.get_parametric_bootstrap();

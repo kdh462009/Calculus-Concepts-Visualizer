@@ -281,6 +281,7 @@ class VolumeRenderer {
       ctx.fillStyle = "#94a3d9";
       ctx.font = "15px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillText("Press Animate to compute and animate.", 20, 34);
+      this.scaleBar?.sync();
       return;
     }
 
@@ -296,6 +297,7 @@ class VolumeRenderer {
     this.drawAreaGuide(data, profile, scale, yaw, pitch);
     this.drawCurve2D(data, scale, yaw, pitch);
     this.drawSurface(data, profile, sweepAngle, scale, yaw, pitch);
+    this.scaleBar?.sync();
   }
 }
 
@@ -306,6 +308,57 @@ function stopAnimation() {
   if (state.rafId) cancelAnimationFrame(state.rafId);
   state.rafId = null;
   el.pauseBtn.textContent = "Pause";
+}
+
+const VOLUME_PERSP = 700 / (700 + 340);
+
+function volumeWorldSize(data) {
+  if (!data) return 2;
+  const hints = data.scaleHints || {};
+  const worldX = Math.max(Math.abs(data.xRange?.[0] || 0), Math.abs(data.xRange?.[1] || 0), hints.maxAbsX || 1);
+  const worldY = Math.max(hints.maxAbsY || 1, 1);
+  const worldZ = Math.max(worldY, worldX * 0.9, 1);
+  return Math.max(worldX, worldY, worldZ, 1);
+}
+
+function volumePixelScale() {
+  const worldSize = volumeWorldSize(state.data);
+  const zoom = Math.max(0.45, Math.min(2.2, state.zoom || 1));
+  const w = renderer?.w || 1;
+  const h = renderer?.h || 1;
+  return Math.min(w, h) * 0.36 * zoom / worldSize;
+}
+
+function volumeGetView() {
+  const k = Math.max(volumePixelScale() * VOLUME_PERSP, 1e-6);
+  const halfW = (renderer?.w || 1) * 0.5 / k;
+  const halfH = (renderer?.h || 1) * 0.5 / k;
+  const cx = -(state.viewOffsetX || 0) / k;
+  const cy = (state.viewOffsetY || 0) / k;
+  return {
+    xmin: cx - halfW,
+    xmax: cx + halfW,
+    ymin: cy - halfH,
+    ymax: cy + halfH,
+  };
+}
+
+function volumeSetView(view) {
+  const spanX = Math.max(view.xmax - view.xmin, 0.5);
+  const spanY = Math.max(view.ymax - view.ymin, 0.5);
+  const w = renderer?.w || 1;
+  const h = renderer?.h || 1;
+  const scaleFromX = w / (spanX * VOLUME_PERSP);
+  const scaleFromY = h / (spanY * VOLUME_PERSP);
+  const scale = Math.min(scaleFromX, scaleFromY);
+  const worldSize = volumeWorldSize(state.data);
+  state.zoom = Math.max(0.45, Math.min(2.2, scale * worldSize / (Math.min(w, h) * 0.36)));
+  const k = volumePixelScale() * VOLUME_PERSP;
+  const cx = (view.xmin + view.xmax) / 2;
+  const cy = (view.ymin + view.ymax) / 2;
+  state.viewOffsetX = -cx * k;
+  state.viewOffsetY = cy * k;
+  drawCurrentFrame();
 }
 
 function drawCurrentFrame() {
@@ -573,6 +626,10 @@ async function bootstrap() {
   el.formulaLine = $("formulaLine");
 
   renderer = new VolumeRenderer($("volumeCanvas"));
+  renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
+    getView: volumeGetView,
+    setView: volumeSetView,
+  });
   drawCurrentFrame();
 
   const boot = await window.pywebview.api.get_volume_bootstrap();

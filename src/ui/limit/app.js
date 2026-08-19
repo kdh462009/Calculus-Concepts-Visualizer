@@ -8,6 +8,8 @@ const state = {
   elapsed: 0,
   lastTs: 0,
   idx: 0,
+  view: null,
+  drag: null,
 };
 
 const el = {};
@@ -34,6 +36,91 @@ class LimitRenderer {
     this.h = 0;
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    this._wireInteractions();
+  }
+
+  currentView(data) {
+    if (state.view) return state.view;
+    if (!data) return { xmin: -2, xmax: 2, ymin: -6, ymax: 6 };
+    const [ymin, ymax] = this.computeYRange(data);
+    return {
+      xmin: data.xRange[0],
+      xmax: data.xRange[1],
+      ymin,
+      ymax,
+    };
+  }
+
+  fitView(data) {
+    if (!data) {
+      state.view = null;
+      return;
+    }
+    const [ymin, ymax] = this.computeYRange(data);
+    state.view = {
+      xmin: data.xRange[0],
+      xmax: data.xRange[1],
+      ymin,
+      ymax,
+    };
+  }
+
+  screenToWorld(sx, sy, view) {
+    const p = this.plotArea();
+    const v = view;
+    const x = v.xmin + ((sx - p.left) / p.width) * (v.xmax - v.xmin);
+    const y = v.ymax - ((sy - p.top) / p.height) * (v.ymax - v.ymin);
+    return [x, y];
+  }
+
+  _wireInteractions() {
+    this.canvas.style.cursor = "grab";
+    this.canvas.addEventListener("mousedown", (e) => {
+      if (!state.view && !state.data) return;
+      if (state.animating) stopAnimation();
+      const view = this.currentView(state.data);
+      state.drag = { x: e.clientX, y: e.clientY, view: { ...view } };
+      this.canvas.style.cursor = "grabbing";
+    });
+    window.addEventListener("mouseup", () => {
+      state.drag = null;
+      this.canvas.style.cursor = "grab";
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!state.drag) return;
+      const dx = e.clientX - state.drag.x;
+      const dy = e.clientY - state.drag.y;
+      const rect = this.canvas.getBoundingClientRect();
+      const v = state.drag.view;
+      const spanX = v.xmax - v.xmin;
+      const spanY = v.ymax - v.ymin;
+      state.view = {
+        xmin: v.xmin - (dx / rect.width) * spanX,
+        xmax: v.xmax - (dx / rect.width) * spanX,
+        ymin: v.ymin + (dy / rect.height) * spanY,
+        ymax: v.ymax + (dy / rect.height) * spanY,
+      };
+      this.draw(state.data, state.idx);
+    });
+    this.canvas.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        if (!e.deltaY) return;
+        const view = this.currentView(state.data);
+        const zoom = e.deltaY > 0 ? 1.1 : 0.9;
+        const rect = this.canvas.getBoundingClientRect();
+        const [wx, wy] = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top, view);
+        state.view = {
+          xmin: wx + (view.xmin - wx) * zoom,
+          xmax: wx + (view.xmax - wx) * zoom,
+          ymin: wy + (view.ymin - wy) * zoom,
+          ymax: wy + (view.ymax - wy) * zoom,
+        };
+        this.draw(state.data, state.idx);
+      },
+      { passive: false },
+    );
   }
 
   resize() {
@@ -234,12 +321,15 @@ class LimitRenderer {
       ctx.fillStyle = "#94a3d9";
       ctx.font = "15px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillText("Compute a limit first.", 20, 34);
+      this.scaleBar?.sync();
       return;
     }
 
-    const xmin = data.xRange[0];
-    const xmax = data.xRange[1];
-    const [ymin, ymax] = this.computeYRange(data);
+    const v = this.currentView(data);
+    const xmin = v.xmin;
+    const xmax = v.xmax;
+    const ymin = v.ymin;
+    const ymax = v.ymax;
     const i = clamp(idx, 0, data.epsPath.length - 1);
     const eps = data.epsPath[i];
     const delta = data.deltaPath[i];
@@ -248,6 +338,7 @@ class LimitRenderer {
     this.drawBandAndDelta(data, eps, delta, xmin, xmax, ymin, ymax);
     this.drawFunction(data, xmin, xmax, ymin, ymax);
     this.drawDotsInDelta(data, eps, delta, xmin, xmax, ymin, ymax);
+    this.scaleBar?.sync();
   }
 }
 
@@ -330,6 +421,7 @@ async function computeModel() {
   state.data = res;
   state.elapsed = 0;
   state.idx = 0;
+  renderer.fitView(res);
   drawCurrentFrame();
   updateReadout();
   if (res.estimatedLimit !== null && (el.limitInput.value || "").trim() === "") {
@@ -416,6 +508,13 @@ async function bootstrap() {
   el.definitionLine = $("definitionLine");
 
   renderer = new LimitRenderer($("limitCanvas"));
+  renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
+    getView: () => renderer.currentView(state.data),
+    setView: (view) => {
+      state.view = { ...view };
+      renderer.draw(state.data, state.idx);
+    },
+  });
   drawCurrentFrame();
 
   const boot = await window.pywebview.api.get_limit_bootstrap();

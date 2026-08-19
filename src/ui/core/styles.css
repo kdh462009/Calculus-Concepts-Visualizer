@@ -355,6 +355,45 @@ input[type="range"]::-webkit-slider-thumb {
   flex-shrink: 0;
 }
 
+.scale-bar {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: calc(100% - 32px);
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(12, 18, 36, 0.88);
+  border: 1px solid rgba(159, 182, 255, 0.38);
+  color: #dfe6ff;
+  font-size: 11px;
+  font-weight: 650;
+  pointer-events: auto;
+}
+
+.scale-bar-k {
+  color: #96a6de;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.scale-bar-sep {
+  color: #8790b1;
+}
+
+.scale-bar input[type="number"].scale-bar-input {
+  width: 5.2em;
+  margin: 0;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-weight: 650;
+  border-radius: 7px;
+}
+
 #plotCanvas {
   cursor: crosshair;
 }

@@ -369,6 +369,7 @@ class PolarRenderer {
       "wheel",
       (e) => {
         e.preventDefault();
+        if (!e.deltaY) return;
         const zoom = e.deltaY > 0 ? 1.08 : 0.92;
         const rect = this.canvas.getBoundingClientRect();
         const [wx, wy] = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
@@ -422,9 +423,7 @@ function formatErrorLabel(exact, estimate) {
 }
 
 function updateReadouts(visibleCount = null, phase = null) {
-  const v = state.view;
-  el.scaleLine.textContent =
-    `Scale: x [${v.xmin.toFixed(2)}, ${v.xmax.toFixed(2)}], y [${v.ymin.toFixed(2)}, ${v.ymax.toFixed(2)}]`;
+  renderer?.scaleBar?.sync();
   if (!state.data) return;
 
   const data = state.data;
@@ -634,12 +633,18 @@ async function bootstrap() {
   el.legendToggleBtn = $("legendToggleBtn");
   el.status = $("status");
   el.phaseLine = $("phaseLine");
-  el.scaleLine = $("scaleLine");
   el.intersectionLine = $("intersectionLine");
   el.ruleLine = $("ruleLine");
   el.areaLine = $("areaLine");
 
   renderer = new PolarRenderer($("polarCanvas"));
+  renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
+    getView: () => state.view,
+    setView: (view) => {
+      state.view = { ...state.view, ...view };
+      renderer.draw();
+    },
+  });
   renderer.draw();
 
   const boot = await window.pywebview.api.get_polar_bootstrap();
