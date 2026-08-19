@@ -112,6 +112,7 @@ class LimitRenderer {
         ymax: v.ymax + (dy / rect.height) * spanY,
       };
       this.draw(state.data, state.idx);
+      this.onViewChange?.();
     });
     this.canvas.addEventListener(
       "wheel",
@@ -129,6 +130,7 @@ class LimitRenderer {
           ymax: wy + (view.ymax - wy) * zoom,
         };
         this.draw(state.data, state.idx);
+        this.onViewChange?.();
       },
       { passive: false },
     );
@@ -443,6 +445,42 @@ function payloadFromInputs() {
   };
 }
 
+let coverTimer = null;
+let coverInFlight = false;
+
+function scheduleLimitCoverage() {
+  if (!state.data || !state.view) return;
+  clearTimeout(coverTimer);
+  coverTimer = setTimeout(() => {
+    ensureLimitCoverage();
+  }, 140);
+}
+
+async function ensureLimitCoverage() {
+  if (!state.data || !state.view || coverInFlight) return;
+  const { xmin, xmax } = state.view;
+  const [domainMin, domainMax] = state.data.xRange || [];
+  if (!Number.isFinite(domainMin) || !Number.isFinite(domainMax)) return;
+  if (xmin >= domainMin && xmax <= domainMax) return;
+  const span = Math.max(xmax - xmin, 1e-3);
+  const pad = Math.max(span * 0.12, 0.05);
+  const payload = {
+    ...payloadFromInputs(),
+    xmin: Math.min(xmin - pad, domainMin),
+    xmax: Math.max(xmax + pad, domainMax),
+  };
+  coverInFlight = true;
+  try {
+    const res = await window.pywebview.api.compute_limit(payload);
+    if (!res?.ok) return;
+    state.data = res;
+    drawCurrentFrame();
+    updateReadout();
+  } finally {
+    coverInFlight = false;
+  }
+}
+
 async function computeModel() {
   const payload = payloadFromInputs();
   if (!payload.expr) {
@@ -475,9 +513,9 @@ function wireInteractions() {
     el.homeBtn.addEventListener("click", async () => {
       stopAnimation();
       if (typeof window.pywebview.api.go_home === "function") {
-        await VizTransition.navigateWithWoosh(VizTransition.back, () => {
-          window.pywebview.api.go_home();
-        });
+        await VizTransition.navigateWithWoosh(VizTransition.back, () => (
+          window.pywebview.api.go_home()
+        ));
       }
     });
   }
@@ -546,11 +584,13 @@ async function bootstrap() {
   el.definitionLine = $("definitionLine");
 
   renderer = new LimitRenderer($("limitCanvas"));
+  renderer.onViewChange = scheduleLimitCoverage;
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
     getView: () => renderer.currentView(state.data),
     setView: (view) => {
       state.view = { ...view };
       renderer.draw(state.data, state.idx);
+      scheduleLimitCoverage();
     },
   });
   drawCurrentFrame();

@@ -95,7 +95,7 @@ body {
 
 .layout {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 336px 1fr;
   gap: 12px;
   flex: 1;
   min-height: 0;
@@ -161,9 +161,109 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+.math-input.is-focused {
   border-color: #b7c5ff;
   box-shadow: 0 0 0 2px rgba(140, 168, 255, 0.22);
+}
+
+.math-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.math-input-wrap > input.math-expr-src {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.math-input {
+  width: 100%;
+  min-height: 62px;
+  background: rgba(12, 18, 36, 0.72);
+  color: var(--text);
+  border: 1px solid var(--glass-edge);
+  border-radius: 10px;
+  padding: 26px 12px 10px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  outline: none;
+  cursor: text;
+  line-height: 1.35;
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+
+.math-row {
+  display: inline-flex;
+  align-items: baseline;
+  min-height: 1.2em;
+  white-space: pre;
+}
+
+.math-ch {
+  display: inline;
+}
+
+.math-pow {
+  display: inline-flex;
+  align-items: flex-start;
+  position: relative;
+  margin: 0 1px;
+}
+
+.math-pow-base {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.math-pow-exp {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 0.68em;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 1px;
+  position: relative;
+  top: -0.55em;
+}
+
+.math-pow-base.is-empty,
+.math-pow-exp.is-empty {
+  min-width: 0.7em;
+  min-height: 0.85em;
+  border: 1px dashed rgba(159, 182, 255, 0.55);
+  border-radius: 3px;
+  background: rgba(90, 120, 200, 0.16);
+}
+
+.math-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.05em;
+  margin: 0 -0.75px;
+  background: #dce6ff;
+  border-radius: 1px;
+  animation: math-caret-blink 1s steps(1) infinite;
+  align-self: center;
+}
+
+.math-pow-exp .math-caret {
+  height: 1.15em;
+}
+
+@keyframes math-caret-blink {
+  50% { opacity: 0; }
 }
 
 .row {

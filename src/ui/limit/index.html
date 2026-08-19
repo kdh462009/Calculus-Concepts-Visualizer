@@ -28,7 +28,7 @@
     <main class="layout">
       <aside class="panel glass">
         <label class="section-label">FUNCTION f(x)</label>
-        <input id="exprInput" list="functionHints" value="(x**2-1)/(x-1)" autocomplete="off">
+        <input id="exprInput" class="math-expr" list="functionHints" value="(x^2-1)/(x-1)" autocomplete="off">
         <datalist id="functionHints"></datalist>
 
         <label class="section-label">PRESETS</label>
@@ -92,6 +92,7 @@
   </div>
 
   <script src="../core/nav.js"></script>
+  <script src="../core/math-input.js"></script>
   <script src="../core/scale-bar.js"></script>
   <script src="./app.js"></script>
 </body>

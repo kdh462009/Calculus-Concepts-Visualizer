@@ -85,6 +85,11 @@ def parse_expr(text: str):
     return parse_user_expr(text, PARSE_LOCALS)
 
 
+def classroom_str(expr) -> str:
+    """Student-facing notation: x^2, not x**2."""
+    return str(expr).replace("**", "^")
+
+
 def mask_vertical_jumps(y):
     """Insert NaNs at sign-changing spikes so polylines break at asymptotes."""
     y = np.asarray(y, dtype=float).copy()

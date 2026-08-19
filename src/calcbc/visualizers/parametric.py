@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 
-from calcbc.graph import launch_app, parse_user_expr, sample_domain, to_js_array
+from calcbc.graph import classroom_str, launch_app, parse_user_expr, sample_domain, to_js_array
 
 t = sp.symbols("t")
 
@@ -209,12 +209,12 @@ class ParametricApi:
                 "speed": to_js_array(speed),
                 "unitTangentX": to_js_array(ux),
                 "unitTangentY": to_js_array(uy),
-                "xExpr": str(x_expr),
-                "yExpr": str(y_expr),
-                "dxExpr": str(dx_expr),
-                "dyExpr": str(dy_expr),
-                "d2xExpr": str(d2x_expr),
-                "d2yExpr": str(d2y_expr),
+                "xExpr": classroom_str(x_expr),
+                "yExpr": classroom_str(y_expr),
+                "dxExpr": classroom_str(dx_expr),
+                "dyExpr": classroom_str(dy_expr),
+                "d2xExpr": classroom_str(d2x_expr),
+                "d2yExpr": classroom_str(d2y_expr),
                 "slopeRule": "dy/dx = y′(t) / x′(t)",
                 "speedRule": "‖v(t)‖ = √((x′(t))² + (y′(t))²)",
                 "arcLengthRule": "L = ∫‖v(t)‖ dt",

@@ -103,27 +103,74 @@ function initPageTransition() {
 }
 
 let _navigating = false;
+let _navFailsafeId = 0;
+const NAV_FAILSAFE_MS = 1500;
+
+function unlockNavigation() {
+  _navigating = false;
+  window.__vizNavigating = false;
+}
+
+function abortNavigation() {
+  if (_navFailsafeId) {
+    clearTimeout(_navFailsafeId);
+    _navFailsafeId = 0;
+  }
+  sessionStorage.removeItem(TRANSITION_KEY);
+  clearWooshClasses();
+  unlockNavigation();
+}
+
+function isPyWebviewCallbackGoneError(reason) {
+  const msg = String(
+    reason?.message || reason?.error || reason?.reason || reason || "",
+  );
+  return msg.includes("_returnValuesCallbacks");
+}
 
 async function navigateWithWoosh(direction, navigateFn) {
   if (_navigating || window.__vizNavigating) return;
   _navigating = true;
   window.__vizNavigating = true;
+
+  let leaving = false;
+  const markLeaving = () => {
+    leaving = true;
+    if (_navFailsafeId) {
+      clearTimeout(_navFailsafeId);
+      _navFailsafeId = 0;
+    }
+  };
+  window.addEventListener("pagehide", markLeaving, { once: true });
+  window.addEventListener("beforeunload", markLeaving, { once: true });
+  _navFailsafeId = setTimeout(() => {
+    if (leaving) return;
+    abortNavigation();
+  }, NAV_FAILSAFE_MS);
+
   try {
     sessionStorage.setItem(TRANSITION_KEY, direction);
     const wooshOutPromise = playWooshOut(direction, { holdVisualState: true });
     // Start navigation before the full woosh completes to avoid a visible pause.
     await Promise.race([wooshOutPromise, wait(Math.floor(WOOSH_MS * 0.4))]);
     const pending = navigateFn();
-    if (pending && typeof pending.catch === "function") {
-      pending.catch(() => {});
+    if (pending && typeof pending.then === "function") {
+      pending.then(
+        (result) => {
+          if (leaving) return;
+          if (result && result.ok === false) abortNavigation();
+        },
+        (reason) => {
+          if (leaving || isPyWebviewCallbackGoneError(reason)) return;
+          abortNavigation();
+        },
+      );
     }
-    // Stay locked until this page unloads. Unlocking here lets a second Esc
+    // Stay locked until this page unloads, or the failsafe / a failed
+    // bridge call aborts. Unlocking immediately lets a second Esc
     // schedule another load_url and wipe the home hub mid-bootstrap.
   } catch (error) {
-    sessionStorage.removeItem(TRANSITION_KEY);
-    clearWooshClasses();
-    _navigating = false;
-    window.__vizNavigating = false;
+    abortNavigation();
     throw error;
   }
 }
@@ -134,13 +181,6 @@ async function navigateWithWoosh(direction, navigateFn) {
 (function installPyWebviewNavigationGuards() {
   if (window.__pywebviewNavGuardsInstalled) return;
   window.__pywebviewNavGuardsInstalled = true;
-
-  function isPyWebviewCallbackGoneError(reason) {
-    const msg = String(
-      reason?.message || reason?.error || reason?.reason || reason || "",
-    );
-    return msg.includes("_returnValuesCallbacks");
-  }
 
   window.addEventListener("unhandledrejection", (event) => {
     if (!isPyWebviewCallbackGoneError(event.reason)) return;
@@ -157,6 +197,7 @@ window.VizTransition = {
   forward: "forward",
   back: "back",
   navigateWithWoosh,
+  abortNavigation,
   initPageTransition,
 };
 

@@ -60,24 +60,45 @@ class AppApi:
 
         window.evaluate_js = safe_evaluate_js
 
-    def _schedule_url(self, url: str) -> None:
+    def _unlock_js_nav(self) -> None:
+        window = self._window
+        if not window:
+            return
+        try:
+            window.evaluate_js(
+                "try{"
+                "if(window.VizTransition&&typeof window.VizTransition.abortNavigation==='function')"
+                "{window.VizTransition.abortNavigation();}"
+                "else{window.__vizNavigating=false;}"
+                "}catch(e){}"
+            )
+        except Exception:
+            pass
+
+    def _schedule_url(self, url: str) -> bool:
         """Defer navigation so pywebview can resolve the JS callback first."""
         with self._nav_lock:
             if self._nav_pending:
-                return
+                return False
             self._nav_pending = True
 
         def _navigate() -> None:
+            failed = False
             try:
                 if self._window:
                     self._window.load_url(url)
+                else:
+                    failed = True
             except Exception:
-                pass
+                failed = True
             finally:
                 with self._nav_lock:
                     self._nav_pending = False
+            if failed:
+                self._unlock_js_nav()
 
         threading.Timer(0.12, _navigate).start()
+        return True
 
     def get_catalog(self):
         return build_catalog()
@@ -96,14 +117,16 @@ class AppApi:
         if not item:
             return {"ok": False, "error": f"Unknown visualizer: {visualizer_id}"}
         url = resolve_resource(item["path"]).as_uri()
-        self._schedule_url(url)
+        if not self._schedule_url(url):
+            return {"ok": False, "error": "Navigation already in progress."}
         return {"ok": True}
 
     def go_home(self):
         if not self._window:
             return {"ok": False, "error": "Window not ready."}
         url = resolve_resource("ui/home/index.html").as_uri()
-        self._schedule_url(url)
+        if not self._schedule_url(url):
+            return {"ok": False, "error": "Navigation already in progress."}
         return {"ok": True}
 
     def open_external(self, url: str):

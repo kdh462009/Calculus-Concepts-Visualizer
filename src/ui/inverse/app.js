@@ -220,9 +220,9 @@ function wireInteractions() {
   if (el.homeBtn) {
     el.homeBtn.addEventListener("click", async () => {
       if (typeof window.pywebview.api.go_home === "function") {
-        await VizTransition.navigateWithWoosh(VizTransition.back, () => {
-          window.pywebview.api.go_home();
-        });
+        await VizTransition.navigateWithWoosh(VizTransition.back, () => (
+          window.pywebview.api.go_home()
+        ));
       }
     });
   }

@@ -35,7 +35,7 @@ FUNCTION_HINTS = [
     "cosh(x)",
     "tanh(x)",
     "1/(1-x)",
-    "x**2 + 2*x + 1",
+    "x^2 + 2x + 1",
     "pi",
     "E",
 ]
@@ -43,12 +43,12 @@ FUNCTION_HINTS = [
 PRESETS = [
     ("sin(x)", "sin(x)"),
     ("cos(x)", "cos(x)"),
-    ("e^x", "exp(x)"),
-    ("ln(1+x)", "log(1+x)"),
+    ("e^x", "e^x"),
+    ("ln(1+x)", "ln(1+x)"),
     ("tan(x)", "tan(x)"),
     ("1/(1-x)", "1/(1-x)"),
     ("sqrt(1+x)", "sqrt(1+x)"),
-    ("x^2+2x+1", "x**2 + 2*x + 1"),
+    ("x^2+2x+1", "x^2 + 2x + 1"),
     ("sinh(x)", "sinh(x)"),
     ("arctan(x)", "atan(x)"),
 ]

@@ -348,9 +348,9 @@ function wireInteractions() {
     el.homeBtn.addEventListener("click", async () => {
       stopAnimation();
       if (typeof window.pywebview.api.go_home === "function") {
-        await VizTransition.navigateWithWoosh(VizTransition.back, () => {
-          window.pywebview.api.go_home();
-        });
+        await VizTransition.navigateWithWoosh(VizTransition.back, () => (
+          window.pywebview.api.go_home()
+        ));
       }
     });
   }

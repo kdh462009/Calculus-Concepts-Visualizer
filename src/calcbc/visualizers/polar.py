@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 
-from calcbc.graph import launch_app, parse_user_expr, sample_domain, to_js_array
+from calcbc.graph import classroom_str, launch_app, parse_user_expr, sample_domain, to_js_array
 
 theta = sp.symbols("theta", real=True)
 
@@ -327,8 +327,8 @@ class PolarApi:
                 return {
                     "ok": True,
                     "mode": "compare",
-                    "rExpr": str(r_expr),
-                    "r2Expr": str(r2_expr),
+                    "rExpr": classroom_str(r_expr),
+                    "r2Expr": classroom_str(r2_expr),
                     "alpha": alpha,
                     "beta": beta,
                     "theta": to_js_array(th_vals),
@@ -358,7 +358,7 @@ class PolarApi:
             return {
                 "ok": True,
                 "mode": "single",
-                "rExpr": str(r_expr),
+                "rExpr": classroom_str(r_expr),
                 "alpha": alpha,
                 "beta": beta,
                 "theta": to_js_array(th_vals),

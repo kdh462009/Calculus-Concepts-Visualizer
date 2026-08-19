@@ -30,10 +30,10 @@
         <select id="modeInput"></select>
 
         <label class="section-label">r(θ)</label>
-        <input id="rExprInput" value="1 + cos(theta)" autocomplete="off">
+        <input id="rExprInput" class="math-expr" value="1 + cos(theta)" autocomplete="off">
 
         <label class="section-label" id="r2Label">r₂(θ) (compare)</label>
-        <input id="r2ExprInput" value="1" autocomplete="off">
+        <input id="r2ExprInput" class="math-expr" value="1" autocomplete="off">
 
         <label class="section-label">PRESETS</label>
         <div id="presets" class="preset-grid"></div>
@@ -81,6 +81,7 @@
   </div>
 
   <script src="../core/nav.js"></script>
+  <script src="../core/math-input.js"></script>
   <script src="../core/scale-bar.js"></script>
   <script src="./app.js"></script>
 </body>

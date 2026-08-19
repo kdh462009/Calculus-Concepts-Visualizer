@@ -78,7 +78,7 @@ function loadSubject(subjectId, cardIndex = -1) {
 
 function openVisualizer(viz) {
   VizTransition.navigateWithWoosh(VizTransition.forward, () => {
-    window.pywebview.api.open_visualizer(viz.id);
+    return window.pywebview.api.open_visualizer(viz.id);
   });
 }
 

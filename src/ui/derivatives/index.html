@@ -25,7 +25,7 @@
     <main class="layout">
       <aside class="panel glass">
         <label class="section-label">FUNCTION</label>
-        <input id="exprInput" list="functionHints" value="x**3 - 3*x" autocomplete="off">
+        <input id="exprInput" class="math-expr" list="functionHints" value="x^3 - 3x" autocomplete="off">
         <datalist id="functionHints"></datalist>
 
         <label class="section-label">PRESETS</label>
@@ -83,6 +83,7 @@
   </div>
 
   <script src="../core/nav.js"></script>
+  <script src="../core/math-input.js"></script>
   <script src="../core/scale-bar.js"></script>
   <script src="../core/graph.js"></script>
   <script src="../core/function-preview.js"></script>

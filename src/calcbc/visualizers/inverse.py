@@ -8,22 +8,22 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 
-from calcbc.graph import launch_app, parse_expr, safe_eval, sample_domain, to_js_array, x
+from calcbc.graph import classroom_str, launch_app, parse_expr, safe_eval, sample_domain, to_js_array, x
 
 FUNCTION_HINTS = [
-    "x**3",
-    "x**3 + x",
-    "exp(x)",
-    "log(x+2)",
+    "x^3",
+    "x^3 + x",
+    "e^x",
+    "ln(x+2)",
     "sqrt(x+3)",
     "x",
 ]
 
 PRESETS = [
-    ("x^3", "x**3"),
-    ("x^3 + x", "x**3 + x"),
-    ("e^x", "exp(x)"),
-    ("ln(x+2)", "log(x+2)"),
+    ("x^3", "x^3"),
+    ("x^3 + x", "x^3 + x"),
+    ("e^x", "e^x"),
+    ("ln(x+2)", "ln(x+2)"),
     ("sqrt(x+3)", "sqrt(x+3)"),
 ]
 
@@ -142,7 +142,7 @@ class InverseApi:
                 "yPrime": to_js_array(y_prime),
                 "yInversePrime": to_js_array(inv_prime),
                 "yMirror": to_js_array(mirror_line),
-                "derivativeExpr": str(deriv_expr),
+                "derivativeExpr": classroom_str(deriv_expr),
                 "inverseDerivativeRule": "(f^{-1})'(x) = 1 / f'(f^{-1}(x))",
                 "monotonicity": monotonicity,
                 "phaseYRanges": {

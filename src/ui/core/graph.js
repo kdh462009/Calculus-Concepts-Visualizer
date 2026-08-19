@@ -4,6 +4,7 @@
 const VIEW_MIN_SPAN = 1e-3;
 const VIEW_MAX_SPAN = 2e4;
 const MIN_VISIBLE_SAMPLES = 80;
+const MAX_MERGED_SAMPLES = 16000;
 
 function niceGridStep(span, targetLines) {
   if (!Number.isFinite(span) || span <= 0) return 1;
@@ -25,6 +26,41 @@ function clampSpan(min, max, limitMin, limitMax) {
   if (span < limitMin) span = limitMin;
   if (span > limitMax) span = limitMax;
   return { min: mid - span / 2, max: mid + span / 2 };
+}
+
+function alignedSeriesKeys(data) {
+  if (!data?.x?.length) return [];
+  return Object.keys(data).filter(
+    (k) => k !== "x" && k !== "partials" && Array.isArray(data[k]) && data[k].length === data.x.length,
+  );
+}
+
+function takeSeriesIndices(data, indices) {
+  const pick = (arr) => indices.map((i) => arr[i]);
+  const next = { ...data, x: pick(data.x) };
+  for (const k of alignedSeriesKeys(data)) {
+    next[k] = pick(data[k]);
+  }
+  if (Array.isArray(data.partials)) {
+    next.partials = data.partials.map((series) =>
+      Array.isArray(series) && series.length === data.x.length ? pick(series) : series,
+    );
+  }
+  if (next.x.length) {
+    next.xRange = [next.x[0], next.x[next.x.length - 1]];
+  }
+  return next;
+}
+
+function mergeYRange(prev, next) {
+  const a = prev?.yRange;
+  const b = next?.yRange;
+  if (!Array.isArray(a) || a.length < 2) return Array.isArray(b) ? b : a;
+  if (!Array.isArray(b) || b.length < 2) return a;
+  const lo = Math.min(a[0], b[0]);
+  const hi = Math.max(a[1], b[1]);
+  if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi <= lo) return b;
+  return [lo, hi];
 }
 
 class GraphViewer {
@@ -167,12 +203,117 @@ class GraphViewer {
     return n;
   }
 
+  _keepXRange() {
+    const p = this.activeParams || {};
+    let lo = Infinity;
+    let hi = -Infinity;
+    const a = Number(p.a);
+    const b = Number(p.b);
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      lo = Math.min(a, b);
+      hi = Math.max(a, b);
+    }
+    const bx0 = Number(p.boundXmin);
+    const bx1 = Number(p.boundXmax);
+    if (Number.isFinite(bx0) && Number.isFinite(bx1)) {
+      lo = Math.min(lo, bx0, bx1);
+      hi = Math.max(hi, bx0, bx1);
+    }
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi <= lo) return null;
+    const pad = Math.max((hi - lo) * 0.02, 1e-6);
+    return [lo - pad, hi + pad];
+  }
+
+  _domainCovers(range) {
+    if (!range || !this.data?.x?.length) return false;
+    return this.data.x[0] <= range[0] && this.data.x[this.data.x.length - 1] >= range[1];
+  }
+
   _needsResample() {
     if (!this.data?.xRange || !this.data?.x?.length) return false;
     const [domainMin, domainMax] = this.data.xRange;
     const { xmin, xmax } = this.view;
     if (xmin < domainMin || xmax > domainMax) return true;
+    const keep = this._keepXRange();
+    if (keep && !this._domainCovers(keep)) return true;
     return this._visibleSampleCount() < MIN_VISIBLE_SAMPLES;
+  }
+
+  _mergePlotData(prev, next) {
+    if (!prev?.x?.length) return next;
+    if (!next?.x?.length) return prev;
+
+    const nLo = next.x[0];
+    const nHi = next.x[next.x.length - 1];
+    if (!Number.isFinite(nLo) || !Number.isFinite(nHi) || nHi < nLo) return next;
+
+    const keys = new Set([...alignedSeriesKeys(prev), ...alignedSeriesKeys(next)]);
+    const pCount = Math.max(prev.partials?.length || 0, next.partials?.length || 0);
+    const xs = [];
+    const cols = {};
+    keys.forEach((k) => {
+      cols[k] = [];
+    });
+    const partials = Array.from({ length: pCount }, () => []);
+
+    const push = (src, i) => {
+      const xlen = src.x.length;
+      xs.push(src.x[i]);
+      keys.forEach((k) => {
+        cols[k].push(Array.isArray(src[k]) && src[k].length === xlen ? src[k][i] : null);
+      });
+      for (let p = 0; p < pCount; p += 1) {
+        const series = src.partials?.[p];
+        partials[p].push(Array.isArray(series) && series.length === xlen ? series[i] : null);
+      }
+    };
+
+    for (let i = 0; i < prev.x.length; i += 1) {
+      if (prev.x[i] < nLo) push(prev, i);
+    }
+    for (let j = 0; j < next.x.length; j += 1) push(next, j);
+    for (let i = 0; i < prev.x.length; i += 1) {
+      if (prev.x[i] > nHi) push(prev, i);
+    }
+
+    const merged = { ...prev, ...next, x: xs, ...cols, yRange: mergeYRange(prev, next) };
+    if (xs.length) merged.xRange = [xs[0], xs[xs.length - 1]];
+    if (pCount) merged.partials = partials;
+    return this._trimMergedData(merged);
+  }
+
+  _trimMergedData(data) {
+    if (!data?.x || data.x.length <= MAX_MERGED_SAMPLES) return data;
+    const { xmin, xmax } = this.view;
+    const span = Math.max(xmax - xmin, VIEW_MIN_SPAN);
+    let lo = xmin - span * 4;
+    let hi = xmax + span * 4;
+    const keep = this._keepXRange();
+    if (keep) {
+      lo = Math.min(lo, keep[0]);
+      hi = Math.max(hi, keep[1]);
+    }
+
+    const must = [];
+    const extra = [];
+    for (let i = 0; i < data.x.length; i += 1) {
+      if (data.x[i] >= lo && data.x[i] <= hi) must.push(i);
+      else extra.push(i);
+    }
+
+    let idx = must;
+    if (idx.length > MAX_MERGED_SAMPLES) {
+      const step = Math.ceil(idx.length / MAX_MERGED_SAMPLES);
+      idx = idx.filter((_, n) => n % step === 0);
+    } else if (extra.length) {
+      const room = MAX_MERGED_SAMPLES - idx.length;
+      const step = Math.max(1, Math.ceil(extra.length / room));
+      extra.forEach((i, n) => {
+        if (n % step === 0) idx.push(i);
+      });
+      idx.sort((a, b) => a - b);
+    }
+    return takeSeriesIndices(data, idx);
   }
 
   drawLine(xs, ys, color, width = 2.6, alpha = 1.0) {
@@ -310,24 +451,33 @@ class GraphViewer {
     }
 
     const gen = this._expandGen;
+    const prev = this.data;
     const { xmin, xmax } = this.view;
     const span = Math.max(xmax - xmin, VIEW_MIN_SPAN);
     const pad = Math.max(span * 0.12, 0.05);
+    let reqMin = xmin - pad;
+    let reqMax = xmax + pad;
+    const keep = this._keepXRange();
+    if (keep && !this._domainCovers(keep)) {
+      reqMin = Math.min(reqMin, keep[0]);
+      reqMax = Math.max(reqMax, keep[1]);
+    }
     const payload = {
       ...this.activeParams,
-      xmin: xmin - pad,
-      xmax: xmax + pad,
+      xmin: reqMin,
+      xmax: reqMax,
     };
 
     this.domainExpandInFlight = true;
     this._expandQueued = false;
     try {
       const result = await this.onDomainExpand(payload);
-      if (gen === this._expandGen && !this._expandQueued && result?.ok) {
+      if (gen === this._expandGen && !this._expandQueued && result?.ok && this.data === prev) {
+        const merged = this._mergePlotData(prev, result);
         if (this.onDataExpanded) {
-          this.onDataExpanded(result, payload);
+          this.onDataExpanded(merged, payload);
         } else {
-          this.setData(result, payload, { preserveView: true });
+          this.setData(merged, payload, { preserveView: true });
         }
         this.redraw();
       }

@@ -9,6 +9,7 @@ import numpy as np
 import sympy as sp
 
 from calcbc.graph import (
+    classroom_str,
     combined_y_range,
     compute_function_preview,
     launch_app,
@@ -24,22 +25,22 @@ FUNCTION_HINTS = [
     "sin(x)",
     "cos(x)",
     "tan(x)",
-    "exp(x)",
-    "log(x+2)",
-    "x**2",
-    "x**3",
-    "x**4 - 2*x**2",
-    "x**3 - 3*x",
-    "1/(1+x**2)",
+    "e^x",
+    "ln(x+2)",
+    "x^2",
+    "x^3",
+    "x^4 - 2x^2",
+    "x^3 - 3x",
+    "1/(1+x^2)",
 ]
 
 PRESETS = [
     ("sin(x)", "sin(x)"),
-    ("x^2", "x**2"),
-    ("x^3 - 3x", "x**3 - 3*x"),
-    ("x^4 - 2x^2", "x**4 - 2*x**2"),
-    ("e^x", "exp(x)"),
-    ("ln(x+2)", "log(x+2)"),
+    ("x^2", "x^2"),
+    ("x^3 - 3x", "x^3 - 3x"),
+    ("x^4 - 2x^2", "x^4 - 2x^2"),
+    ("e^x", "e^x"),
+    ("ln(x+2)", "ln(x+2)"),
 ]
 
 
@@ -116,8 +117,8 @@ class DerivativesApi:
                     "interval": [a, b],
                     "firstDerivative": to_js_array(y_first),
                     "secondDerivative": to_js_array(y_second),
-                    "firstDerivativeExpr": str(first_derivative),
-                    "secondDerivativeExpr": str(second_derivative),
+                    "firstDerivativeExpr": classroom_str(first_derivative),
+                    "secondDerivativeExpr": classroom_str(second_derivative),
                     "concavityInterval": concavity_label,
                 },
             )
