@@ -96,6 +96,12 @@
       shell?.classList.remove("opening-pending");
       splash?.remove();
       await loadCoreAssets(0);
+      if (typeof window.VizTransition?.initPageTransition === "function") {
+        window.VizTransition.initPageTransition();
+      } else {
+        document.documentElement.classList.remove("woosh-pending-forward", "woosh-pending-back");
+        sessionStorage.removeItem("vizTransitionDir");
+      }
       return;
     }
 

@@ -34,6 +34,8 @@ EXTERNAL_URLS = frozenset(
 class AppApi:
     def __init__(self):
         self._window = None
+        self._nav_lock = threading.Lock()
+        self._nav_pending = False
         self._taylor = TaylorApi()
         self._riemann = RiemannApi()
         self._derivatives = DerivativesApi()
@@ -45,12 +47,35 @@ class AppApi:
 
     def bind_window(self, window) -> None:
         self._window = window
+        original_evaluate_js = window.evaluate_js
+
+        def safe_evaluate_js(*args, **kwargs):
+            try:
+                return original_evaluate_js(*args, **kwargs)
+            except Exception as exc:
+                text = str(exc)
+                if "_returnValuesCallbacks" in text:
+                    return None
+                raise
+
+        window.evaluate_js = safe_evaluate_js
 
     def _schedule_url(self, url: str) -> None:
         """Defer navigation so pywebview can resolve the JS callback first."""
+        with self._nav_lock:
+            if self._nav_pending:
+                return
+            self._nav_pending = True
+
         def _navigate() -> None:
-            if self._window:
-                self._window.load_url(url)
+            try:
+                if self._window:
+                    self._window.load_url(url)
+            except Exception:
+                pass
+            finally:
+                with self._nav_lock:
+                    self._nav_pending = False
 
         threading.Timer(0.12, _navigate).start()
 

@@ -50,11 +50,27 @@ if (document.readyState === "loading") {
 
 /** Run callback once the pywebview API is available (including after in-app navigation). */
 function whenApiReady(fn) {
-  if (window.pywebview?.api) {
+  let started = false;
+  const start = () => {
+    if (started) return;
+    started = true;
     Promise.resolve().then(fn);
-  } else {
-    window.addEventListener("pywebviewready", () => fn(), { once: true });
+  };
+  if (window.pywebview?.api) {
+    start();
+    return;
   }
+  window.addEventListener("pywebviewready", start, { once: true });
+  let tries = 0;
+  const poll = setInterval(() => {
+    if (window.pywebview?.api) {
+      clearInterval(poll);
+      start();
+      return;
+    }
+    tries += 1;
+    if (tries >= 80) clearInterval(poll);
+  }, 50);
 }
 
 document.addEventListener("click", (event) => {
@@ -88,7 +104,11 @@ document.addEventListener("keydown", (event) => {
   }
   if (typeof window.pywebview?.api?.go_home !== "function") return;
   event.preventDefault();
-  const goHome = () => window.pywebview.api.go_home();
+  if (window.__vizNavigating) return;
+  const goHome = () => {
+    const pending = window.pywebview.api.go_home();
+    if (pending && typeof pending.catch === "function") pending.catch(() => {});
+  };
   if (window.VizTransition?.navigateWithWoosh) {
     window.VizTransition.navigateWithWoosh(window.VizTransition.back, goHome);
   } else {

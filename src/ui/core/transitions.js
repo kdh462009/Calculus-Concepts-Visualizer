@@ -105,7 +105,7 @@ function initPageTransition() {
 let _navigating = false;
 
 async function navigateWithWoosh(direction, navigateFn) {
-  if (_navigating) return;
+  if (_navigating || window.__vizNavigating) return;
   _navigating = true;
   window.__vizNavigating = true;
   try {
@@ -113,17 +113,18 @@ async function navigateWithWoosh(direction, navigateFn) {
     const wooshOutPromise = playWooshOut(direction, { holdVisualState: true });
     // Start navigation before the full woosh completes to avoid a visible pause.
     await Promise.race([wooshOutPromise, wait(Math.floor(WOOSH_MS * 0.4))]);
-    await navigateFn();
-    // Keep the held cover/exit classes until navigation commits to avoid
-    // any flashback of the old page during the handoff.
+    const pending = navigateFn();
+    if (pending && typeof pending.catch === "function") {
+      pending.catch(() => {});
+    }
+    // Stay locked until this page unloads. Unlocking here lets a second Esc
+    // schedule another load_url and wipe the home hub mid-bootstrap.
   } catch (error) {
-    // If navigation fails and this page remains active, recover cleanly.
     sessionStorage.removeItem(TRANSITION_KEY);
     clearWooshClasses();
-    throw error;
-  } finally {
     _navigating = false;
     window.__vizNavigating = false;
+    throw error;
   }
 }
 
@@ -138,17 +139,15 @@ async function navigateWithWoosh(direction, navigateFn) {
     const msg = String(
       reason?.message || reason?.error || reason?.reason || reason || "",
     );
-    return msg.includes("_returnValuesCallbacks") && msg.includes("is undefined");
+    return msg.includes("_returnValuesCallbacks");
   }
 
   window.addEventListener("unhandledrejection", (event) => {
-    if (!window.__vizNavigating) return;
     if (!isPyWebviewCallbackGoneError(event.reason)) return;
     event.preventDefault();
   });
 
   window.addEventListener("error", (event) => {
-    if (!window.__vizNavigating) return;
     if (!isPyWebviewCallbackGoneError(event?.error || event?.message)) return;
     event.preventDefault();
   });

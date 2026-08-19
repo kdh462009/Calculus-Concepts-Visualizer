@@ -327,13 +327,32 @@ function wireShortcuts() {
   $("shortcutsBtn")?.addEventListener("click", toggleShortcuts);
 }
 
+async function readCatalog() {
+  const fetchCatalog = async () => {
+    const catalog = await window.pywebview.api.get_catalog();
+    return catalog?.subjects || [];
+  };
+  try {
+    const subjects = await fetchCatalog();
+    if (subjects.length) return subjects;
+  } catch {
+    /* bridge can be mid-reload after Esc; retry once */
+  }
+  await new Promise((resolve) => setTimeout(resolve, 180));
+  try {
+    return await fetchCatalog();
+  } catch {
+    return [];
+  }
+}
+
 async function bootstrap() {
   document.querySelector(".launcher-shell")?.classList.remove("opening-pending");
+  document.documentElement.classList.remove("woosh-pending-forward", "woosh-pending-back");
 
   VizTransition.initPageTransition();
 
-  const catalog = await window.pywebview.api.get_catalog();
-  hub.subjects = catalog?.subjects || [];
+  hub.subjects = await readCatalog();
   loadSubject(resolveSelectedSubject(hub.subjects), -1);
   renderHub();
   wireHubKeys();
