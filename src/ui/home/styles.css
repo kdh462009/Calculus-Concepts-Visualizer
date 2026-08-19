@@ -19,6 +19,13 @@ body {
   margin-bottom: 8px;
 }
 
+.launcher-header .app-logo {
+  grid-column: 1;
+  justify-self: start;
+  width: 44px;
+  height: 44px;
+}
+
 .launcher-header .title-row {
   grid-column: 2;
   justify-content: center;
@@ -514,26 +521,20 @@ kbd {
   animation: opening-content 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.06s forwards;
 }
 
-.opening-symbols {
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-  margin-bottom: 14px;
-  color: #8f7fff;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.opening-symbols span {
-  display: inline-block;
+.opening-logo {
+  display: block;
+  width: 132px;
+  height: 132px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  object-fit: cover;
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(10px) scale(0.92);
 }
 
-.opening-splash.active .opening-symbols span:nth-child(1) { animation: opening-symbol 0.32s ease forwards 0.08s; }
-.opening-splash.active .opening-symbols span:nth-child(2) { animation: opening-symbol 0.32s ease forwards 0.16s; }
-.opening-splash.active .opening-symbols span:nth-child(3) { animation: opening-symbol 0.32s ease forwards 0.24s; }
-.opening-splash.active .opening-symbols span:nth-child(4) { animation: opening-symbol 0.32s ease forwards 0.32s; }
+.opening-splash.active .opening-logo {
+  animation: opening-symbol 0.4s ease forwards 0.08s;
+}
 
 .opening-title {
   margin: 0;
@@ -681,6 +682,7 @@ kbd {
 
 @media (prefers-reduced-motion: reduce) {
   .opening-splash,
+  .opening-logo,
   .launcher-shell.opening-pending,
   .launcher-shell.opening-reveal,
   .viz-card,

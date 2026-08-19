@@ -14,6 +14,9 @@ New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 Write-Host "Installing Python dependencies..."
 python -m pip install -r requirements-webapp.txt
 
+Write-Host "Building app icons..."
+python scripts/make_app_icons.py
+
 Write-Host "Running PyInstaller..."
 python -m PyInstaller --noconfirm --clean --distpath $DistDir --workpath (Join-Path $RootDir "build") CalcBCVisualizers.spec
 

@@ -20,6 +20,9 @@ mkdir -p "$DIST_DIR"
 echo "Installing Python dependencies..."
 python3 -m pip install -r requirements-webapp.txt
 
+echo "Building app icons..."
+python3 "$ROOT_DIR/scripts/make_app_icons.py"
+
 echo "Running PyInstaller..."
 pyinstaller \
   --noconfirm \

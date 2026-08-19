@@ -34,6 +34,9 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+ICON_ICNS = "branding/app-icon.icns"
+ICON_ICO = "branding/app-icon.ico"
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -50,6 +53,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=ICON_ICO if sys.platform == "win32" else None,
 )
 coll = COLLECT(
     exe,
@@ -65,7 +69,7 @@ if sys.platform == "darwin":
     app = BUNDLE(
         coll,
         name="CalcBCVisualizers.app",
-        icon=None,
+        icon=ICON_ICNS,
         bundle_identifier="com.knivier.conceptvisualizers",
         info_plist={
             "CFBundleName": "Concept Visualizers",
