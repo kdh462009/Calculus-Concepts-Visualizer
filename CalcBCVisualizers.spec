@@ -1,28 +1,30 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys
 
+hiddenimports = [
+    "calcbc",
+    "calcbc.app",
+    "calcbc.graph",
+    "calcbc.catalog",
+    "calcbc.subjects",
+    "calcbc.subjects.calculus",
+    "calcbc.visualizers",
+    "calcbc.visualizers.taylor",
+    "calcbc.visualizers.riemann",
+    "calcbc.visualizers.derivatives",
+    "calcbc.visualizers.volume_rotation",
+    "calcbc.visualizers.limit",
+    "calcbc.visualizers.inverse",
+    "calcbc.visualizers.parametric",
+    "calcbc.visualizers.polar",
+]
 
 a = Analysis(
-    ['app.py'],
-    pathex=['src'],
+    ["app.py"],
+    pathex=["src"],
     binaries=[],
-    datas=[('src/ui', 'ui')],
-    hiddenimports=[
-        'calcbc',
-        'calcbc.app',
-        'calcbc.graph',
-        'calcbc.catalog',
-        'calcbc.subjects',
-        'calcbc.subjects.calculus',
-        'calcbc.visualizers',
-        'calcbc.visualizers.taylor',
-        'calcbc.visualizers.riemann',
-        'calcbc.visualizers.derivatives',
-        'calcbc.visualizers.volume_rotation',
-        'calcbc.visualizers.limit',
-        'calcbc.visualizers.inverse',
-        'calcbc.visualizers.parametric',
-        'calcbc.visualizers.polar',
-    ],
+    datas=[("src/ui", "ui")],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -37,11 +39,11 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='CalcBCVisualizers',
+    name="CalcBCVisualizers",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -54,13 +56,23 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
-    name='CalcBCVisualizers',
+    name="CalcBCVisualizers",
 )
-app = BUNDLE(
-    coll,
-    name='CalcBCVisualizers.app',
-    icon=None,
-    bundle_identifier=None,
-)
+
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="CalcBCVisualizers.app",
+        icon=None,
+        bundle_identifier="com.knivier.conceptvisualizers",
+        info_plist={
+            "CFBundleName": "Concept Visualizers",
+            "CFBundleDisplayName": "Concept Visualizers",
+            "CFBundleShortVersionString": "1.2",
+            "CFBundleVersion": "1.2",
+            "NSHighResolutionCapable": True,
+            "LSMinimumSystemVersion": "12.0",
+        },
+    )

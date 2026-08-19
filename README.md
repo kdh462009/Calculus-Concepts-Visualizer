@@ -3,6 +3,8 @@
 AP Calculus BC visualizer suite built with Python + PyWebView.  
 The app opens a launcher with a Calculus subject tab. Units and visualizers sit beside it, so more subjects can be added the same way.
 
+THIS CODE IS CLAIMED BY THE KNIVIER SSP/TOS. Email legal@knivier.com for questions.
+
 ## Run Locally
 
 1. Install dependencies:

@@ -5,10 +5,11 @@
 set -euo pipefail
 
 APP_NAME="CalcBCVisualizers"
-VOL_NAME="Calc BC Visualizers"
+VOL_NAME="Concept Visualizers"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
-DMG_PATH="$DIST_DIR/${APP_NAME}.dmg"
+DMG_PATH="$DIST_DIR/${APP_NAME}-macos.dmg"
+ZIP_PATH="$DIST_DIR/${APP_NAME}-macos.zip"
 STAGING_DIR="$DIST_DIR/dmg-staging"
 APP_BUNDLE="$DIST_DIR/${APP_NAME}.app"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
@@ -53,9 +54,15 @@ hdiutil create \
 
 rm -rf "$STAGING_DIR"
 
+echo "Creating zip..."
+rm -f "$ZIP_PATH"
+ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
+
 echo ""
 echo "Build complete:"
 echo "  App bundle: $APP_BUNDLE"
 echo "  DMG image:  $DMG_PATH"
+echo "  Zip:        $ZIP_PATH"
 echo ""
-echo "To install: open the DMG, drag ${APP_NAME}.app to Applications, then launch from Applications."
+echo "Share the DMG or zip. Recipients: open, drag ${APP_NAME}.app to Applications."
+echo "If Gatekeeper blocks it: right-click the app → Open (unsigned local build)."
