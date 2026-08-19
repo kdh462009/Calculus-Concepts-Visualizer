@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Polar Area Visualizer</title>
+  <link rel="stylesheet" href="../core/styles.css">
+  <link rel="stylesheet" href="../core/transitions.css">
+  <script src="../core/transitions.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="header">
+      <div class="header-top">
+        <div class="title-row">
+          <h1>Polar area</h1>
+          <span>BC Unit 9 — sector slices and area</span>
+        </div>
+        <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
+      </div>
+      <div id="ruleLine" class="error-bound">A = (1/2) ∫[α,β] r² dθ</div>
+      <div class="latex-row">
+        <div id="areaLine" style="color:#f5c842;font-weight:700;">Area: --</div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel glass">
+        <label class="section-label">MODE</label>
+        <select id="modeInput"></select>
+
+        <label class="section-label">r(θ)</label>
+        <input id="rExprInput" value="1 + cos(theta)" autocomplete="off">
+
+        <label class="section-label" id="r2Label">r₂(θ) (compare)</label>
+        <input id="r2ExprInput" value="1" autocomplete="off">
+
+        <label class="section-label">PRESETS</label>
+        <div id="presets" class="preset-grid"></div>
+
+        <label class="section-label">ANGLE BOUNDS [α, β]</label>
+        <div class="row">
+          <input id="alphaInput" type="text" value="0" placeholder="α e.g. 0, pi/2" autocomplete="off" spellcheck="false">
+          <input id="betaInput" type="text" value="2*pi" placeholder="β e.g. pi, 2*pi" autocomplete="off" spellcheck="false">
+        </div>
+
+        <label class="section-label">SECTOR SLICES <span id="nValue">16</span></label>
+        <input id="nInput" type="range" min="4" max="48" value="16" step="1">
+
+        <label class="section-label">ANIMATION DURATION <span id="durationValue">9000 ms</span></label>
+        <input id="durationInput" type="range" min="3500" max="16000" value="9000" step="250">
+
+        <div class="btn-row">
+          <button id="animateBtn" class="btn btn-primary">Animate</button>
+          <button id="pauseBtn" class="btn btn-secondary">Pause</button>
+          <button id="resetBtn" class="btn btn-ghost">Reset</button>
+        </div>
+        <button id="legendToggleBtn" class="btn btn-ghost" type="button">Hide legend</button>
+
+        <div id="status" class="status">ready.</div>
+        <div id="phaseLine" class="term-counter"></div>
+        <div id="scaleLine" class="status">Scale: --</div>
+        <div id="intersectionLine" class="status"></div>
+      </aside>
+
+      <section class="plot-wrap glass">
+        <canvas id="polarCanvas"></canvas>
+      </section>
+    </main>
+    <footer class="credit-row">
+      <span>Made by Agniva, Donghui, Manya, and Adam · <span class="app-version" data-app-version>Version 1.2</span></span>
+      <span class="credit-legal">
+        Licensed under
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a>
+        (Attribution-NonCommercial-ShareAlike 4.0 International)
+        ·
+        <a href="https://github.com/kdh462009/Calculus-Concepts-Visualizer" data-external="true">GitHub</a>
+        · Covered by the
+        <a href="https://knivier.com/tos-ssp.html" data-external="true">Knivier SSP/ToS (Open Source Restricted)</a>
+      </span>
+    </footer>
+  </div>
+
+  <script src="../core/nav.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

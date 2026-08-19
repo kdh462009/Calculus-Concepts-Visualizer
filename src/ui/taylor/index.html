@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taylor Series Visualizer</title>
+  <link rel="stylesheet" href="../core/styles.css">
+  <link rel="stylesheet" href="../core/transitions.css">
+  <script src="../core/transitions.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="header">
+      <div class="header-top">
+        <div class="title-row">
+          <h1>Taylor series</h1>
+          <span>animated polynomial approximation</span>
+        </div>
+        <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
+      </div>
+      <div id="errorBound" class="error-bound">Lagrange error bound will appear after Animate.</div>
+      <div class="latex-row">
+        <img id="latexImage" alt="Taylor polynomial expression">
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel glass">
+        <label class="section-label">FUNCTION</label>
+        <input id="exprInput" list="functionHints" value="sin(x)" autocomplete="off">
+        <datalist id="functionHints"></datalist>
+
+        <label class="section-label">PRESETS</label>
+        <div id="presets" class="preset-grid"></div>
+
+        <label class="section-label">EXPANSION CENTER a</label>
+        <input id="centerInput" type="number" value="0" step="0.25">
+
+        <label class="section-label">DEGREE n <span id="termsValue">8</span></label>
+        <input id="termsInput" type="range" min="1" max="20" value="8">
+
+        <label class="section-label">ANIMATION SPEED <span id="speedValue">600 ms</span></label>
+        <input id="speedInput" type="range" min="100" max="2000" value="600">
+
+        <label class="section-label">X RANGE</label>
+        <div class="row">
+          <input id="xminInput" type="number" value="-4" step="0.5">
+          <input id="xmaxInput" type="number" value="4" step="0.5">
+        </div>
+
+        <div class="btn-row">
+          <button id="animateBtn" class="btn btn-primary">Animate</button>
+          <button id="pauseBtn" class="btn btn-secondary">Pause</button>
+          <button id="resetBtn" class="btn btn-ghost">Reset</button>
+        </div>
+
+        <div id="status" class="status">ready.</div>
+        <div id="termCounter" class="term-counter"></div>
+      </aside>
+
+      <section class="plot-wrap glass">
+        <canvas id="plotCanvas"></canvas>
+      </section>
+    </main>
+    <footer class="credit-row">
+      <span>Made by Agniva, Donghui, Manya, and Adam · <span class="app-version" data-app-version>Version 1.2</span></span>
+      <span class="credit-legal">
+        Licensed under
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a>
+        (Attribution-NonCommercial-ShareAlike 4.0 International)
+        ·
+        <a href="https://github.com/kdh462009/Calculus-Concepts-Visualizer" data-external="true">GitHub</a>
+        · Covered by the
+        <a href="https://knivier.com/tos-ssp.html" data-external="true">Knivier SSP/ToS (Open Source Restricted)</a>
+      </span>
+    </footer>
+  </div>
+
+  <script src="../core/nav.js"></script>
+  <script src="../core/graph.js"></script>
+  <script src="../core/function-preview.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

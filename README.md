@@ -3,8 +3,6 @@
 AP Calculus BC visualizer suite built with Python + PyWebView.  
 The app opens a launcher home screen and lets you jump into interactive visualizers by unit.
 
-How the hub, graph engine, JS bridge, and each visualizer fit together: [HOW_IT_WORKS.md](HOW_IT_WORKS.md).
-
 ## Run Locally
 
 1. Install dependencies:
@@ -42,15 +40,16 @@ How the hub, graph engine, JS bridge, and each visualizer fit together: [HOW_IT_
 
 ## Project Structure
 
-- `app.py` — launcher + routing to all visualizers
-- `graph.py` — shared graphing/parsing/sampling helpers
-- `ui/core/` — shared frontend graph + transition utilities
-- `ui/<visualizer>/` — per-visualizer frontend
-- `<visualizer>.py` — per-visualizer backend API
+- `app.py` — thin launcher (`python app.py`)
+- `src/calcbc/` — Python package (window, routing, graph engine)
+- `src/calcbc/visualizers/` — per-concept backends
+- `src/ui/core/` — shared frontend (graph, transitions, nav)
+- `src/ui/<visualizer>/` — per-visualizer HTML/JS
+- `scripts/build_macos_app.sh` — macOS packaging
 
 ## Build
 
-- macOS packaging script: `build_macos_app.sh`
+- macOS packaging script: `scripts/build_macos_app.sh`
 - PyInstaller spec: `CalcBCVisualizers.spec`
 
 ## License
