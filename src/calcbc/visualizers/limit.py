@@ -159,7 +159,7 @@ class LimitApi:
                 "fAtA": y_at_a_val,
                 "epsPath": [float(v) for v in eps_path],
                 "deltaPath": [float(v) for v in deltas],
-                "definitionText": "For every ε > 0, there exists δ > 0 such that 0 < |x-a| < δ implies |f(x)-L| < ε.",
+                "definitionText": "If x is close enough to a, then f(x) stays close to L.",
             }
         except Exception as exc:
             return {"ok": False, "error": f"{exc}"}

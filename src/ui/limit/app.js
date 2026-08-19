@@ -23,6 +23,17 @@ function setStatus(text) {
   el.status.textContent = text;
 }
 
+function formatPlotNum(v) {
+  if (!Number.isFinite(v)) return "—";
+  if (Math.abs(v) < 1e-10) return "0";
+  const rounded = Math.round(v);
+  if (Math.abs(v - rounded) < 1e-8) return String(rounded);
+  const a = Math.abs(v);
+  if (a >= 100) return v.toFixed(1);
+  if (a >= 1) return v.toFixed(2);
+  return v.toFixed(3);
+}
+
 function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
 }
@@ -279,15 +290,38 @@ class LimitRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = "#f5c842";
+    const yL = this.mapY(L, ymin, ymax);
+    ctx.strokeStyle = "rgba(245, 200, 66, 0.95)";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(p.left, yL);
+    ctx.lineTo(p.right, yL);
+    ctx.stroke();
+
     ctx.font = "13px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillText(`L + ε`, this.w - 66, yTop - 6);
-    ctx.fillText(`L - ε`, this.w - 66, yBot - 6);
+    const rightX = p.right - 8;
+    const topY = clamp(yTop - 4, p.top + 14, p.bottom - 4);
+    let midY = clamp(yL - 4, p.top + 14, p.bottom - 4);
+    let botY = clamp(yBot + 14, p.top + 14, p.bottom - 4);
+    if (Math.abs(midY - topY) < 16) midY = topY + 16;
+    if (Math.abs(botY - midY) < 16) botY = midY + 16;
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#f5c842";
+    ctx.fillText(formatPlotNum(L + eps), rightX, topY);
+    ctx.fillText(`L = ${formatPlotNum(L)}`, rightX, midY);
+    ctx.fillText(formatPlotNum(L - eps), rightX, botY);
+
+    ctx.textAlign = "left";
+    const leftLabelX = clamp(xLeft + 4, p.left + 4, p.right - 80);
+    const rightLabelX = clamp(xRight + 4, p.left + 4, p.right - 80);
+    const aLabelX = clamp(xA + 4, p.left + 4, p.right - 80);
     ctx.fillStyle = "#9e8dff";
-    ctx.fillText(`a - δ`, xLeft + 3, 28);
-    ctx.fillText(`a + δ`, xRight + 3, 28);
+    ctx.fillText(formatPlotNum(a - delta), leftLabelX, p.bottom - 22);
+    ctx.fillText(formatPlotNum(a + delta), rightLabelX, p.bottom - 22);
     ctx.fillStyle = "#7df0cd";
-    ctx.fillText(`a`, xA + 4, this.h - 8);
+    ctx.fillText(`a = ${formatPlotNum(a)}`, aLabelX, p.bottom - 6);
+    ctx.textAlign = "left";
   }
 
   drawDotsInDelta(data, eps, delta, xmin, xmax, ymin, ymax) {
@@ -358,10 +392,13 @@ function stopAnimation() {
 function updateReadout() {
   if (!state.data) return;
   const i = clamp(state.idx, 0, state.data.epsPath.length - 1);
+  const L = state.data.limitValue;
   const eps = state.data.epsPath[i];
   const delta = state.data.deltaPath[i];
-  el.bandLine.textContent = `Band: ${state.data.limitValue.toFixed(6)} ± ${eps.toFixed(6)}  |  Neighborhood: a ± ${delta.toFixed(6)}`;
-  el.readout.textContent = `ε = ${eps.toFixed(6)}   δ = ${delta.toFixed(6)}`;
+  el.bandLine.textContent =
+    `L = ${formatPlotNum(L)}   |   y within ${formatPlotNum(eps)} of L  (ε)   |   x within ${formatPlotNum(delta)} of a  (δ)`;
+  el.readout.textContent =
+    `a = ${formatPlotNum(state.data.a)}   ε = ${formatPlotNum(eps)} (y-window)   δ = ${formatPlotNum(delta)} (x-window)`;
 }
 
 function loop(ts) {
@@ -383,7 +420,7 @@ function loop(ts) {
 
   drawCurrentFrame();
   updateReadout();
-  setStatus(p < 1 ? "tightening epsilon band and delta neighborhood..." : "animation complete.");
+  setStatus(p < 1 ? "tightening the y-window (ε) and x-window (δ)..." : "animation complete.");
 
   if (p < 1) {
     state.rafId = requestAnimationFrame(loop);
@@ -427,7 +464,8 @@ async function computeModel() {
   if (res.estimatedLimit !== null && (el.limitInput.value || "").trim() === "") {
     el.limitInput.value = String(res.estimatedLimit);
   }
-  el.definitionLine.textContent = res.definitionText;
+  el.definitionLine.textContent =
+    "If x is close enough to a, then f(x) stays close to L.";
   setStatus("computed. press Animate.");
   return true;
 }
@@ -458,7 +496,7 @@ function wireInteractions() {
     state.lastTs = 0;
     state.elapsed = 0;
     state.idx = 0;
-    setStatus("starting epsilon-delta tightening...");
+    setStatus("starting y-window / x-window tightening...");
     state.rafId = requestAnimationFrame(loop);
   });
 

@@ -14,13 +14,14 @@
       <div class="header-top">
         <div class="title-row">
           <h1>Limits</h1>
-          <span>ε–δ convergence tightening</span>
+          <span>how close f(x) stays to L</span>
         </div>
         <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
       </div>
-      <div id="definitionLine" class="error-bound">For every ε > 0, there exists δ > 0 ...</div>
+      <div id="definitionLine" class="error-bound">If x is close enough to a, then f(x) stays close to L.</div>
+      <div id="formalLine" class="formal-line">Formal: for every ε &gt; 0 there exists δ &gt; 0 such that 0 &lt; |x − a| &lt; δ implies |f(x) − L| &lt; ε.</div>
       <div class="latex-row">
-        <div id="bandLine" style="color:#f5c842;font-weight:700;">Band: --</div>
+        <div id="bandLine" style="color:#f5c842;font-weight:700;">L = --</div>
       </div>
     </header>
 
@@ -33,13 +34,13 @@
         <label class="section-label">PRESETS</label>
         <div id="presets" class="preset-grid"></div>
 
-        <label class="section-label">APPROACH POINT a</label>
+        <label class="section-label">APPROACH POINT a <span class="label-hint">(x-value we approach)</span></label>
         <input id="aInput" type="number" value="1" step="0.25">
 
-        <label class="section-label">LIMIT VALUE L (optional)</label>
+        <label class="section-label">LIMIT VALUE L <span class="label-hint">(target y-value, optional)</span></label>
         <input id="limitInput" type="text" value="">
 
-        <label class="section-label">EPSILON START / END</label>
+        <label class="section-label">Y-DISTANCE FROM L  ε <span class="label-hint">start / end</span></label>
         <div class="row">
           <input id="epsStartInput" type="number" value="1.2" step="0.05" min="0.01">
           <input id="epsEndInput" type="number" value="0.1" step="0.01" min="0.001">
@@ -67,6 +68,13 @@
 
       <section class="plot-wrap glass">
         <canvas id="limitCanvas"></canvas>
+        <div id="plotKey" class="plot-legend plot-key">
+          <div class="plot-key-title">Key</div>
+          <div class="plot-legend-item"><span class="plot-legend-swatch" style="background:#7df0cd"></span><span><b>a</b> approach x-value</span></div>
+          <div class="plot-legend-item"><span class="plot-legend-swatch" style="background:#f5c842"></span><span><b>L</b> limit (target y)</span></div>
+          <div class="plot-legend-item"><span class="plot-legend-swatch" style="background:#c9a227"></span><span><b>ε</b> allowed y-distance from L</span></div>
+          <div class="plot-legend-item"><span class="plot-legend-swatch" style="background:#9e8dff"></span><span><b>δ</b> allowed x-distance from a</span></div>
+        </div>
       </section>
     </main>
     <footer class="credit-row">

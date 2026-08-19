@@ -38,6 +38,7 @@ class GraphViewer {
     this.domainExpandTimer = null;
     this.domainExpandInFlight = false;
     this._expandGen = 0;
+    this._expandQueued = false;
     this.onDomainExpand = options.onDomainExpand || null;
     this.activeParams = null;
     this.scaleBar = null;
@@ -285,15 +286,28 @@ class GraphViewer {
   scheduleDomainExpansion() {
     if (!this.data || !this.activeParams || !this.onDomainExpand) return;
     this._expandGen += 1;
+    if (this.domainExpandInFlight) {
+      this._expandQueued = true;
+      if (this.domainExpandTimer) {
+        clearTimeout(this.domainExpandTimer);
+        this.domainExpandTimer = null;
+      }
+      return;
+    }
     if (this.domainExpandTimer) clearTimeout(this.domainExpandTimer);
     this.domainExpandTimer = setTimeout(() => this._ensureDomainCoverage(), 140);
   }
 
   async _ensureDomainCoverage() {
-    if (!this.data || !this.activeParams || this.domainExpandInFlight || !this.onDomainExpand) {
+    if (!this.data || !this.activeParams || !this.onDomainExpand) return;
+    if (this.domainExpandInFlight) {
+      this._expandQueued = true;
       return;
     }
-    if (!this._needsResample()) return;
+    if (!this._needsResample()) {
+      this._expandQueued = false;
+      return;
+    }
 
     const gen = this._expandGen;
     const { xmin, xmax } = this.view;
@@ -306,22 +320,24 @@ class GraphViewer {
     };
 
     this.domainExpandInFlight = true;
+    this._expandQueued = false;
     try {
       const result = await this.onDomainExpand(payload);
-      if (gen !== this._expandGen) return;
-      if (!result?.ok) return;
-
-      if (this.onDataExpanded) {
-        this.onDataExpanded(result, payload);
-      } else {
-        this.setData(result, payload, { preserveView: true });
+      if (gen === this._expandGen && !this._expandQueued && result?.ok) {
+        if (this.onDataExpanded) {
+          this.onDataExpanded(result, payload);
+        } else {
+          this.setData(result, payload, { preserveView: true });
+        }
+        this.redraw();
       }
-      this.redraw();
     } finally {
       this.domainExpandInFlight = false;
     }
 
-    if (gen !== this._expandGen) this.scheduleDomainExpansion();
+    if (gen !== this._expandGen || this._expandQueued) {
+      this.scheduleDomainExpansion();
+    }
   }
 
   setRedrawHandler(fn) {
