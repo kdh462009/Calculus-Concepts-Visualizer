@@ -170,8 +170,8 @@ function renderFunctionOnly() {
 
 function drawRiemannShapes(n, sumType, a, b) {
   const dx = (b - a) / n;
-  const fillPos = "rgba(124, 106, 247, 0.30)";
-  const fillNeg = "rgba(240, 96, 144, 0.34)";
+  const fillPos = "rgba(124, 106, 247, 0.75)";
+  const fillNeg = "rgba(240, 96, 144, 0.71)";
   const stroke = "rgba(220, 230, 255, 0.72)";
   const y0 = 0;
   const baseline = viewer.worldToScreen(a, y0)[1];
