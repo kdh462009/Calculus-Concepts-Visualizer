@@ -1,15 +1,15 @@
 const LEGEND = {
-  function: [{ color: "#2ee8bb", label: "f(x)" }],
+  function: [{ id: "fn", color: "#2ee8bb", label: "f(x)" }],
   inverse: [
-    { color: "#2ee8bb", label: "f(x)" },
-    { color: "#f5c842", label: "y = x" },
-    { color: "#9e8dff", label: "inverse" },
+    { id: "fn", color: "#2ee8bb", label: "f(x)" },
+    { id: "mirror", color: "#f5c842", label: "y = x" },
+    { id: "inverse", color: "#9e8dff", label: "inverse" },
   ],
   inverseDerivative: [
-    { color: "#2ee8bb", label: "f(x)" },
-    { color: "#9e8dff", label: "inverse" },
-    { color: "#f5c842", label: "f'(x)" },
-    { color: "#7cc7ff", label: "inverse derivative" },
+    { id: "fn", color: "#2ee8bb", label: "f(x)" },
+    { id: "inverse", color: "#9e8dff", label: "inverse" },
+    { id: "prime", color: "#f5c842", label: "f'(x)" },
+    { id: "inversePrime", color: "#7cc7ff", label: "inverse derivative" },
   ],
 };
 
@@ -17,6 +17,7 @@ const state = {
   data: null,
   stage: "function",
   computeTimer: null,
+  hidden: new Set(),
 };
 
 const el = {};
@@ -70,18 +71,58 @@ function renderLegend(stage) {
   const items = state.data ? (LEGEND[stage] || []) : [];
   el.plotLegend.replaceChildren(
     ...items.map((item) => {
-      const row = document.createElement("div");
-      row.className = "plot-legend-item";
+      const row = document.createElement("label");
+      row.className = `plot-legend-item${state.hidden.has(item.id) ? " is-off" : ""}`;
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = !state.hidden.has(item.id);
+      box.addEventListener("change", () => {
+        if (box.checked) state.hidden.delete(item.id);
+        else state.hidden.add(item.id);
+        row.classList.toggle("is-off", !box.checked);
+        paintPlot();
+      });
       const swatch = document.createElement("span");
       swatch.className = "plot-legend-swatch";
       swatch.style.background = item.color;
       const label = document.createElement("span");
       label.textContent = item.label;
-      row.append(swatch, label);
+      row.append(box, swatch, label);
       return row;
     }),
   );
   el.plotLegend.hidden = items.length === 0;
+  el.plotLegend.dataset.stage = stage || "";
+}
+
+function stageLayers(stage) {
+  if (stage === "function") {
+    return [{ id: "fn", ys: state.data.yTrue, color: "#2ee8bb", width: 2.9, alpha: 1.0 }];
+  }
+  if (stage === "inverse") {
+    return [
+      { id: "fn", ys: state.data.yTrue, color: "#2ee8bb", width: 2.4, alpha: 0.28 },
+      { id: "mirror", ys: state.data.yMirror, color: "#f5c842", width: 1.8, alpha: 0.9 },
+      { id: "inverse", ys: state.data.yInverse, color: "#9e8dff", width: 2.9, alpha: 1.0 },
+    ];
+  }
+  return [
+    { id: "fn", ys: state.data.yTrue, color: "#2ee8bb", width: 2.4, alpha: 0.55 },
+    { id: "inverse", ys: state.data.yInverse, color: "#9e8dff", width: 2.4, alpha: 0.55 },
+    { id: "prime", ys: state.data.yPrime, color: "#f5c842", width: 2.6, alpha: 1.0 },
+    { id: "inversePrime", ys: state.data.yInversePrime, color: "#7cc7ff", width: 4.0, alpha: 1.0 },
+  ];
+}
+
+function paintPlot() {
+  if (!state.data) {
+    viewer.draw([]);
+    updateScaleReadout();
+    return;
+  }
+  const layers = stageLayers(state.stage).filter((layer) => !state.hidden.has(layer.id));
+  viewer.draw(layers);
+  updateScaleReadout();
 }
 
 function drawStage(stage = state.stage) {
@@ -95,31 +136,12 @@ function drawStage(stage = state.stage) {
   }
 
   state.stage = stage;
-  let layers = [];
+  if (stage === "function") el.phaseLine.textContent = "Stage 1: f(x)";
+  else if (stage === "inverse") el.phaseLine.textContent = "Stage 2: inverse across y = x";
+  else el.phaseLine.textContent = "Stage 3: f'(x) and inverse derivative";
 
-  if (stage === "function") {
-    layers = [{ ys: state.data.yTrue, color: "#2ee8bb", width: 2.9, alpha: 1.0 }];
-    el.phaseLine.textContent = "Stage 1: f(x)";
-  } else if (stage === "inverse") {
-    layers = [
-      { ys: state.data.yTrue, color: "#2ee8bb", width: 2.4, alpha: 0.28 },
-      { ys: state.data.yMirror, color: "#f5c842", width: 1.8, alpha: 0.9 },
-      { ys: state.data.yInverse, color: "#9e8dff", width: 2.9, alpha: 1.0 },
-    ];
-    el.phaseLine.textContent = "Stage 2: inverse across y = x";
-  } else {
-    layers = [
-      { ys: state.data.yTrue, color: "#2ee8bb", width: 2.4, alpha: 0.55 },
-      { ys: state.data.yInverse, color: "#9e8dff", width: 2.4, alpha: 0.55 },
-      { ys: state.data.yPrime, color: "#f5c842", width: 2.6, alpha: 1.0 },
-      { ys: state.data.yInversePrime, color: "#7cc7ff", width: 4.0, alpha: 1.0 },
-    ];
-    el.phaseLine.textContent = "Stage 3: f'(x) and inverse derivative";
-  }
-
-  viewer.draw(layers);
-  renderLegend(stage);
-  updateScaleReadout();
+  if (el.plotLegend.dataset.stage !== stage) renderLegend(stage);
+  paintPlot();
   updateStageButton();
 }
 
@@ -230,13 +252,13 @@ async function bootstrap() {
   el.exprLine = $("exprLine");
 
   viewer = new GraphViewer($("plotCanvas"));
-  viewer.setRedrawHandler(() => drawStage(state.stage));
+  viewer.setRedrawHandler(() => paintPlot());
   viewer.onDomainExpand = (payload) => window.pywebview.api.compute_inverse(payload);
   viewer.onDataExpanded = (result, payload) => {
     if (!result?.ok) return;
     state.data = result;
     viewer.setData(result, payload, { preserveView: true });
-    drawStage(state.stage);
+    paintPlot();
   };
   viewer.drawGrid();
 

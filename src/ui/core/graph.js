@@ -1,6 +1,32 @@
 /**
  * Reusable 2D function plot viewer (canvas grid, pan, zoom).
  */
+const VIEW_MIN_SPAN = 1e-3;
+const VIEW_MAX_SPAN = 2e4;
+const MIN_VISIBLE_SAMPLES = 80;
+
+function niceGridStep(span, targetLines) {
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const raw = span / Math.max(targetLines, 1);
+  const exp = 10 ** Math.floor(Math.log10(raw));
+  const frac = raw / exp;
+  const nice = frac <= 1 ? 1 : frac <= 2 ? 2 : frac <= 5 ? 5 : 10;
+  return nice * exp;
+}
+
+function clampSpan(min, max, limitMin, limitMax) {
+  let lo = min;
+  let hi = max;
+  if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi <= lo) {
+    return { min: -4, max: 4 };
+  }
+  const mid = (lo + hi) / 2;
+  let span = hi - lo;
+  if (span < limitMin) span = limitMin;
+  if (span > limitMax) span = limitMax;
+  return { min: mid - span / 2, max: mid + span / 2 };
+}
+
 class GraphViewer {
   constructor(canvas, options = {}) {
     this.canvas = canvas;
@@ -11,6 +37,7 @@ class GraphViewer {
     this.dragStart = null;
     this.domainExpandTimer = null;
     this.domainExpandInFlight = false;
+    this._expandGen = 0;
     this.onDomainExpand = options.onDomainExpand || null;
     this.activeParams = null;
 
@@ -67,18 +94,52 @@ class GraphViewer {
     const { xmin, xmax, ymin, ymax } = this.view;
     const w = this.canvas.width;
     const h = this.canvas.height;
-    const sx = ((x - xmin) / (xmax - xmin)) * w;
-    const sy = h - ((y - ymin) / (ymax - ymin)) * h;
+    const dx = xmax - xmin || 1;
+    const dy = ymax - ymin || 1;
+    const sx = ((x - xmin) / dx) * w;
+    const sy = h - ((y - ymin) / dy) * h;
     return [sx, sy];
   }
 
   screenToWorld(sx, sy) {
     const { xmin, xmax, ymin, ymax } = this.view;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.canvas.width || 1;
+    const h = this.canvas.height || 1;
     const x = xmin + (sx / w) * (xmax - xmin);
     const y = ymin + ((h - sy) / h) * (ymax - ymin);
     return [x, y];
+  }
+
+  clampView() {
+    const x = clampSpan(this.view.xmin, this.view.xmax, VIEW_MIN_SPAN, VIEW_MAX_SPAN);
+    const y = clampSpan(this.view.ymin, this.view.ymax, VIEW_MIN_SPAN, VIEW_MAX_SPAN);
+    this.view.xmin = x.min;
+    this.view.xmax = x.max;
+    this.view.ymin = y.min;
+    this.view.ymax = y.max;
+  }
+
+  _visibleSampleCount() {
+    const xs = this.data?.x;
+    if (!xs?.length) return 0;
+    const { xmin, xmax } = this.view;
+    let n = 0;
+    for (let i = 0; i < xs.length; i += 1) {
+      const x = xs[i];
+      if (x >= xmin && x <= xmax) {
+        n += 1;
+        if (n >= MIN_VISIBLE_SAMPLES) return n;
+      }
+    }
+    return n;
+  }
+
+  _needsResample() {
+    if (!this.data?.xRange || !this.data?.x?.length) return false;
+    const [domainMin, domainMax] = this.data.xRange;
+    const { xmin, xmax } = this.view;
+    if (xmin < domainMin || xmax > domainMax) return true;
+    return this._visibleSampleCount() < MIN_VISIBLE_SAMPLES;
   }
 
   drawLine(xs, ys, color, width = 2.6, alpha = 1.0) {
@@ -99,8 +160,9 @@ class GraphViewer {
       }
       if (drawing && i > 0 && ys[i - 1] !== null) {
         const prev = ys[i - 1];
+        const ySpan = Math.abs(this.view.ymax - this.view.ymin) || 1;
         const jump = Math.abs(y - prev);
-        if (jump > 12 && prev * y < 0 && Math.abs(prev) > 6 && Math.abs(y) > 6) {
+        if (jump > ySpan * 0.9 && prev * y < 0) {
           drawing = false;
         }
       }
@@ -129,25 +191,37 @@ class GraphViewer {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
+    const { xmin, xmax, ymin, ymax } = this.view;
+    const xSpan = xmax - xmin;
+    const ySpan = ymax - ymin;
+    if (!Number.isFinite(xSpan) || !Number.isFinite(ySpan) || xSpan <= 0 || ySpan <= 0) {
+      return;
+    }
+
     ctx.strokeStyle = "rgba(90, 109, 161, 0.40)";
     ctx.lineWidth = 1;
-    const { xmin, xmax, ymin, ymax } = this.view;
-    const stepX = (xmax - xmin) / 10;
-    const stepY = (ymax - ymin) / 8;
+    const stepX = niceGridStep(xSpan, 10);
+    const stepY = niceGridStep(ySpan, 8);
+    const startX = Math.ceil(xmin / stepX) * stepX;
+    const startY = Math.ceil(ymin / stepY) * stepY;
 
-    for (let gx = xmin; gx <= xmax; gx += stepX) {
+    let count = 0;
+    for (let gx = startX; gx <= xmax + stepX * 0.5 && count < 48; gx += stepX) {
       const [sx] = this.worldToScreen(gx, ymin);
       ctx.beginPath();
       ctx.moveTo(sx, 0);
       ctx.lineTo(sx, h);
       ctx.stroke();
+      count += 1;
     }
-    for (let gy = ymin; gy <= ymax; gy += stepY) {
+    count = 0;
+    for (let gy = startY; gy <= ymax + stepY * 0.5 && count < 48; gy += stepY) {
       const [, sy] = this.worldToScreen(xmin, gy);
       ctx.beginPath();
       ctx.moveTo(0, sy);
       ctx.lineTo(w, sy);
       ctx.stroke();
+      count += 1;
     }
 
     const [x0] = this.worldToScreen(0, ymin);
@@ -169,37 +243,38 @@ class GraphViewer {
     this.drawGrid();
     if (!this.data) return;
     for (const layer of layers) {
+      if (!layer?.ys) continue;
       this.drawLine(this.data.x, layer.ys, layer.color, layer.width, layer.alpha);
     }
   }
 
   scheduleDomainExpansion() {
     if (!this.data || !this.activeParams || !this.onDomainExpand) return;
+    this._expandGen += 1;
     if (this.domainExpandTimer) clearTimeout(this.domainExpandTimer);
-    this.domainExpandTimer = setTimeout(() => this._ensureDomainCoverage(), 180);
+    this.domainExpandTimer = setTimeout(() => this._ensureDomainCoverage(), 140);
   }
 
   async _ensureDomainCoverage() {
     if (!this.data || !this.activeParams || this.domainExpandInFlight || !this.onDomainExpand) {
       return;
     }
-    const [domainMin, domainMax] = this.data.xRange;
+    if (!this._needsResample()) return;
+
+    const gen = this._expandGen;
     const { xmin, xmax } = this.view;
-    if (xmin >= domainMin && xmax <= domainMax) return;
-
-    const span = xmax - xmin;
-    const pad = Math.max(0.5, span * 0.2);
-    const reqMin = Math.min(xmin, domainMin) - pad;
-    const reqMax = Math.max(xmax, domainMax) + pad;
-
-    this.domainExpandInFlight = true;
+    const span = Math.max(xmax - xmin, VIEW_MIN_SPAN);
+    const pad = Math.max(span * 0.12, 0.05);
     const payload = {
       ...this.activeParams,
-      xmin: reqMin,
-      xmax: reqMax,
+      xmin: xmin - pad,
+      xmax: xmax + pad,
     };
+
+    this.domainExpandInFlight = true;
     try {
       const result = await this.onDomainExpand(payload);
+      if (gen !== this._expandGen) return;
       if (!result?.ok) return;
 
       if (this.onDataExpanded) {
@@ -211,6 +286,8 @@ class GraphViewer {
     } finally {
       this.domainExpandInFlight = false;
     }
+
+    if (gen !== this._expandGen) this.scheduleDomainExpansion();
   }
 
   setRedrawHandler(fn) {
@@ -249,6 +326,7 @@ class GraphViewer {
       this.view.xmax = this.dragStart.view.xmax - (dx / w) * xv;
       this.view.ymin = this.dragStart.view.ymin + (dy / h) * yv;
       this.view.ymax = this.dragStart.view.ymax + (dy / h) * yv;
+      this.clampView();
       this.redraw();
       if (this.data) this.scheduleDomainExpansion();
     });
@@ -257,7 +335,8 @@ class GraphViewer {
       "wheel",
       (e) => {
         e.preventDefault();
-        const zoom = e.deltaY > 0 ? 1.08 : 0.92;
+        if (!e.deltaY) return;
+        const zoom = e.deltaY > 0 ? 1.1 : 0.9;
         const rect = this.canvas.getBoundingClientRect();
         const sx = (e.clientX - rect.left) * (window.devicePixelRatio || 1);
         const sy = (e.clientY - rect.top) * (window.devicePixelRatio || 1);
@@ -266,6 +345,7 @@ class GraphViewer {
         this.view.xmax = wx + (this.view.xmax - wx) * zoom;
         this.view.ymin = wy + (this.view.ymin - wy) * zoom;
         this.view.ymax = wy + (this.view.ymax - wy) * zoom;
+        this.clampView();
         this.redraw();
         if (this.data) this.scheduleDomainExpansion();
       },
