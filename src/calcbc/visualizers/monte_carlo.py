@@ -134,12 +134,38 @@ class MonteCarloApi:
         result["latexPngFull"] = render_formula(monte_carlo_latex(a, b), wide=True)
 
     def preview(self, payload):
-        result = compute_function_preview(payload)
+        data = dict(payload or {})
+        # Same framing rule as compute: plot window must cover [a, b].
+        try:
+            a = float(data.get("a", 0.0))
+            b = float(data.get("b", np.pi))
+            if a < b:
+                span = b - a
+                pad = max(span * 0.1, 0.5)
+                try:
+                    xmin_in = float(data.get("xmin", a - pad))
+                    xmax_in = float(data.get("xmax", b + pad))
+                except (TypeError, ValueError):
+                    xmin_in, xmax_in = a - pad, b + pad
+                covers = (
+                    np.isfinite(xmin_in)
+                    and np.isfinite(xmax_in)
+                    and xmin_in < xmax_in
+                    and xmin_in <= a - pad * 0.25
+                    and xmax_in >= b + pad * 0.25
+                )
+                if covers:
+                    data["xmin"], data["xmax"] = xmin_in, xmax_in
+                else:
+                    data["xmin"], data["xmax"] = a - pad, b + pad
+        except Exception:
+            pass
+        result = compute_function_preview(data)
         if not result.get("ok"):
             return result
         try:
-            a = float((payload or {}).get("a", 0.0))
-            b = float((payload or {}).get("b", np.pi))
+            a = float(data.get("a", 0.0))
+            b = float(data.get("b", np.pi))
             if a < b:
                 self._attach_formula(result, a, b)
         except Exception:
@@ -156,15 +182,33 @@ class MonteCarloApi:
 
             a = float(data.get("a", 0.0))
             b = float(data.get("b", np.pi))
-            xmin = float(data.get("xmin", min(a, b) - 0.75))
-            xmax = float(data.get("xmax", max(a, b) + 0.75))
             n = int(data.get("n", N_DEFAULT) or N_DEFAULT)
             n = int(np.clip(n, N_MIN, N_MAX))
 
             if a >= b:
                 return {"ok": False, "error": "Interval must satisfy a < b."}
-            if xmin >= xmax:
-                return {"ok": False, "error": "xmin must be < xmax."}
+
+            # Always frame the plot around [a, b]. Stale xmin/xmax (e.g. left on a
+            # previous preset) would leave the sampling box off-screen while y zooms
+            # to y_max on [a, b] — an empty / broken view.
+            span = b - a
+            pad = max(span * 0.1, 0.5)
+            try:
+                xmin_in = float(data.get("xmin", a - pad))
+                xmax_in = float(data.get("xmax", b + pad))
+            except (TypeError, ValueError):
+                xmin_in, xmax_in = a - pad, b + pad
+            covers = (
+                np.isfinite(xmin_in)
+                and np.isfinite(xmax_in)
+                and xmin_in < xmax_in
+                and xmin_in <= a - pad * 0.25
+                and xmax_in >= b + pad * 0.25
+            )
+            if covers:
+                xmin, xmax = xmin_in, xmax_in
+            else:
+                xmin, xmax = a - pad, b + pad
 
             expr = parse_expr(expr_text)
             # Dense curve on [a, b] so JS can interpolate f(x) while classifying.

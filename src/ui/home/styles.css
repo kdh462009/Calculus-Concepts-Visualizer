@@ -640,6 +640,12 @@ kbd {
   letter-spacing: 0.08em;
 }
 
+.opening-version .app-version {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
 .opening-loader {
   width: min(360px, 82vw);
   margin: 22px auto 0;
@@ -759,6 +765,108 @@ kbd {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.update-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.update-modal[hidden] {
+  display: none !important;
+}
+
+.update-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 10, 22, 0.62);
+}
+
+.update-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  padding: 22px 22px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(159, 182, 255, 0.28);
+  background: linear-gradient(165deg, rgba(28, 38, 68, 0.98), rgba(16, 24, 44, 0.98));
+  box-shadow: 0 18px 48px rgba(4, 8, 20, 0.55);
+  color: #e8eaf6;
+}
+
+.update-modal-card h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.update-modal-lead,
+.update-modal-body,
+.update-modal-hint,
+.update-modal-note {
+  margin: 0 0 8px;
+  line-height: 1.45;
+  font-size: 14px;
+  color: #c8d0ea;
+}
+
+.update-modal-lead strong,
+.update-modal-body strong {
+  color: #f0f3ff;
+  font-weight: 700;
+}
+
+.update-modal-hint {
+  margin-top: 12px;
+  color: #aeb8d8;
+}
+
+.update-modal-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #8f9bb8;
+  font-style: italic;
+}
+
+.update-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.update-btn {
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.update-btn-primary {
+  background: rgba(124, 156, 255, 0.92);
+  border-color: rgba(183, 197, 255, 0.55);
+  color: #0b1224;
+}
+
+.update-btn-primary:hover {
+  background: rgba(150, 176, 255, 0.98);
+}
+
+.update-btn-ghost {
+  background: rgba(42, 55, 94, 0.75);
+  border-color: rgba(159, 182, 255, 0.35);
+  color: #e8eaf6;
+}
+
+.update-btn-ghost:hover {
+  background: rgba(62, 78, 122, 0.9);
 }
 
 @media (prefers-reduced-motion: reduce) {

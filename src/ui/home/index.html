@@ -20,7 +20,9 @@
       <img class="opening-logo" src="../core/logo.png" alt="">
       <h1 class="opening-title">Concept Visualizers</h1>
       <p class="opening-sub">Calculus AB / BC</p>
-      <p class="opening-version" data-app-version>Version 1.3</p>
+      <p class="opening-version">
+        <button type="button" class="app-version" data-app-version data-check-updates title="Check for updates">Version 1.3</button>
+      </p>
       <div class="opening-loader" aria-live="polite">
         <p class="opening-load-label" id="openingLoadLabel">Starting…</p>
         <div class="opening-load-bar"><div class="opening-load-fill" id="openingLoadFill"></div></div>
@@ -69,6 +71,25 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <div id="updateModal" class="update-modal" hidden>
+    <div class="update-modal-backdrop" data-update-dismiss></div>
+    <div class="update-modal-card" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
+      <h2 id="updateModalTitle">Update available</h2>
+      <p class="update-modal-lead">
+        Calc BC Visualizers <strong id="updateLatest">—</strong> is available.
+      </p>
+      <p class="update-modal-body">
+        You're currently running <strong id="updateCurrent">—</strong>.
+      </p>
+      <p class="update-modal-hint" id="updateInstructions"></p>
+      <p class="update-modal-note">No installation or administrator privileges are required.</p>
+      <div class="update-modal-actions">
+        <button id="updateDownloadBtn" class="update-btn update-btn-primary" type="button">Download Update</button>
+        <button id="updateLaterBtn" class="update-btn update-btn-ghost" type="button" data-update-dismiss>Later</button>
+      </div>
+    </div>
   </div>
 
   <script src="./boot.js"></script>

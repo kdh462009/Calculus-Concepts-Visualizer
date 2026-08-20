@@ -23,6 +23,8 @@ from calcbc.runtime import start_webview
 from calcbc.visualizers.polar import PolarApi
 from calcbc.visualizers.fourier import FourierApi
 from calcbc.visualizers.monte_carlo import MonteCarloApi
+from calcbc import __version__
+from calcbc import update as app_update
 
 
 EXTERNAL_URLS = frozenset(
@@ -30,6 +32,7 @@ EXTERNAL_URLS = frozenset(
         "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en",
         "https://creativecommons.org/licenses/by-nc-sa/4.0/",
         "https://github.com/kdh462009/Calculus-Concepts-Visualizer",
+        "https://github.com/kdh462009/Calculus-Concepts-Visualizer/releases/latest",
         "https://knivier.com/tos-ssp.html",
     }
 )
@@ -139,10 +142,19 @@ class AppApi:
 
     def open_external(self, url: str):
         target = str(url or "").strip()
-        if target not in EXTERNAL_URLS:
+        if target not in EXTERNAL_URLS and not app_update.is_allowed_download_url(target):
             return {"ok": False, "error": "URL not allowed."}
         webbrowser.open(target)
         return {"ok": True}
+
+    def check_for_update(self):
+        return app_update.check_for_update()
+
+    def open_update_download(self, url: str = ""):
+        return app_update.open_download(url)
+
+    def get_app_version(self):
+        return {"ok": True, "version": __version__}
 
     def get_bootstrap(self):
         return self._taylor.get_bootstrap()
@@ -243,7 +255,7 @@ class AppApi:
 def main():
     api = AppApi()
     window = webview.create_window(
-        title="Concept Visualizers 1.3",
+        title=f"Concept Visualizers {__version__}",
         url=resolve_resource("ui/home/index.html").as_uri(),
         js_api=api,
         width=1320,

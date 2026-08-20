@@ -3,3 +3,4 @@ sympy
 pywebview
 matplotlib
 pyinstaller
+certifi

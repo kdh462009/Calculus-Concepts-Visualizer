@@ -130,6 +130,26 @@ function payloadFromInputs() {
   };
 }
 
+/** Keep the plot window framed on [a, b] so the sampling region stays visible. */
+function framePlotToInterval(force = false) {
+  const a = Number(el.aInput.value);
+  const b = Number(el.bInput.value);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || !(a < b)) return;
+  const pad = Math.max((b - a) * 0.1, 0.5);
+  const framedMin = a - pad;
+  const framedMax = b + pad;
+  const xmin = Number(el.xminInput.value);
+  const xmax = Number(el.xmaxInput.value);
+  const covers = Number.isFinite(xmin) && Number.isFinite(xmax)
+    && xmin <= a - pad * 0.25
+    && xmax >= b + pad * 0.25
+    && xmin < xmax;
+  if (force || !covers) {
+    el.xminInput.value = String(Number(framedMin.toFixed(4)));
+    el.xmaxInput.value = String(Number(framedMax.toFixed(4)));
+  }
+}
+
 function evalCurve(x) {
   const xs = state.data?.curveX;
   const ys = state.data?.curveY;
@@ -788,6 +808,7 @@ function frame(ts) {
 }
 
 async function prepareExperiment() {
+  framePlotToInterval(true);
   const payload = payloadFromInputs();
   if (!payload.expr) {
     setStatus("Please enter a function.");
@@ -827,6 +848,10 @@ async function prepareExperiment() {
   syncExperimentPanel();
   applyFormulaBeat(0);
   viewer.setData(result, payload, { preserveView: false });
+  if (Array.isArray(result.xRange) && result.xRange.length >= 2) {
+    el.xminInput.value = String(Number(result.xRange[0].toFixed?.(4) ?? result.xRange[0]));
+    el.xmaxInput.value = String(Number(result.xRange[1].toFixed?.(4) ?? result.xRange[1]));
+  }
   drawScene();
   return true;
 }
@@ -920,7 +945,10 @@ function wireInteractions() {
     viewer,
     exprInput: el.exprInput,
     extraInputs: [el.aInput, el.bInput, el.xminInput, el.xmaxInput],
-    getPayload: payloadFromInputs,
+    getPayload: () => {
+      framePlotToInterval(false);
+      return payloadFromInputs();
+    },
     previewApi: (payload) => window.pywebview.api.preview_monte_carlo(payload),
     onBeforePlot: () => {
       if (state.animating) stopLoop();
@@ -936,11 +964,22 @@ function wireInteractions() {
       state.data = viewer.data;
       // Preview responses lack the sampling envelope; keep cloud cleared.
       clearSampleCloud();
+      if (Array.isArray(viewer.data?.xRange) && viewer.data.xRange.length >= 2) {
+        const [x0, x1] = viewer.data.xRange;
+        el.xminInput.value = String(Number(Number(x0).toFixed(4)));
+        el.xmaxInput.value = String(Number(Number(x1).toFixed(4)));
+      }
       LatexDisplay.fromData(el.latexImage, viewer.data);
       FunctionPreview.drawFunctionOnly(viewer);
       setStatus("f(x) plotted. press Animate to sample.");
     },
     onError: (err) => setStatus(`error: ${err}`),
+  });
+
+  // Changing [a, b] must reframe the plot; otherwise a stale x-window + new y_max
+  // (from Animate) leaves the sampling box off-screen.
+  [el.aInput, el.bInput].forEach((input) => {
+    input.addEventListener("change", () => framePlotToInterval(true));
   });
 }
 
@@ -1019,8 +1058,7 @@ async function bootstrap() {
       el.exprInput.value = expr;
       el.aInput.value = String(a);
       el.bInput.value = String(b);
-      el.xminInput.value = String(Number(a) - 0.5);
-      el.xmaxInput.value = String(Number(b) + 0.5);
+      framePlotToInterval(true);
       el.exprInput.dispatchEvent(new Event("input", { bubbles: true }));
       setStatus(`preset: ${label}`);
     });

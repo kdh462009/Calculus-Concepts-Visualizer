@@ -428,6 +428,85 @@ async function bootstrap() {
   renderHub();
   wireHubKeys();
   wireShortcuts();
+  maybeOfferUpdate();
 }
 
-whenApiReady(bootstrap);
+let pendingUpdate = null;
+
+function hideUpdateModal() {
+  const modal = document.getElementById("updateModal");
+  if (modal) modal.hidden = true;
+  pendingUpdate = null;
+}
+
+function showUpdateModal(info) {
+  pendingUpdate = info;
+  const modal = document.getElementById("updateModal");
+  if (!modal) return;
+  const latest = document.getElementById("updateLatest");
+  const current = document.getElementById("updateCurrent");
+  const instructions = document.getElementById("updateInstructions");
+  if (latest) latest.textContent = info.latestVersion || "—";
+  if (current) current.textContent = info.currentVersion || "—";
+  if (instructions) {
+    instructions.textContent = info.instructions
+      || "Download the latest version and replace your current application with it.";
+  }
+  modal.hidden = false;
+}
+
+window.showUpdateModal = showUpdateModal;
+window.hideUpdateModal = hideUpdateModal;
+
+async function maybeOfferUpdate() {
+  try {
+    if (!window.pywebview?.api?.check_for_update) return;
+    const info = await window.pywebview.api.check_for_update();
+    if (!info?.update) return;
+    showUpdateModal(info);
+  } catch {
+    /* offline / bridge — fail silently */
+  }
+}
+
+function wireUpdateModal() {
+  const modal = document.getElementById("updateModal");
+  if (!modal) return;
+  modal.querySelectorAll("[data-update-dismiss]").forEach((node) => {
+    node.addEventListener("click", () => hideUpdateModal());
+  });
+  document.getElementById("updateLaterBtn")?.addEventListener("click", () => hideUpdateModal());
+  document.getElementById("updateDownloadBtn")?.addEventListener("click", async () => {
+    const url = pendingUpdate?.downloadUrl || "";
+    try {
+      await window.pywebview.api.open_update_download(url);
+    } catch {
+      /* ignore */
+    }
+    hideUpdateModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal && !modal.hidden) {
+      hideUpdateModal();
+    }
+  });
+}
+
+async function syncDisplayedVersion() {
+  try {
+    const res = await window.pywebview.api.get_app_version?.();
+    const version = res?.version;
+    if (!version) return;
+    document.querySelectorAll("[data-app-version]").forEach((node) => {
+      node.textContent = `Version ${version}`;
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+whenApiReady(() => {
+  wireUpdateModal();
+  syncDisplayedVersion();
+  bootstrap();
+});

@@ -17,7 +17,7 @@ function stampAppFooter() {
   shell.appendChild(footer);
 
   footer.innerHTML = `
-    <span>Made with ❤️ by Agniva, Donghui, Manya, and Adam · <span class="app-version" data-app-version></span></span>
+    <span>Made with ❤️ by Agniva, Donghui, Manya, and Adam · <button type="button" class="app-version" data-app-version data-check-updates title="Check for updates">Version ${window.APP_VERSION}</button></span>
     <span class="credit-legal">
       Licensed under
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a> 
@@ -43,6 +43,72 @@ function stampAppVersion() {
     el.textContent = `Version ${window.APP_VERSION}`;
   });
 }
+
+let versionCheckBusy = false;
+let versionCheckResetTimer = null;
+
+function setVersionLabel(text) {
+  document.querySelectorAll("[data-app-version]").forEach((el) => {
+    el.textContent = text;
+  });
+}
+
+function restoreVersionLabelSoon(ms = 1800) {
+  if (versionCheckResetTimer) clearTimeout(versionCheckResetTimer);
+  versionCheckResetTimer = setTimeout(() => {
+    stampAppVersion();
+    versionCheckBusy = false;
+  }, ms);
+}
+
+async function runManualUpdateCheck() {
+  if (versionCheckBusy) return;
+  if (typeof window.pywebview?.api?.check_for_update !== "function") {
+    setVersionLabel("Unavailable");
+    restoreVersionLabelSoon();
+    return;
+  }
+  versionCheckBusy = true;
+  setVersionLabel("Checking…");
+  try {
+    const info = await window.pywebview.api.check_for_update();
+    if (info?.update) {
+      if (typeof window.showUpdateModal === "function") {
+        window.showUpdateModal(info);
+        stampAppVersion();
+        versionCheckBusy = false;
+      } else {
+        setVersionLabel(`Update ${info.latestVersion || ""}`.trim());
+        try {
+          await window.pywebview.api.open_update_download(info.downloadUrl || "");
+        } catch {
+          /* ignore */
+        }
+        restoreVersionLabelSoon(2200);
+      }
+      return;
+    }
+    if (info?.checked) {
+      setVersionLabel("Up to date");
+      restoreVersionLabelSoon();
+      return;
+    }
+    setVersionLabel("Check failed");
+    restoreVersionLabelSoon();
+  } catch {
+    setVersionLabel("Check failed");
+    restoreVersionLabelSoon();
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const node = event.target instanceof Element ? event.target : event.target.parentElement;
+  const versionBtn = node?.closest?.("[data-check-updates]");
+  if (versionBtn) {
+    event.preventDefault();
+    runManualUpdateCheck();
+  }
+});
 
 function stampAppLogo() {
   if (!document.querySelector("link[rel='icon']")) {
