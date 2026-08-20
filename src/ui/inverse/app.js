@@ -35,18 +35,35 @@ function updateScaleReadout() {
   viewer?.notifyView?.();
 }
 
-function applyStageView(stage) {
-  if (!state.data?.phaseYRanges || !viewer) return;
-  const yRange = state.data.phaseYRanges[stage] || state.data.yRange;
-  const xRange = state.data.xRange;
-  if (!xRange || !yRange) return;
-  viewer.view = {
-    xmin: xRange[0],
-    xmax: xRange[1],
+function stageSnapView(stage = state.stage) {
+  if (!state.data) return null;
+  const yRange = state.data.phaseYRanges?.[stage] || state.data.yRange;
+  if (!yRange) return null;
+  // Prefer the remembered home x-window so domain expansion cannot poison snap.
+  const home = viewer?._snapView;
+  const xmin = home?.xmin ?? state.data.xRange?.[0];
+  const xmax = home?.xmax ?? state.data.xRange?.[1];
+  if (!(Number.isFinite(xmin) && Number.isFinite(xmax) && xmax > xmin)) return null;
+  return {
+    xmin,
+    xmax,
     ymin: yRange[0],
     ymax: yRange[1],
   };
+}
+
+function applyStageView(stage) {
+  if (!viewer) return;
+  const snap = stageSnapView(stage);
+  if (!snap) return;
+  viewer.rememberSnapView(snap);
+  if (viewer.viewLocked) {
+    viewer.applySnapView();
+    return;
+  }
+  viewer.view = { ...snap };
   viewer.clampView();
+  viewer.notifyView?.();
 }
 
 function updateStageButton() {
@@ -248,6 +265,7 @@ async function bootstrap() {
   el.latexImage = $("latexImage");
 
   viewer = new GraphViewer($("plotCanvas"));
+  viewer.onGetSnapView = () => stageSnapView();
   viewer.setRedrawHandler(() => paintPlot());
   viewer.onDomainExpand = (payload) => window.pywebview.api.compute_inverse(payload);
   viewer.onDataExpanded = (result, payload) => {

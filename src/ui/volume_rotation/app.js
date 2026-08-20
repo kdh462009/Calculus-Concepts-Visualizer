@@ -1,3 +1,5 @@
+const DEFAULT_ZOOM = 1.4;
+
 const state = {
   data: null,
   animating: false,
@@ -10,7 +12,8 @@ const state = {
   camPitch: 0,
   viewOffsetX: 0,
   viewOffsetY: 0,
-  zoom: 1,
+  zoom: DEFAULT_ZOOM,
+  viewLocked: false,
 };
 
 const el = {};
@@ -22,6 +25,31 @@ function $(id) {
 
 function setStatus(text) {
   el.status.textContent = text;
+}
+
+function snapVolumeView() {
+  state.viewOffsetX = 0;
+  state.viewOffsetY = 0;
+  state.zoom = DEFAULT_ZOOM;
+  state.camYaw = 0;
+  state.camPitch = 0;
+}
+
+function syncViewLockChrome() {
+  renderer?.viewSnap?.sync();
+  renderer?.scaleBar?.root?.classList.toggle("is-view-locked", state.viewLocked);
+}
+
+function lockVolumeView() {
+  snapVolumeView();
+  state.viewLocked = true;
+  syncViewLockChrome();
+  drawCurrentFrame();
+}
+
+function unlockVolumeView() {
+  state.viewLocked = false;
+  syncViewLockChrome();
 }
 
 function lerp(a, b, t) {
@@ -344,6 +372,10 @@ function volumeGetView() {
 }
 
 function volumeSetView(view) {
+  if (state.viewLocked) {
+    state.viewLocked = false;
+    syncViewLockChrome();
+  }
   const spanX = Math.max(view.xmax - view.xmin, 0.5);
   const spanY = Math.max(view.ymax - view.ymin, 0.5);
   const w = renderer?.w || 1;
@@ -458,7 +490,7 @@ async function computeModel(options = {}) {
   state.camYaw = 0;
   state.viewOffsetX = 0;
   state.viewOffsetY = 0;
-  state.zoom = 1;
+  state.zoom = DEFAULT_ZOOM;
   renderReadouts(result);
   drawCurrentFrame();
   const axisLabel = payload.axis === "y" ? "y-axis" : "x-axis";
@@ -484,7 +516,7 @@ async function startAnimation() {
   state.camYaw = 0;
   state.viewOffsetX = 0;
   state.viewOffsetY = 0;
-  state.zoom = 1;
+  state.zoom = DEFAULT_ZOOM;
   setStatus("animating rotation...");
   state.rafId = requestAnimationFrame(loop);
 }
@@ -504,6 +536,7 @@ function wireInteractions() {
   canvas.style.cursor = "grab";
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
   canvas.addEventListener("pointerdown", (event) => {
+    if (state.viewLocked) return;
     if (state.animating) {
       stopAnimation();
       setStatus("animation stopped. drag to move view.");
@@ -518,7 +551,7 @@ function wireInteractions() {
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (!drag.active || event.pointerId !== drag.pointerId) return;
+    if (!drag.active || event.pointerId !== drag.pointerId || state.viewLocked) return;
     const dx = event.clientX - drag.lastX;
     const dy = event.clientY - drag.lastY;
     drag.lastX = event.clientX;
@@ -547,6 +580,7 @@ function wireInteractions() {
     "wheel",
     (event) => {
       event.preventDefault();
+      if (state.viewLocked) return;
       const factor = event.deltaY > 0 ? 0.93 : 1.07;
       state.zoom = Math.max(0.45, Math.min(2.2, state.zoom * factor));
       drawCurrentFrame();
@@ -598,7 +632,7 @@ function wireInteractions() {
     state.camPitch = 0;
     state.viewOffsetX = 0;
     state.viewOffsetY = 0;
-    state.zoom = 1;
+    state.zoom = DEFAULT_ZOOM;
     drawCurrentFrame();
     setStatus("view reset.");
   });
@@ -631,6 +665,11 @@ async function bootstrap() {
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
     getView: volumeGetView,
     setView: volumeSetView,
+  });
+  renderer.viewSnap = window.ViewSnapLock?.mount(renderer.canvas.parentElement, {
+    isLocked: () => state.viewLocked,
+    onLock: () => lockVolumeView(),
+    onUnlock: () => unlockVolumeView(),
   });
   drawCurrentFrame();
 

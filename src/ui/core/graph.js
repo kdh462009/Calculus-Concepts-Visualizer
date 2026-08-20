@@ -72,6 +72,7 @@ class GraphViewer {
     this.ctx = canvas.getContext("2d");
     this.data = null;
     this.view = options.initialView || { xmin: -4, xmax: 4, ymin: -6, ymax: 6 };
+    this._defaultView = { ...this.view };
     this.dragActive = false;
     this.dragStart = null;
     this.domainExpandTimer = null;
@@ -80,11 +81,17 @@ class GraphViewer {
     this._expandQueued = false;
     this._redrawFrame = null;
     this.onDomainExpand = options.onDomainExpand || null;
+    this.onGetSnapView = options.onGetSnapView || null;
     this.activeParams = null;
     this.scaleBar = null;
+    this.viewSnap = null;
+    this.viewLocked = false;
+    this._snapping = false;
+    this._snapView = null;
 
     this._wireInteractions();
     this.attachScaleBar();
+    this.attachViewSnap();
   }
 
   attachScaleBar() {
@@ -97,6 +104,97 @@ class GraphViewer {
     });
   }
 
+  attachViewSnap() {
+    if (typeof window.ViewSnapLock?.mount !== "function") return;
+    const host = this.canvas?.parentElement;
+    if (!host || this.viewSnap) return;
+    this.viewSnap = window.ViewSnapLock.mount(host, {
+      isLocked: () => this.viewLocked,
+      onLock: () => this.lockView(),
+      onUnlock: () => this.unlockView(),
+    });
+  }
+
+  syncLockChrome() {
+    this.viewSnap?.sync();
+    this.scaleBar?.root?.classList.toggle("is-view-locked", this.viewLocked);
+  }
+
+  rememberSnapView(source = this.view) {
+    if (!source) return;
+    const xmin = Number(source.xmin);
+    const xmax = Number(source.xmax);
+    const ymin = Number(source.ymin);
+    const ymax = Number(source.ymax);
+    if (!(Number.isFinite(xmin) && Number.isFinite(xmax) && xmax > xmin)) return;
+    if (!(Number.isFinite(ymin) && Number.isFinite(ymax) && ymax > ymin)) return;
+    this._snapView = { xmin, xmax, ymin, ymax };
+  }
+
+  getSnapView() {
+    if (typeof this.onGetSnapView === "function") {
+      const custom = this.onGetSnapView();
+      if (custom) {
+        const xmin = Number(custom.xmin);
+        const xmax = Number(custom.xmax);
+        const ymin = Number(custom.ymin);
+        const ymax = Number(custom.ymax);
+        if (
+          Number.isFinite(xmin) && Number.isFinite(xmax) && xmax > xmin
+          && Number.isFinite(ymin) && Number.isFinite(ymax) && ymax > ymin
+        ) {
+          return { xmin, xmax, ymin, ymax };
+        }
+      }
+    }
+    if (this._snapView) return { ...this._snapView };
+    if (this.data?.xRange && this.data?.yRange) {
+      return {
+        xmin: this.data.xRange[0],
+        xmax: this.data.xRange[1],
+        ymin: this.data.yRange[0],
+        ymax: this.data.yRange[1],
+      };
+    }
+    return { ...this._defaultView };
+  }
+
+  applySnapView() {
+    this._snapping = true;
+    try {
+      const snap = this.getSnapView();
+      this.view.xmin = snap.xmin;
+      this.view.xmax = snap.xmax;
+      this.view.ymin = snap.ymin;
+      this.view.ymax = snap.ymax;
+      this.clampView();
+      this.redraw();
+      this.notifyView();
+      // Zoom-trim can drop samples; refill the home window now, not after
+      // the pan debounce, so lock/resnap is not briefly empty.
+      if (this.data && this.onDomainExpand) {
+        if (this.domainExpandTimer) {
+          clearTimeout(this.domainExpandTimer);
+          this.domainExpandTimer = null;
+        }
+        this._ensureDomainCoverage();
+      }
+    } finally {
+      this._snapping = false;
+    }
+  }
+
+  lockView() {
+    this.applySnapView();
+    this.viewLocked = true;
+    this.syncLockChrome();
+  }
+
+  unlockView() {
+    this.viewLocked = false;
+    this.syncLockChrome();
+  }
+
   notifyView() {
     this.scaleBar?.sync();
     this.onViewChange?.({ ...this.view });
@@ -104,6 +202,11 @@ class GraphViewer {
 
   setView(next) {
     if (!next) return;
+    if (this.viewLocked && !this._snapping) {
+      // Scale-bar edits count as a user move: unlock, then apply.
+      this.viewLocked = false;
+      this.syncLockChrome();
+    }
     if (Number.isFinite(next.xmin)) this.view.xmin = next.xmin;
     if (Number.isFinite(next.xmax)) this.view.xmax = next.xmax;
     if (Number.isFinite(next.ymin)) this.view.ymin = next.ymin;
@@ -116,21 +219,33 @@ class GraphViewer {
   setData(data, activeParams = null, options = {}) {
     this.data = data;
     this.activeParams = activeParams;
-    if (!options.preserveView && data?.xRange && data?.yRange) {
-      this.view = {
+    const fitFromData = !options.preserveView && data?.xRange && data?.yRange;
+    if (fitFromData) {
+      const fitted = {
         xmin: data.xRange[0],
         xmax: data.xRange[1],
         ymin: data.yRange[0],
         ymax: data.yRange[1],
       };
+      this.rememberSnapView(fitted);
+      if (this.viewLocked) {
+        this.applySnapView();
+        return;
+      }
+      this.view = { ...fitted };
       this.clampView();
       this.notifyView();
+      return;
+    }
+    if (this.viewLocked) {
+      this.applySnapView();
     }
   }
 
   clearData() {
     this.data = null;
     this.activeParams = null;
+    this._snapView = null;
     if (this.domainExpandTimer) {
       clearTimeout(this.domainExpandTimer);
       this.domainExpandTimer = null;
@@ -138,6 +253,7 @@ class GraphViewer {
   }
 
   resetView(defaultView = { xmin: -4, xmax: 4, ymin: -6, ymax: 6 }) {
+    this._defaultView = { ...defaultView };
     if (this.data?.xRange && this.data?.yRange) {
       this.view = {
         xmin: this.data.xRange[0],
@@ -149,14 +265,17 @@ class GraphViewer {
       this.view = { ...defaultView };
     }
     this.clampView();
+    this.rememberSnapView(this.view);
     this.notifyView();
   }
 
   setupCanvasResolution() {
     const dpr = window.devicePixelRatio || 1;
     const rect = this.canvas.getBoundingClientRect();
-    const w = Math.max(400, Math.floor(rect.width * dpr));
-    const h = Math.max(320, Math.floor(rect.height * dpr));
+    // Match the CSS box exactly. Flooring / min-size mismatches vs the
+    // displayed size make wheel-zoom anchors drift left/right.
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;
       this.canvas.height = h;
@@ -181,6 +300,20 @@ class GraphViewer {
     const x = xmin + (sx / w) * (xmax - xmin);
     const y = ymin + ((h - sy) / h) * (ymax - ymin);
     return [x, y];
+  }
+
+  /** Mouse/client point → world, using CSS box fractions (DPR-safe). */
+  clientToWorld(clientX, clientY) {
+    const rect = this.canvas.getBoundingClientRect();
+    const w = rect.width || 1;
+    const h = rect.height || 1;
+    const fx = (clientX - rect.left) / w;
+    const fy = (clientY - rect.top) / h;
+    const { xmin, xmax, ymin, ymax } = this.view;
+    return [
+      xmin + fx * (xmax - xmin),
+      ymax - fy * (ymax - ymin),
+    ];
   }
 
   clampView() {
@@ -297,6 +430,12 @@ class GraphViewer {
       lo = Math.min(lo, keep[0]);
       hi = Math.max(hi, keep[1]);
     }
+    // Never discard the home snap window — otherwise lock/resnap shows
+    // truncated curves until a later expand happens to refill them.
+    if (this._snapView) {
+      lo = Math.min(lo, this._snapView.xmin);
+      hi = Math.max(hi, this._snapView.xmax);
+    }
 
     const must = [];
     const extra = [];
@@ -322,6 +461,17 @@ class GraphViewer {
 
   drawLine(xs, ys, color, width = 2.6, alpha = 1.0) {
     const ctx = this.ctx;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    // Keep projected points near the canvas. Huge screen coords (steep
+    // cubics when zoomed in) make Chromium/WebKit drop the entire stroke.
+    const maxCoord = Math.max(w, h) * 8;
+    const clampScreen = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
     ctx.strokeStyle = color;
     ctx.lineWidth = width * (window.devicePixelRatio || 1);
     ctx.globalAlpha = alpha;
@@ -332,19 +482,17 @@ class GraphViewer {
     ctx.beginPath();
     for (let i = 0; i < xs.length; i += 1) {
       const y = ys[i];
-      if (y === null) {
+      if (y === null || !Number.isFinite(y) || !Number.isFinite(xs[i])) {
         drawing = false;
         continue;
       }
-      if (drawing && i > 0 && ys[i - 1] !== null) {
-        const prev = ys[i - 1];
-        const ySpan = Math.abs(this.view.ymax - this.view.ymin) || 1;
-        const jump = Math.abs(y - prev);
-        if (jump > ySpan * 0.9 && prev * y < 0) {
-          drawing = false;
-        }
+      let [sx, sy] = this.worldToScreen(xs[i], y);
+      if (!Number.isFinite(sx) || !Number.isFinite(sy)) {
+        drawing = false;
+        continue;
       }
-      const [sx, sy] = this.worldToScreen(xs[i], y);
+      sx = clampScreen(sx, -maxCoord, w + maxCoord);
+      sy = clampScreen(sy, -maxCoord, h + maxCoord);
       if (!drawing) {
         ctx.moveTo(sx, sy);
         drawing = true;
@@ -353,7 +501,7 @@ class GraphViewer {
       }
     }
     ctx.stroke();
-    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   drawGrid() {
@@ -530,6 +678,7 @@ class GraphViewer {
 
   _wireInteractions() {
     this.canvas.addEventListener("mousedown", (e) => {
+      if (this.viewLocked) return;
       this.dragActive = true;
       this.dragStart = { x: e.clientX, y: e.clientY, view: { ...this.view } };
       this.canvas.style.cursor = "grabbing";
@@ -541,11 +690,12 @@ class GraphViewer {
     });
 
     window.addEventListener("mousemove", (e) => {
-      if (!this.dragActive) return;
+      if (!this.dragActive || this.viewLocked) return;
       const dx = e.clientX - this.dragStart.x;
       const dy = e.clientY - this.dragStart.y;
-      const w = this.canvas.getBoundingClientRect().width;
-      const h = this.canvas.getBoundingClientRect().height;
+      const rect = this.canvas.getBoundingClientRect();
+      const w = rect.width || 1;
+      const h = rect.height || 1;
       const xv = this.dragStart.view.xmax - this.dragStart.view.xmin;
       const yv = this.dragStart.view.ymax - this.dragStart.view.ymin;
       this.view.xmin = this.dragStart.view.xmin - (dx / w) * xv;
@@ -561,12 +711,9 @@ class GraphViewer {
       "wheel",
       (e) => {
         e.preventDefault();
-        if (!e.deltaY) return;
+        if (this.viewLocked || !e.deltaY) return;
         const zoom = e.deltaY > 0 ? 1.1 : 0.9;
-        const rect = this.canvas.getBoundingClientRect();
-        const sx = (e.clientX - rect.left) * (window.devicePixelRatio || 1);
-        const sy = (e.clientY - rect.top) * (window.devicePixelRatio || 1);
-        const [wx, wy] = this.screenToWorld(sx, sy);
+        const [wx, wy] = this.clientToWorld(e.clientX, e.clientY);
         this.view.xmin = wx + (this.view.xmin - wx) * zoom;
         this.view.xmax = wx + (this.view.xmax - wx) * zoom;
         this.view.ymin = wy + (this.view.ymin - wy) * zoom;

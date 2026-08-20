@@ -216,14 +216,12 @@ function isTypingTarget(target) {
 function goHomeWithWoosh() {
   if (window.__sspSoftlocked) return;
   if (typeof window.pywebview?.api?.go_home !== "function") return;
-  if (window.__vizNavigating) {
-    // Clear a stuck lock so Home still works after a failed transition.
-    if (typeof window.VizTransition?.abortNavigation === "function") {
-      window.VizTransition.abortNavigation();
-    } else {
-      window.__vizNavigating = false;
-    }
-  }
+  // Stay locked while a transition is in flight. Aborting here and starting
+  // another go_home lets Esc repeat / double Home overlap load_url and
+  // interrupt the home hub mid-bootstrap. Stuck locks are cleared by the
+  // navigateWithWoosh failsafe (or a failed bridge result).
+  if (window.__vizNavigating) return;
+
   const goHome = () => {
     const pending = window.pywebview.api.go_home();
     if (pending && typeof pending.catch === "function") pending.catch(() => {});
@@ -242,10 +240,12 @@ document.addEventListener("keydown", (event) => {
     beginSoftlockEscHold();
     return;
   }
-    if (document.body?.dataset.page === "home") {
+  if (document.body?.dataset.page === "home") {
     if (isTypingTarget(event.target)) return;
     return;
   }
+  // Key-repeat would otherwise spam goHomeWithWoosh while held.
+  if (event.repeat) return;
   event.preventDefault();
   goHomeWithWoosh();
 });

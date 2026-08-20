@@ -544,7 +544,7 @@ input[type="range"]::-webkit-slider-thumb {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  max-width: calc(100% - 32px);
+  max-width: calc(100% - 72px);
   padding: 6px 8px;
   border-radius: 10px;
   background: rgba(12, 18, 36, 0.88);
@@ -553,6 +553,47 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 11px;
   font-weight: 650;
   pointer-events: auto;
+}
+
+.scale-bar.is-view-locked {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.view-snap-lock {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 4;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid rgba(159, 182, 255, 0.38);
+  background: rgba(12, 18, 36, 0.88);
+  color: #c5d0f5;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.view-snap-lock:hover {
+  color: #eef2ff;
+  border-color: rgba(185, 205, 255, 0.55);
+  background: rgba(22, 30, 52, 0.95);
+}
+
+.view-snap-lock.is-locked {
+  color: #ffd28a;
+  border-color: rgba(255, 196, 120, 0.5);
+  background: rgba(42, 30, 18, 0.92);
+}
+
+.view-snap-lock svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .scale-bar-k {

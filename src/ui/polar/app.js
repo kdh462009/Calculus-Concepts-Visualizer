@@ -11,6 +11,8 @@ const state = {
   progress: 0,
   view: { xmin: -3, xmax: 3, ymin: -3, ymax: 3 },
   drag: null,
+  viewLocked: false,
+  snapView: { xmin: -3, xmax: 3, ymin: -3, ymax: 3 },
   legendVisible: true,
   recomputeTimer: null,
   visibleSectors: 0,
@@ -416,6 +418,7 @@ class PolarRenderer {
   _wireInteractions() {
     this.canvas.style.cursor = "grab";
     this.canvas.addEventListener("mousedown", (e) => {
+      if (state.viewLocked) return;
       if (state.animating) {
         stopAnimation();
         setStatus("animation stopped. drag to pan, scroll to zoom.");
@@ -428,7 +431,7 @@ class PolarRenderer {
       this.canvas.style.cursor = "grab";
     });
     window.addEventListener("mousemove", (e) => {
-      if (!state.drag) return;
+      if (!state.drag || state.viewLocked) return;
       const dx = e.clientX - state.drag.x;
       const dy = e.clientY - state.drag.y;
       const rect = this.canvas.getBoundingClientRect();
@@ -448,7 +451,7 @@ class PolarRenderer {
       "wheel",
       (e) => {
         e.preventDefault();
-        if (!e.deltaY) return;
+        if (state.viewLocked || !e.deltaY) return;
         const zoom = e.deltaY > 0 ? 1.08 : 0.92;
         const rect = this.canvas.getBoundingClientRect();
         const [wx, wy] = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
@@ -583,14 +586,37 @@ function payloadFromInputs() {
   };
 }
 
-function applyDataView(data) {
+function applyDataView(data, { rememberSnap = true } = {}) {
   state.view = {
     xmin: data.xRange[0],
     xmax: data.xRange[1],
     ymin: data.yRange[0],
     ymax: data.yRange[1],
   };
+  if (rememberSnap) state.snapView = { ...state.view };
   renderer?.lockAspect?.(0, 0, { captureScale: true });
+}
+
+function syncViewLockChrome() {
+  renderer?.viewSnap?.sync();
+  renderer?.scaleBar?.root?.classList.toggle("is-view-locked", state.viewLocked);
+}
+
+function lockPolarView() {
+  if (state.snapView) {
+    state.view = { ...state.snapView };
+    renderer?.lockAspect?.(0, 0, { captureScale: true });
+  } else if (state.data) {
+    applyDataView(state.data);
+  }
+  state.viewLocked = true;
+  syncViewLockChrome();
+  renderer?.draw();
+}
+
+function unlockPolarView() {
+  state.viewLocked = false;
+  syncViewLockChrome();
 }
 
 function updateModeUi() {
@@ -732,10 +758,19 @@ async function bootstrap() {
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
     getView: () => state.view,
     setView: (view) => {
+      if (state.viewLocked) {
+        state.viewLocked = false;
+        syncViewLockChrome();
+      }
       state.view = { ...state.view, ...view };
       renderer.lockAspect(null, null, { captureScale: true });
       renderer.draw();
     },
+  });
+  renderer.viewSnap = window.ViewSnapLock?.mount(renderer.canvas.parentElement, {
+    isLocked: () => state.viewLocked,
+    onLock: () => lockPolarView(),
+    onUnlock: () => unlockPolarView(),
   });
   renderer.draw();
 

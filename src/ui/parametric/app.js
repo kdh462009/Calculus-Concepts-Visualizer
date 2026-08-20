@@ -19,6 +19,8 @@ const state = {
   phase: "curve",
   view: { xmin: -4, xmax: 4, ymin: -4, ymax: 4 },
   drag: null,
+  viewLocked: false,
+  snapView: { xmin: -4, xmax: 4, ymin: -4, ymax: 4 },
   hidden: new Set(),
   recomputeTimer: null,
   legendBuilt: false,
@@ -373,6 +375,7 @@ class ParametricRenderer {
   _wireInteractions() {
     this.canvas.style.cursor = "grab";
     this.canvas.addEventListener("mousedown", (e) => {
+      if (state.viewLocked) return;
       if (state.animating) {
         stopAnimation();
         setStatus("animation stopped. drag to pan, scroll to zoom.");
@@ -389,7 +392,7 @@ class ParametricRenderer {
       this.canvas.style.cursor = "grab";
     });
     window.addEventListener("mousemove", (e) => {
-      if (!state.drag) return;
+      if (!state.drag || state.viewLocked) return;
       const dx = e.clientX - state.drag.x;
       const dy = e.clientY - state.drag.y;
       const rect = this.canvas.getBoundingClientRect();
@@ -408,7 +411,7 @@ class ParametricRenderer {
       "wheel",
       (e) => {
         e.preventDefault();
-        if (!e.deltaY) return;
+        if (state.viewLocked || !e.deltaY) return;
         const zoom = e.deltaY > 0 ? 1.08 : 0.92;
         const rect = this.canvas.getBoundingClientRect();
         const sx = e.clientX - rect.left;
@@ -483,13 +486,35 @@ function payloadFromInputs() {
   };
 }
 
-function applyDataView(data) {
+function applyDataView(data, { rememberSnap = true } = {}) {
   state.view = {
     xmin: data.xRange[0],
     xmax: data.xRange[1],
     ymin: data.yRange[0],
     ymax: data.yRange[1],
   };
+  if (rememberSnap) state.snapView = { ...state.view };
+}
+
+function syncViewLockChrome() {
+  renderer?.viewSnap?.sync();
+  renderer?.scaleBar?.root?.classList.toggle("is-view-locked", state.viewLocked);
+}
+
+function lockParametricView() {
+  if (state.snapView) {
+    state.view = { ...state.snapView };
+  } else if (state.data) {
+    applyDataView(state.data);
+  }
+  state.viewLocked = true;
+  syncViewLockChrome();
+  renderer?.draw();
+}
+
+function unlockParametricView() {
+  state.viewLocked = false;
+  syncViewLockChrome();
 }
 
 async function computeModel() {
@@ -605,9 +630,18 @@ async function bootstrap() {
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
     getView: () => state.view,
     setView: (view) => {
+      if (state.viewLocked) {
+        state.viewLocked = false;
+        syncViewLockChrome();
+      }
       state.view = { ...state.view, ...view };
       renderer.draw();
     },
+  });
+  renderer.viewSnap = window.ViewSnapLock?.mount(renderer.canvas.parentElement, {
+    isLocked: () => state.viewLocked,
+    onLock: () => lockParametricView(),
+    onUnlock: () => unlockParametricView(),
   });
   renderer.draw();
 

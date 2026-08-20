@@ -10,6 +10,8 @@ const state = {
   idx: 0,
   view: null,
   drag: null,
+  viewLocked: false,
+  snapView: null,
 };
 
 const el = {};
@@ -21,6 +23,29 @@ function $(id) {
 
 function setStatus(text) {
   el.status.textContent = text;
+}
+
+function syncViewLockChrome() {
+  renderer?.viewSnap?.sync();
+  renderer?.scaleBar?.root?.classList.toggle("is-view-locked", state.viewLocked);
+}
+
+function lockLimitView() {
+  if (state.snapView) {
+    state.view = { ...state.snapView };
+  } else if (state.data) {
+    renderer?.fitView(state.data);
+    if (state.view) state.snapView = { ...state.view };
+  }
+  state.viewLocked = true;
+  syncViewLockChrome();
+  drawCurrentFrame();
+  scheduleLimitCoverage();
+}
+
+function unlockLimitView() {
+  state.viewLocked = false;
+  syncViewLockChrome();
 }
 
 function formatPlotNum(v) {
@@ -62,9 +87,10 @@ class LimitRenderer {
     };
   }
 
-  fitView(data) {
+  fitView(data, { rememberSnap = true } = {}) {
     if (!data) {
       state.view = null;
+      if (rememberSnap) state.snapView = null;
       return;
     }
     const [ymin, ymax] = this.computeYRange(data);
@@ -74,6 +100,7 @@ class LimitRenderer {
       ymin,
       ymax,
     };
+    if (rememberSnap) state.snapView = { ...state.view };
   }
 
   screenToWorld(sx, sy, view) {
@@ -87,6 +114,7 @@ class LimitRenderer {
   _wireInteractions() {
     this.canvas.style.cursor = "grab";
     this.canvas.addEventListener("mousedown", (e) => {
+      if (state.viewLocked) return;
       if (!state.view && !state.data) return;
       if (state.animating) stopAnimation();
       const view = this.currentView(state.data);
@@ -98,7 +126,7 @@ class LimitRenderer {
       this.canvas.style.cursor = "grab";
     });
     window.addEventListener("mousemove", (e) => {
-      if (!state.drag) return;
+      if (!state.drag || state.viewLocked) return;
       const dx = e.clientX - state.drag.x;
       const dy = e.clientY - state.drag.y;
       const rect = this.canvas.getBoundingClientRect();
@@ -118,7 +146,7 @@ class LimitRenderer {
       "wheel",
       (e) => {
         e.preventDefault();
-        if (!e.deltaY) return;
+        if (state.viewLocked || !e.deltaY) return;
         const view = this.currentView(state.data);
         const zoom = e.deltaY > 0 ? 1.1 : 0.9;
         const rect = this.canvas.getBoundingClientRect();
@@ -669,10 +697,19 @@ async function bootstrap() {
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
     getView: () => renderer.currentView(state.data),
     setView: (view) => {
+      if (state.viewLocked) {
+        state.viewLocked = false;
+        syncViewLockChrome();
+      }
       state.view = { ...view };
       renderer.draw(state.data, state.idx);
       scheduleLimitCoverage();
     },
+  });
+  renderer.viewSnap = window.ViewSnapLock?.mount(renderer.canvas.parentElement, {
+    isLocked: () => state.viewLocked,
+    onLock: () => lockLimitView(),
+    onUnlock: () => unlockLimitView(),
   });
   drawCurrentFrame();
 
