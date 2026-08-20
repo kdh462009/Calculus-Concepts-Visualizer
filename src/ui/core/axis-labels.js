@@ -110,19 +110,63 @@
     pixelScale = null,
   }) {
     const dpr = pixelScale == null ? (window.devicePixelRatio || 1) : pixelScale;
-    const fontSize = Math.max(9, Math.round(10.5 * dpr));
-    const edge = 6 * dpr;
+    const fontSize = Math.max(10, Math.round(11 * dpr));
+    const edge = 8 * dpr;
     const step = radii.length > 1 ? Math.abs(radii[1] - radii[0]) : Math.abs(radii[0]) || 1;
     ctx.save();
     ctx.font = `${fontSize}px "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace`;
-    ctx.fillStyle = "rgba(168, 182, 220, 0.52)";
-    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(198, 210, 240, 0.88)";
     ctx.textBaseline = "middle";
+
     for (const r of radii) {
       if (!(r > 0)) continue;
-      const [sx, sy] = worldToScreen(cx + r, cy);
+      // Prefer +x; fall back around the ring so a panned/zoomed view still gets labels.
+      const candidates = [
+        [cx + r, cy, "left"],
+        [cx, cy + r, "center"],
+        [cx - r, cy, "right"],
+        [cx, cy - r, "center"],
+        [cx + r * Math.SQRT1_2, cy + r * Math.SQRT1_2, "left"],
+        [cx + r * Math.SQRT1_2, cy - r * Math.SQRT1_2, "left"],
+      ];
+      for (const [wx, wy, align] of candidates) {
+        const [sx, sy] = worldToScreen(wx, wy);
+        if (sx < edge || sx > width - edge || sy < edge || sy > height - edge) continue;
+        ctx.textAlign = align;
+        const pad = 5 * dpr;
+        const tx = align === "left" ? sx + pad : align === "right" ? sx - pad : sx;
+        ctx.fillText(formatTick(r, step), tx, sy);
+        break;
+      }
+    }
+    ctx.restore();
+  }
+
+  /** Angle marks around the polar origin (degrees). */
+  function drawPolarAngles(ctx, {
+    worldToScreen,
+    cx,
+    cy,
+    radius,
+    width,
+    height,
+    pixelScale = null,
+  }) {
+    if (!(radius > 0)) return;
+    const dpr = pixelScale == null ? (window.devicePixelRatio || 1) : pixelScale;
+    const fontSize = Math.max(9, Math.round(10 * dpr));
+    const edge = 8 * dpr;
+    const labelR = radius * 0.92;
+    ctx.save();
+    ctx.font = `${fontSize}px "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace`;
+    ctx.fillStyle = "rgba(168, 182, 220, 0.72)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let deg = 0; deg < 360; deg += 30) {
+      const th = (deg * Math.PI) / 180;
+      const [sx, sy] = worldToScreen(cx + labelR * Math.cos(th), cy + labelR * Math.sin(th));
       if (sx < edge || sx > width - edge || sy < edge || sy > height - edge) continue;
-      ctx.fillText(formatTick(r, step), sx + 4 * dpr, sy);
+      ctx.fillText(`${deg}°`, sx, sy);
     }
     ctx.restore();
   }
@@ -132,5 +176,6 @@
     formatTick,
     drawCartesian,
     drawPolarRadii,
+    drawPolarAngles,
   };
 })();

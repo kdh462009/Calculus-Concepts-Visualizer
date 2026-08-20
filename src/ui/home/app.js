@@ -545,6 +545,13 @@ async function maybeEnforceSupportOrUpdate() {
 async function maybeOfferUpdate() {
   try {
     if (window.__sspSoftlocked) return;
+    // Auto-offer only once per app session (home reloads on navigate back).
+    try {
+      if (sessionStorage.getItem("cvAutoUpdateChecked") === "1") return;
+      sessionStorage.setItem("cvAutoUpdateChecked", "1");
+    } catch {
+      /* private mode — still attempt once this page load */
+    }
     if (!window.pywebview?.api?.check_for_update) return;
     const info = await window.pywebview.api.check_for_update();
     if (!info?.update) return;

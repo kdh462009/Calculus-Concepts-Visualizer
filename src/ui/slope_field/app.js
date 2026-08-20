@@ -142,28 +142,36 @@ function animationSample() {
 }
 
 function updateHeader() {
-  const expr = state.data?.expr || el.exprInput.value.trim() || "f(x, y)";
+  const expr = state.data?.expr || el.exprInput?.value?.trim() || "f(x, y)";
   const h = Number.isFinite(state.data?.h) ? state.data.h : stepH();
   const sample = animationSample();
 
-  el.deLine.textContent = `y′ = ${expr}`;
+  if (el.deLine) el.deLine.textContent = `y′ = ${expr}`;
 
   if (sample) {
-    el.ivpLine.textContent = `(xₙ, yₙ) = (${formatNum(sample.x)}, ${formatNum(sample.y)})`;
-    el.stepLine.textContent = `n = ${sample.step} / ${sample.maxSteps}`;
+    if (el.ivpLine) {
+      el.ivpLine.textContent = `(xₙ, yₙ) = (${formatNum(sample.x)}, ${formatNum(sample.y)})`;
+    }
+    if (el.stepLine) {
+      el.stepLine.textContent = `n = ${sample.step} / ${sample.maxSteps}`;
+    }
     el.ivpMetric?.classList.add("is-live");
     el.stepMetric?.classList.add("is-live");
   } else {
-    el.ivpLine.textContent = `y(${formatNum(state.x0)}) = ${formatNum(state.y0)}`;
-    el.stepLine.textContent = `h = ${formatNum(h)}`;
+    if (el.ivpLine) {
+      el.ivpLine.textContent = `y(${formatNum(state.x0)}) = ${formatNum(state.y0)}`;
+    }
+    if (el.stepLine) el.stepLine.textContent = `h = ${formatNum(h)}`;
     el.ivpMetric?.classList.remove("is-live");
     el.stepMetric?.classList.remove("is-live");
   }
 
   const slope = sample?.slope ?? state.data?.slopeAtIC;
-  el.slopeLine.textContent = Number.isFinite(slope)
-    ? `f(x, y) = ${formatNum(slope)}`
-    : "f(x, y) = --";
+  if (el.slopeLine) {
+    el.slopeLine.textContent = Number.isFinite(slope)
+      ? `f(x, y) = ${formatNum(slope)}`
+      : "f(x, y) = --";
+  }
   el.slopeMetric?.classList.toggle("is-live", Boolean(sample && Number.isFinite(slope)));
 }
 
@@ -630,6 +638,7 @@ async function bootstrap() {
   el.termCounter = $("termCounter");
   el.ruleLine = $("ruleLine");
   el.latexImage = $("latexImage");
+  el.deLine = $("deLine");
   el.ivpLine = $("ivpLine");
   el.stepLine = $("stepLine");
   el.slopeLine = $("slopeLine");

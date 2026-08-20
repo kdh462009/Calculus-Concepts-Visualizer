@@ -213,6 +213,28 @@ function isTypingTarget(target) {
   );
 }
 
+function goHomeWithWoosh() {
+  if (window.__sspSoftlocked) return;
+  if (typeof window.pywebview?.api?.go_home !== "function") return;
+  if (window.__vizNavigating) {
+    // Clear a stuck lock so Home still works after a failed transition.
+    if (typeof window.VizTransition?.abortNavigation === "function") {
+      window.VizTransition.abortNavigation();
+    } else {
+      window.__vizNavigating = false;
+    }
+  }
+  const goHome = () => {
+    const pending = window.pywebview.api.go_home();
+    if (pending && typeof pending.catch === "function") pending.catch(() => {});
+  };
+  if (window.VizTransition?.navigateWithWoosh) {
+    window.VizTransition.navigateWithWoosh(window.VizTransition.back, goHome);
+  } else {
+    goHome();
+  }
+}
+
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape" || event.defaultPrevented) return;
   if (window.__sspSoftlocked) {
@@ -227,24 +249,25 @@ document.addEventListener("keydown", (event) => {
     }
     return;
   }
-  if (typeof window.pywebview?.api?.go_home !== "function") return;
   event.preventDefault();
-  if (window.__vizNavigating) return;
-  const goHome = () => {
-    const pending = window.pywebview.api.go_home();
-    if (pending && typeof pending.catch === "function") pending.catch(() => {});
-  };
-  if (window.VizTransition?.navigateWithWoosh) {
-    window.VizTransition.navigateWithWoosh(window.VizTransition.back, goHome);
-  } else {
-    goHome();
-  }
+  goHomeWithWoosh();
 });
 
 document.addEventListener("keyup", (event) => {
   if (event.key === "Escape") cancelSoftlockEscHold();
 });
 window.addEventListener("blur", () => cancelSoftlockEscHold());
+
+// Reliable Home for every visualizer — works even if page bootstrap throws.
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  const homeBtn = target?.closest?.("#homeBtn");
+  if (!homeBtn) return;
+  if (document.body?.dataset.page === "home") return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  goHomeWithWoosh();
+}, true);
 
 let pendingSoftlockDownload = "";
 let pendingSoftlockChangelog = "";

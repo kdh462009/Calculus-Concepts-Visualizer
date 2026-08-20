@@ -1,3 +1,14 @@
+const LEGEND_FN = [{ id: "fn", color: "#2ee8bb", label: "f(x)" }];
+const LEGEND_DERIV = [
+  { id: "fn", color: "#2ee8bb", label: "f(x)" },
+  { id: "prime", color: "#f5c842", label: "f′(x)" },
+];
+const LEGEND_SECOND = [
+  { id: "fn", color: "#2ee8bb", label: "f(x)" },
+  { id: "prime", color: "#f5c842", label: "f′(x)" },
+  { id: "second", color: "#f06090", label: "f″(x)" },
+];
+
 const anim = {
   animating: false,
   paused: false,
@@ -11,6 +22,7 @@ const anim = {
 const view = {
   showDerivatives: false,
   includeSecond: true,
+  hidden: new Set(),
 };
 
 const el = {};
@@ -36,6 +48,53 @@ function setCounter(text) {
 
 function setConcavityText(text) {
   el.concavityStatus.textContent = text;
+}
+
+function layerVisible(id) {
+  return !view.hidden.has(id);
+}
+
+function currentLegendItems() {
+  if (!viewer?.data) return [];
+  if (!view.showDerivatives && !anim.animating) return LEGEND_FN;
+  if (view.includeSecond && viewer.data.secondDerivative) return LEGEND_SECOND;
+  return LEGEND_DERIV;
+}
+
+function renderLegend() {
+  if (!el.plotLegend) return;
+  const items = currentLegendItems();
+  el.plotLegend.replaceChildren(
+    ...items.map((item) => {
+      const row = document.createElement("label");
+      row.className = `plot-legend-item${view.hidden.has(item.id) ? " is-off" : ""}`;
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = !view.hidden.has(item.id);
+      box.addEventListener("change", () => {
+        if (box.checked) view.hidden.delete(item.id);
+        else view.hidden.add(item.id);
+        row.classList.toggle("is-off", !box.checked);
+        if (item.id === "second" && el.showSecondInput) {
+          // Keep the panel checkbox in sync with the legend toggle.
+          const wantSecond = box.checked;
+          if (el.showSecondInput.checked !== wantSecond) {
+            el.showSecondInput.checked = wantSecond;
+            view.includeSecond = wantSecond;
+          }
+        }
+        redrawOverlay();
+      });
+      const swatch = document.createElement("span");
+      swatch.className = "plot-legend-swatch";
+      swatch.style.background = item.color;
+      const label = document.createElement("span");
+      label.textContent = item.label;
+      row.append(box, swatch, label);
+      return row;
+    }),
+  );
+  el.plotLegend.hidden = items.length === 0;
 }
 
 function yAt(xs, ys, x) {
@@ -73,15 +132,20 @@ function buildSampleXs(a, b, steps) {
 
 function drawCurrentState(sampleX) {
   if (!viewer?.data) return;
-  const layers = [{ ys: viewer.data.yTrue, color: "#2ee8bb", width: 2.5, alpha: 0.88 }];
+  const layers = [];
+  if (layerVisible("fn")) {
+    layers.push({ ys: viewer.data.yTrue, color: "#2ee8bb", width: 2.5, alpha: 0.88 });
+  }
   if (view.showDerivatives) {
-    layers.push({
-      ys: viewer.data.firstDerivative,
-      color: "#f5c842",
-      width: 2.25,
-      alpha: 0.95,
-    });
-    if (view.includeSecond && viewer.data.secondDerivative) {
+    if (layerVisible("prime")) {
+      layers.push({
+        ys: viewer.data.firstDerivative,
+        color: "#f5c842",
+        width: 2.25,
+        alpha: 0.95,
+      });
+    }
+    if (view.includeSecond && viewer.data.secondDerivative && layerVisible("second")) {
       layers.push({
         ys: viewer.data.secondDerivative,
         color: "#f06090",
@@ -91,11 +155,14 @@ function drawCurrentState(sampleX) {
     }
   }
   viewer.draw(layers);
+  renderLegend();
 
   const xVals = viewer.data.x;
   const yTrue = yAt(xVals, viewer.data.yTrue, sampleX);
   const yPrime = yAt(xVals, viewer.data.firstDerivative, sampleX);
-  const ySecond = view.includeSecond ? yAt(xVals, viewer.data.secondDerivative, sampleX) : null;
+  const ySecond = view.includeSecond && layerVisible("second")
+    ? yAt(xVals, viewer.data.secondDerivative, sampleX)
+    : null;
   if (yTrue === null || yPrime === null) {
     return;
   }
@@ -108,29 +175,40 @@ function drawCurrentState(sampleX) {
   const xRight = sampleX + tangentSpan;
   const yLeft = yTrue + yPrime * (xLeft - sampleX);
   const yRight = yTrue + yPrime * (xRight - sampleX);
-  const [sx0, sy0] = viewer.worldToScreen(xLeft, yLeft);
-  const [sx1, sy1] = viewer.worldToScreen(xRight, yRight);
-  const [sxPoint, syPoint] = viewer.worldToScreen(sampleX, yTrue);
 
-  ctx.strokeStyle = "rgba(245, 200, 66, 0.9)";
-  ctx.lineWidth = 2.3 * dpr;
-  ctx.beginPath();
-  ctx.moveTo(sx0, sy0);
-  ctx.lineTo(sx1, sy1);
-  ctx.stroke();
+  if (layerVisible("fn") && layerVisible("prime")) {
+    const [sx0, sy0] = viewer.worldToScreen(xLeft, yLeft);
+    const [sx1, sy1] = viewer.worldToScreen(xRight, yRight);
+    const [sxPoint, syPoint] = viewer.worldToScreen(sampleX, yTrue);
 
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.arc(sxPoint, syPoint, 4.2 * dpr, 0, Math.PI * 2);
-  ctx.fill();
+    ctx.strokeStyle = "rgba(245, 200, 66, 0.9)";
+    ctx.lineWidth = 2.3 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(sx0, sy0);
+    ctx.lineTo(sx1, sy1);
+    ctx.stroke();
 
-  const [sxPrime, syPrime] = viewer.worldToScreen(sampleX, yPrime);
-  ctx.fillStyle = "#f5c842";
-  ctx.beginPath();
-  ctx.arc(sxPrime, syPrime, 4.0 * dpr, 0, Math.PI * 2);
-  ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(sxPoint, syPoint, 4.2 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (layerVisible("fn")) {
+    const [sxPoint, syPoint] = viewer.worldToScreen(sampleX, yTrue);
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(sxPoint, syPoint, 4.2 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  if (view.includeSecond && ySecond !== null) {
+  if (layerVisible("prime")) {
+    const [sxPrime, syPrime] = viewer.worldToScreen(sampleX, yPrime);
+    ctx.fillStyle = "#f5c842";
+    ctx.beginPath();
+    ctx.arc(sxPrime, syPrime, 4.0 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (view.includeSecond && ySecond !== null && layerVisible("second")) {
     const [sxSecond, sySecond] = viewer.worldToScreen(sampleX, ySecond);
     ctx.fillStyle = "#f06090";
     ctx.beginPath();
@@ -138,7 +216,7 @@ function drawCurrentState(sampleX) {
     ctx.fill();
   }
 
-  const showSecond = view.includeSecond && ySecond !== null;
+  const showSecond = view.includeSecond && ySecond !== null && layerVisible("second");
   LatexDisplay.renderReadout(el.readoutImage, {
     kind: "derivative_point",
     x: sampleX,
@@ -147,7 +225,11 @@ function drawCurrentState(sampleX) {
     fppx: showSecond ? ySecond : null,
   });
   if (!showSecond) {
-    setConcavityText("Second derivative hidden.");
+    setConcavityText(
+      view.includeSecond && layerVisible("second")
+        ? "Concavity insight unavailable at this x."
+        : "Second derivative hidden.",
+    );
     return;
   }
   const curvature = ySecond > 1e-5
@@ -196,11 +278,17 @@ function redrawOverlay() {
 
 function applySecondDerivativeVisibility() {
   view.includeSecond = Boolean(el.showSecondInput?.checked);
+  if (view.includeSecond) view.hidden.delete("second");
+  else view.hidden.add("second");
   redrawOverlay();
 }
 
 function drawFunctionOnly() {
-  FunctionPreview.drawFunctionOnly(viewer);
+  if (layerVisible("fn")) {
+    FunctionPreview.drawFunctionOnly(viewer);
+  } else {
+    viewer.draw([]);
+  }
   LatexDisplay.clearReadout(el.readoutImage);
   el.analysis.textContent = "f(x) plotted. Press Animate to start slope animation.";
   setConcavityText(
@@ -208,6 +296,7 @@ function drawFunctionOnly() {
       ? "Concavity insight appears when you animate."
       : "Second derivative hidden.",
   );
+  renderLegend();
 }
 
 function frameLoop(ts) {
@@ -312,9 +401,11 @@ function wireInteractions() {
   el.resetBtn.addEventListener("click", () => {
     stopAnimation();
     view.showDerivatives = false;
+    view.hidden.clear();
     viewer.clearData();
     viewer.resetView();
     viewer.drawGrid();
+    if (el.plotLegend) el.plotLegend.hidden = true;
     setStatus("reset.");
     setCounter("");
     el.analysis.textContent = "Pick a function, then press Animate.";
@@ -358,6 +449,7 @@ async function bootstrap() {
   el.readoutImage = $("readoutImage");
   el.stepsValue = $("stepsValue");
   el.speedValue = $("speedValue");
+  el.plotLegend = $("plotLegend");
 
   viewer = new GraphViewer($("plotCanvas"));
   viewer.onDomainExpand = (payload) => {

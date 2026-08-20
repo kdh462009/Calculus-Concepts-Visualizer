@@ -53,16 +53,15 @@
           <button id="pauseBtn" class="btn btn-secondary">Pause</button>
           <button id="resetBtn" class="btn btn-ghost">Reset</button>
         </div>
-        <button id="legendToggleBtn" class="btn btn-ghost" type="button">Hide legend</button>
 
         <div id="status" class="status">ready.</div>
         <div id="phaseLine" class="term-counter"></div>
-        <div id="legendLine" class="status">Legend: --</div>
         <div id="metricLine" class="status" hidden>Arc length: --</div>
       </aside>
 
       <section class="plot-wrap glass">
         <canvas id="paramCanvas"></canvas>
+        <div id="plotLegend" class="plot-legend" hidden></div>
       </section>
     </main>
   </div>

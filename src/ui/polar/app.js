@@ -62,6 +62,7 @@ class PolarRenderer {
     this.canvas.width = Math.floor(this.w * this.dpr);
     this.canvas.height = Math.floor(this.h * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.lockAspect();
     this.draw();
   }
 
@@ -96,6 +97,36 @@ class PolarRenderer {
     return [r * Math.cos(th), r * Math.sin(th)];
   }
 
+  /** Keep equal world units per pixel so polar rings stay circular. */
+  lockAspect(anchorX = null, anchorY = null) {
+    const v = state.view;
+    const p = this.plotArea();
+    if (!(p.width > 0 && p.height > 0)) return;
+    const screenAspect = p.width / p.height;
+    let spanX = v.xmax - v.xmin;
+    let spanY = v.ymax - v.ymin;
+    if (!(spanX > 0 && spanY > 0)) return;
+
+    const ax = Number.isFinite(anchorX) ? anchorX : 0.5 * (v.xmin + v.xmax);
+    const ay = Number.isFinite(anchorY) ? anchorY : 0.5 * (v.ymin + v.ymax);
+    const worldAspect = spanX / spanY;
+
+    if (worldAspect > screenAspect) {
+      spanY = spanX / screenAspect;
+    } else {
+      spanX = spanY * screenAspect;
+    }
+
+    const fx = (ax - v.xmin) / (v.xmax - v.xmin);
+    const fy = (ay - v.ymin) / (v.ymax - v.ymin);
+    state.view = {
+      xmin: ax - fx * spanX,
+      xmax: ax + (1 - fx) * spanX,
+      ymin: ay - fy * spanY,
+      ymax: ay + (1 - fy) * spanY,
+    };
+  }
+
   drawGrid() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.w, this.h);
@@ -106,31 +137,49 @@ class PolarRenderer {
     ctx.fillRect(0, 0, this.w, this.h);
 
     const v = state.view;
-    const cx = 0.5 * (v.xmin + v.xmax);
-    const cy = 0.5 * (v.ymin + v.ymax);
-    const maxR = Math.min(v.xmax - cx, v.ymax - cy);
-
+    // Rings and rays are always anchored at the polar origin (0, 0),
+    // not the viewport center — otherwise pan makes the grid drift off the curve.
+    const maxR = Math.max(
+      Math.hypot(v.xmin, v.ymin),
+      Math.hypot(v.xmin, v.ymax),
+      Math.hypot(v.xmax, v.ymin),
+      Math.hypot(v.xmax, v.ymax),
+      1e-6,
+    );
+    // Prefer rings that cross the visible axes so radius numbers can land on-screen.
+    const axisReach = Math.max(
+      Math.abs(v.xmin),
+      Math.abs(v.xmax),
+      Math.abs(v.ymin),
+      Math.abs(v.ymax),
+      1e-6,
+    );
+    const step = window.GraphAxisLabels?.niceStep?.(axisReach, 4) || axisReach / 4;
     const radii = [];
+    for (let r = step; r <= maxR * 1.001; r += step) {
+      radii.push(r);
+    }
+    if (!radii.length) radii.push(Math.min(step, maxR));
+
     ctx.strokeStyle = "rgba(90, 109, 161, 0.3)";
     ctx.lineWidth = 1;
-    for (let k = 1; k <= 4; k += 1) {
-      const r = (maxR * k) / 4;
-      radii.push(r);
+    for (const r of radii) {
       ctx.beginPath();
-      for (let a = 0; a <= 64; a += 1) {
-        const th = (a / 64) * Math.PI * 2;
+      for (let a = 0; a <= 96; a += 1) {
+        const th = (a / 96) * Math.PI * 2;
         const [x, y] = this.polarPoint(r, th);
-        const [sx, sy] = this.worldToScreen(x + cx, y + cy);
+        const [sx, sy] = this.worldToScreen(x, y);
         if (a === 0) ctx.moveTo(sx, sy);
         else ctx.lineTo(sx, sy);
       }
+      ctx.closePath();
       ctx.stroke();
     }
-    for (let a = 0; a < 8; a += 1) {
-      const th = (a / 8) * Math.PI * 2;
+    for (let a = 0; a < 12; a += 1) {
+      const th = (a / 12) * Math.PI * 2;
       const [x, y] = this.polarPoint(maxR, th);
-      const [sx0, sy0] = this.worldToScreen(cx, cy);
-      const [sx1, sy1] = this.worldToScreen(x + cx, y + cy);
+      const [sx0, sy0] = this.worldToScreen(0, 0);
+      const [sx1, sy1] = this.worldToScreen(x, y);
       ctx.beginPath();
       ctx.moveTo(sx0, sy0);
       ctx.lineTo(sx1, sy1);
@@ -149,11 +198,21 @@ class PolarRenderer {
     ctx.lineTo(p.right, y0);
     ctx.stroke();
 
+    const labelRadii = radii.filter((r) => r <= axisReach * 1.02);
     window.GraphAxisLabels?.drawPolarRadii?.(ctx, {
       worldToScreen: (x, y) => this.worldToScreen(x, y),
-      cx,
-      cy,
-      radii,
+      cx: 0,
+      cy: 0,
+      radii: labelRadii.length ? labelRadii : radii.slice(0, 4),
+      width: this.w,
+      height: this.h,
+      pixelScale: 1,
+    });
+    window.GraphAxisLabels?.drawPolarAngles?.(ctx, {
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      cx: 0,
+      cy: 0,
+      radius: Math.min(axisReach * 0.95, maxR * 0.85),
       width: this.w,
       height: this.h,
       pixelScale: 1,
@@ -374,6 +433,7 @@ class PolarRenderer {
         ymin: v.ymin + (dy / rect.height) * spanY,
         ymax: v.ymax + (dy / rect.height) * spanY,
       };
+      this.lockAspect();
       this.draw();
     });
     this.canvas.addEventListener(
@@ -388,6 +448,7 @@ class PolarRenderer {
         state.view.xmax = wx + (state.view.xmax - wx) * zoom;
         state.view.ymin = wy + (state.view.ymin - wy) * zoom;
         state.view.ymax = wy + (state.view.ymax - wy) * zoom;
+        this.lockAspect(wx, wy);
         this.draw();
       },
       { passive: false },
@@ -521,6 +582,7 @@ function applyDataView(data) {
     ymin: data.yRange[0],
     ymax: data.yRange[1],
   };
+  renderer?.lockAspect?.(0, 0);
 }
 
 function updateModeUi() {
@@ -663,6 +725,7 @@ async function bootstrap() {
     getView: () => state.view,
     setView: (view) => {
       state.view = { ...state.view, ...view };
+      renderer.lockAspect();
       renderer.draw();
     },
   });

@@ -1,5 +1,12 @@
 const PLOT_PAD = 12;
 
+const LEGEND_ITEMS = [
+  { id: "curve", color: "#2ee8bb", label: "(x(t), y(t))" },
+  { id: "velocity", color: "#f06090", label: "velocity ⟨x′, y′⟩" },
+  { id: "slope", color: "#7cc7ff", label: "dy/dx" },
+  { id: "speed", color: "#f5c842", label: "speed ‖v‖" },
+];
+
 const state = {
   data: null,
   params: null,
@@ -12,8 +19,9 @@ const state = {
   phase: "curve",
   view: { xmin: -4, xmax: 4, ymin: -4, ymax: 4 },
   drag: null,
-  legendVisible: true,
+  hidden: new Set(),
   recomputeTimer: null,
+  legendBuilt: false,
 };
 
 const el = {};
@@ -41,6 +49,56 @@ function phaseAtProgress(progress) {
   if (p < 0.5) return { phase: "velocity", local: (p - 0.25) / 0.25 };
   if (p < 0.75) return { phase: "slope", local: (p - 0.5) / 0.25 };
   return { phase: "speed", local: (p - 0.75) / 0.25 };
+}
+
+function layerVisible(id) {
+  return !state.hidden.has(id);
+}
+
+function renderLegend() {
+  if (!el.plotLegend) return;
+  if (!state.data) {
+    el.plotLegend.hidden = true;
+    el.plotLegend.replaceChildren();
+    state.legendBuilt = false;
+    return;
+  }
+  if (state.legendBuilt && !el.plotLegend.hidden) {
+    el.plotLegend.querySelectorAll(".plot-legend-item").forEach((row) => {
+      const id = row.dataset.id;
+      if (!id) return;
+      const on = layerVisible(id);
+      row.classList.toggle("is-off", !on);
+      const box = row.querySelector('input[type="checkbox"]');
+      if (box) box.checked = on;
+    });
+    return;
+  }
+  el.plotLegend.replaceChildren(
+    ...LEGEND_ITEMS.map((item) => {
+      const row = document.createElement("label");
+      row.className = `plot-legend-item${state.hidden.has(item.id) ? " is-off" : ""}`;
+      row.dataset.id = item.id;
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = !state.hidden.has(item.id);
+      box.addEventListener("change", () => {
+        if (box.checked) state.hidden.delete(item.id);
+        else state.hidden.add(item.id);
+        row.classList.toggle("is-off", !box.checked);
+        renderer?.draw();
+      });
+      const swatch = document.createElement("span");
+      swatch.className = "plot-legend-swatch";
+      swatch.style.background = item.color;
+      const label = document.createElement("span");
+      label.textContent = item.label;
+      row.append(box, swatch, label);
+      return row;
+    }),
+  );
+  el.plotLegend.hidden = false;
+  state.legendBuilt = true;
 }
 
 class ParametricRenderer {
@@ -159,7 +217,7 @@ class ParametricRenderer {
   drawCurve(endIndex = null, color = "#2ee8bb", width = 2.8, alpha = 1) {
     const ctx = this.ctx;
     const data = state.data;
-    if (!data) return;
+    if (!data || !layerVisible("curve")) return;
     const n = endIndex == null ? data.xCurve.length : clamp(endIndex, 1, data.xCurve.length);
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
@@ -187,7 +245,7 @@ class ParametricRenderer {
 
   drawParticle(index, color = "#f5c842") {
     const data = state.data;
-    if (!data) return;
+    if (!data || !layerVisible("curve")) return;
     const i = clamp(Math.floor(index), 0, data.xCurve.length - 1);
     const x = data.xCurve[i];
     const y = data.yCurve[i];
@@ -205,7 +263,7 @@ class ParametricRenderer {
 
   drawVectors(fade = 1) {
     const ctx = this.ctx;
-    if (!state.data?.vectors) return;
+    if (!state.data?.vectors || !layerVisible("velocity")) return;
     ctx.strokeStyle = `rgba(240, 96, 144, ${0.25 + 0.75 * fade})`;
     ctx.fillStyle = `rgba(240, 96, 144, ${0.25 + 0.75 * fade})`;
     ctx.lineWidth = 2;
@@ -228,7 +286,7 @@ class ParametricRenderer {
 
   drawTangents(fade = 1) {
     const ctx = this.ctx;
-    if (!state.data?.tangents) return;
+    if (!state.data?.tangents || !layerVisible("slope")) return;
     ctx.strokeStyle = `rgba(124, 199, 255, ${0.25 + 0.75 * fade})`;
     ctx.lineWidth = 4.2 * fade + 1.2;
     for (const seg of state.data.tangents) {
@@ -243,7 +301,7 @@ class ParametricRenderer {
 
   drawSpeedMarkers(fade = 1) {
     const data = state.data;
-    if (!data) return;
+    if (!data || !layerVisible("speed")) return;
     const ctx = this.ctx;
     const maxSpeed = Math.max(...data.speed.filter((v) => v !== null && Number.isFinite(v)), 1e-6);
     for (let i = 0; i < data.xCurve.length; i += 12) {
@@ -261,31 +319,6 @@ class ParametricRenderer {
     }
   }
 
-  drawLegendBox() {
-    if (!state.legendVisible) return;
-    const ctx = this.ctx;
-    const x = 64;
-    const y = 24;
-    const w = 196;
-    const h = 54;
-    ctx.fillStyle = "rgba(20, 29, 50, 0.82)";
-    ctx.strokeStyle = "rgba(159, 182, 255, 0.38)";
-    ctx.lineWidth = 1;
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeRect(x, y, w, h);
-    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    const lines = [
-      ["#dfe6ff", "cyan = (x,y)"],
-      ["#f06090", "pink = velocity"],
-      ["#7cc7ff", "blue = dy/dx"],
-      ["#f5c842", "gold = speed"],
-    ];
-    lines.forEach(([color, text], i) => {
-      ctx.fillStyle = color;
-      ctx.fillText(text, x + 8, y + 14 + i * 11);
-    });
-  }
-
   draw() {
     this.drawGrid();
     if (!state.data) {
@@ -293,6 +326,7 @@ class ParametricRenderer {
       ctx.fillStyle = "#94a3d9";
       ctx.font = "15px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillText("Enter x(t) and y(t), then press Animate.", 64, 44);
+      renderLegend();
       updateReadouts();
       return;
     }
@@ -301,38 +335,38 @@ class ParametricRenderer {
     const t = easeInOut(clamp(seg.local, 0, 1));
     const data = state.data;
     const traceIndex = Math.floor(t * (data.xCurve.length - 1));
+    const showAll = !state.animating && state.progress >= 1;
 
-    if (seg.phase === "curve") {
+    if (showAll || seg.phase === "speed") {
+      this.drawCurve(null, "#2ee8bb", 2.4, showAll ? 0.85 : 0.55);
+      this.drawVectors(showAll ? 0.85 : 0.2);
+      this.drawTangents(showAll ? 0.85 : 0.45);
+      this.drawSpeedMarkers(showAll ? 1 : t);
+      if (showAll) this.drawParticle(Math.floor(0.5 * (data.xCurve.length - 1)));
+      el.phaseLine.textContent = showAll
+        ? "Complete: curve, velocity, slope, and speed"
+        : "Phase 4: speed ‖v‖ and arc length";
+      LatexDisplay.setImage(el.latexImage, data.latexPngRules?.speed || data.latexPng);
+    } else if (seg.phase === "curve") {
       this.drawCurve(traceIndex, "#2ee8bb", 2.9, 1);
       this.drawParticle(traceIndex);
       el.phaseLine.textContent = "Phase 1: parametric curve (x(t), y(t))";
-      el.legendLine.textContent = "Legend: cyan curve + gold particle motion";
       LatexDisplay.setImage(el.latexImage, data.latexPngRules?.curve || data.latexPng);
     } else if (seg.phase === "velocity") {
       this.drawCurve(null, "#2ee8bb", 2.5, 0.8);
       this.drawVectors(t);
       this.drawParticle(Math.floor(0.35 * (data.xCurve.length - 1)));
       el.phaseLine.textContent = "Phase 2: velocity vectors ⟨x′(t), y′(t)⟩";
-      el.legendLine.textContent = "Legend: pink arrows = velocity";
       LatexDisplay.setImage(el.latexImage, data.latexPngRules?.velocity || data.latexPng);
-    } else if (seg.phase === "slope") {
+    } else {
       this.drawCurve(null, "#2ee8bb", 2.4, 0.62);
       this.drawVectors(0.25);
       this.drawTangents(t);
       el.phaseLine.textContent = "Phase 3: tangent slope dy/dx = y′/x′";
-      el.legendLine.textContent = "Legend: bold blue tangents = dy/dx";
       LatexDisplay.setImage(el.latexImage, data.latexPngRules?.slope || data.latexPng);
-    } else {
-      this.drawCurve(null, "#2ee8bb", 2.4, 0.55);
-      this.drawVectors(0.2);
-      this.drawTangents(0.45);
-      this.drawSpeedMarkers(t);
-      el.phaseLine.textContent = "Phase 4: speed ‖v‖ and arc length";
-      el.legendLine.textContent = "Legend: all layers + gold speed markers";
-      LatexDisplay.setImage(el.latexImage, data.latexPngRules?.speed || data.latexPng);
     }
 
-    this.drawLegendBox();
+    renderLegend();
     updateReadouts();
   }
 
@@ -433,6 +467,7 @@ function loop(ts) {
 
   if (norm >= 1) {
     stopAnimation();
+    renderer.draw();
     return;
   }
   state.rafId = requestAnimationFrame(loop);
@@ -473,6 +508,7 @@ async function computeModel() {
   state.params = payload;
   state.progress = 0;
   state.phase = "curve";
+  state.legendBuilt = false;
   applyDataView(result);
   LatexDisplay.setImage(el.latexImage, result.latexPng);
   renderer.draw();
@@ -514,12 +550,6 @@ function wireInteractions() {
     state.rafId = requestAnimationFrame(loop);
   });
 
-  el.legendToggleBtn.addEventListener("click", () => {
-    state.legendVisible = !state.legendVisible;
-    el.legendToggleBtn.textContent = state.legendVisible ? "Hide legend" : "Show legend";
-    renderer.draw();
-  });
-
   el.pauseBtn.addEventListener("click", () => {
     if (!state.animating) {
       setStatus("nothing to pause. press Animate first.");
@@ -534,6 +564,8 @@ function wireInteractions() {
     stopAnimation();
     state.progress = 0;
     state.phase = "curve";
+    state.hidden.clear();
+    state.legendBuilt = false;
     if (state.data) applyDataView(state.data);
     renderer.draw();
     setStatus("view reset.");
@@ -561,14 +593,13 @@ async function bootstrap() {
   el.animateBtn = $("animateBtn");
   el.pauseBtn = $("pauseBtn");
   el.resetBtn = $("resetBtn");
-  el.legendToggleBtn = $("legendToggleBtn");
   el.status = $("status");
   el.phaseLine = $("phaseLine");
-  el.legendLine = $("legendLine");
   el.metricLine = $("metricLine");
   el.ruleLine = $("ruleLine");
   el.latexImage = $("latexImage");
   el.readoutImage = $("readoutImage");
+  el.plotLegend = $("plotLegend");
 
   renderer = new ParametricRenderer($("paramCanvas"));
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {
