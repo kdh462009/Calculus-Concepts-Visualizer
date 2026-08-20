@@ -78,15 +78,17 @@
     <div class="update-modal-card" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
       <h2 id="updateModalTitle">Update available</h2>
       <p class="update-modal-lead">
-        Calc BC Visualizers <strong id="updateLatest">—</strong> is available.
+        Concept Visualizers <strong id="updateLatest">—</strong> is available.
       </p>
       <p class="update-modal-body">
         You're currently running <strong id="updateCurrent">—</strong>.
       </p>
       <p class="update-modal-hint" id="updateInstructions"></p>
       <p class="update-modal-note">No installation or administrator privileges are required.</p>
+      <p class="update-modal-timer" id="updateSupportTimer" aria-live="polite" hidden></p>
       <div class="update-modal-actions">
         <button id="updateDownloadBtn" class="update-btn update-btn-primary" type="button">Download Update</button>
+        <button id="updateChangelogBtn" class="update-btn update-btn-ghost" type="button">Changelog</button>
         <button id="updateLaterBtn" class="update-btn update-btn-ghost" type="button" data-update-dismiss>Later</button>
       </div>
     </div>

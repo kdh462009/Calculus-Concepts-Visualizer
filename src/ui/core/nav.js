@@ -215,6 +215,11 @@ function isTypingTarget(target) {
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape" || event.defaultPrevented) return;
+  if (window.__sspSoftlocked) {
+    event.preventDefault();
+    beginSoftlockEscHold();
+    return;
+  }
   if (document.body?.dataset.page === "home") {
     if (isTypingTarget(event.target)) return;
     if (typeof window.closeHomeShortcuts === "function" && window.closeHomeShortcuts()) {
@@ -233,5 +238,318 @@ document.addEventListener("keydown", (event) => {
     window.VizTransition.navigateWithWoosh(window.VizTransition.back, goHome);
   } else {
     goHome();
+  }
+});
+
+document.addEventListener("keyup", (event) => {
+  if (event.key === "Escape") cancelSoftlockEscHold();
+});
+window.addEventListener("blur", () => cancelSoftlockEscHold());
+
+let pendingSoftlockDownload = "";
+let pendingSoftlockChangelog = "";
+let softlockTimerId = null;
+let softlockUnlockId = null;
+let softlockExpiresAtMs = null;
+let softlockEscHoldId = null;
+let softlockEscHoldStartedAt = null;
+
+const SOFTLOCK_DOWNLOAD_UNLOCK_S = 5;
+const SOFTLOCK_ESC_HOLD_MS = 5000;
+const SSP_DEV_BYPASS_KEY = "sspDevBypass";
+
+function isSspDevBypass() {
+  if (window.__sspDevBypass) return true;
+  try {
+    return sessionStorage.getItem(SSP_DEV_BYPASS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setSspDevBypass() {
+  window.__sspDevBypass = true;
+  try {
+    sessionStorage.setItem(SSP_DEV_BYPASS_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+async function openSoftlockUrl(url) {
+  try {
+    if (window.pywebview?.api?.open_update_download) {
+      await window.pywebview.api.open_update_download(url || "");
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function formatSoftlockDuration(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  const clock = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  if (days > 0) return `${days}d ${clock}`;
+  return clock;
+}
+
+function stopSoftlockTimer() {
+  if (softlockTimerId) {
+    clearInterval(softlockTimerId);
+    softlockTimerId = null;
+  }
+  if (softlockUnlockId) {
+    clearInterval(softlockUnlockId);
+    softlockUnlockId = null;
+  }
+}
+
+function tickSoftlockTimer() {
+  const el = document.getElementById("sspSoftlockTimer");
+  if (!el || softlockExpiresAtMs == null) return;
+  const overdueMs = Date.now() - softlockExpiresAtMs;
+  el.textContent = overdueMs >= 0
+    ? `Out of date for ${formatSoftlockDuration(overdueMs)}`
+    : `Locks in ${formatSoftlockDuration(-overdueMs)}`;
+}
+
+function startSoftlockTimer(expiresOn) {
+  stopSoftlockTimer();
+  const raw = String(expiresOn || "").trim();
+  const parsed = raw ? new Date(`${raw}T00:00:00`) : null;
+  softlockExpiresAtMs = parsed && !Number.isNaN(parsed.getTime())
+    ? parsed.getTime()
+    : Date.now();
+  tickSoftlockTimer();
+  softlockTimerId = setInterval(tickSoftlockTimer, 1000);
+}
+
+function startSoftlockDownloadUnlock() {
+  const downloadBtn = document.getElementById("sspSoftlockDownload");
+  const changelogBtn = document.getElementById("sspSoftlockChangelog");
+  if (!downloadBtn) return;
+
+  let remaining = SOFTLOCK_DOWNLOAD_UNLOCK_S;
+  downloadBtn.disabled = true;
+  if (changelogBtn) changelogBtn.disabled = true;
+
+  const paint = () => {
+    downloadBtn.textContent = remaining > 0
+      ? `Download Update (${remaining})`
+      : "Download Update";
+  };
+  paint();
+
+  if (softlockUnlockId) clearInterval(softlockUnlockId);
+  softlockUnlockId = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      clearInterval(softlockUnlockId);
+      softlockUnlockId = null;
+      downloadBtn.disabled = false;
+      if (changelogBtn) changelogBtn.disabled = false;
+      downloadBtn.textContent = "Download Update";
+      return;
+    }
+    paint();
+  }, 1000);
+}
+
+function setSoftlockEscHint(active, remainingSec) {
+  const el = document.getElementById("sspSoftlockEscHint");
+  if (!el) return;
+  el.hidden = false;
+  el.classList.toggle("is-active", Boolean(active));
+  if (active && remainingSec != null) {
+    el.textContent = `Esc for Developers (${remainingSec})`;
+  } else {
+    el.textContent = "Esc for Developers";
+  }
+}
+
+function cancelSoftlockEscHold() {
+  if (softlockEscHoldId) {
+    clearInterval(softlockEscHoldId);
+    softlockEscHoldId = null;
+  }
+  softlockEscHoldStartedAt = null;
+  if (window.__sspSoftlocked) {
+    setSoftlockEscHint(false);
+  }
+}
+
+function beginSoftlockEscHold() {
+  if (!window.__sspSoftlocked || softlockEscHoldStartedAt != null) return;
+  softlockEscHoldStartedAt = Date.now();
+  const tick = () => {
+    if (!window.__sspSoftlocked || softlockEscHoldStartedAt == null) {
+      cancelSoftlockEscHold();
+      return;
+    }
+    const elapsed = Date.now() - softlockEscHoldStartedAt;
+    const remainingMs = Math.max(0, SOFTLOCK_ESC_HOLD_MS - elapsed);
+    const remainingSec = Math.ceil(remainingMs / 1000);
+    if (remainingMs <= 0) {
+      cancelSoftlockEscHold();
+      unlockSoftlockForDeveloper();
+      return;
+    }
+    setSoftlockEscHint(true, remainingSec);
+  };
+  tick();
+  softlockEscHoldId = setInterval(tick, 100);
+}
+
+function ensureDevUnsupportedBanner() {
+  let banner = document.getElementById("sspDevBanner");
+  if (banner) {
+    banner.hidden = false;
+    return banner;
+  }
+  banner = document.createElement("div");
+  banner.id = "sspDevBanner";
+  banner.className = "ssp-dev-banner";
+  banner.setAttribute("role", "status");
+  banner.textContent = "UNSUPPORTED, DEVELOPER ONLY";
+  document.body.appendChild(banner);
+  document.body.classList.add("ssp-dev-bypass");
+  return banner;
+}
+
+function unlockSoftlockForDeveloper() {
+  setSspDevBypass();
+  window.__sspSoftlocked = false;
+  document.body.classList.remove("ssp-softlocked");
+  stopSoftlockTimer();
+  cancelSoftlockEscHold();
+
+  const root = document.getElementById("sspSoftlock");
+  if (root) root.hidden = true;
+
+  ensureDevUnsupportedBanner();
+}
+
+function ensureSoftlockModal() {
+  let root = document.getElementById("sspSoftlock");
+  if (root) return root;
+
+  root = document.createElement("div");
+  root.id = "sspSoftlock";
+  root.className = "ssp-softlock";
+  root.hidden = true;
+  root.setAttribute("role", "alertdialog");
+  root.setAttribute("aria-modal", "true");
+  root.setAttribute("aria-labelledby", "sspSoftlockTitle");
+  root.innerHTML = `
+    <div class="ssp-softlock-backdrop" aria-hidden="true"></div>
+    <div class="ssp-softlock-card">
+      <h2 id="sspSoftlockTitle">Version out of date</h2>
+      <p id="sspSoftlockMessage"></p>
+      <p class="ssp-softlock-meta">
+        Running <strong id="sspSoftlockCurrent">—</strong>
+        · Support ended <strong id="sspSoftlockExpires">—</strong>
+      </p>
+      <p class="ssp-softlock-timer" id="sspSoftlockTimer" aria-live="polite">Out of date for —</p>
+      <div class="ssp-softlock-actions">
+        <button id="sspSoftlockDownload" class="update-btn-primary" type="button">Download Update</button>
+        <button id="sspSoftlockChangelog" class="ssp-softlock-ghost" type="button">Changelog</button>
+        <button id="sspSoftlockEscHint" class="ssp-softlock-ghost ssp-softlock-esc-btn" type="button" tabindex="-1">Esc for Developers</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(root);
+
+  document.getElementById("sspSoftlockDownload")?.addEventListener("click", () => {
+    openSoftlockUrl(pendingSoftlockDownload);
+  });
+  document.getElementById("sspSoftlockChangelog")?.addEventListener("click", () => {
+    openSoftlockUrl(pendingSoftlockChangelog || pendingSoftlockDownload);
+  });
+
+  return root;
+}
+
+function showSoftlockModal(status, updateInfo) {
+  if (isSspDevBypass()) {
+    ensureDevUnsupportedBanner();
+    return;
+  }
+
+  if (typeof window.hideUpdateModal === "function") {
+    const wasLocked = window.__sspSoftlocked;
+    window.__sspSoftlocked = false;
+    try { window.hideUpdateModal(); } catch { /* ignore */ }
+    window.__sspSoftlocked = wasLocked;
+  }
+
+  window.__sspSoftlocked = true;
+  document.body.classList.add("ssp-softlocked");
+
+  const root = ensureSoftlockModal();
+  const msg = document.getElementById("sspSoftlockMessage");
+  const current = document.getElementById("sspSoftlockCurrent");
+  const expires = document.getElementById("sspSoftlockExpires");
+  if (msg) {
+    msg.textContent = status?.message
+      || "This version is out of date and as a result from current SSP coverage, will result in limited functionality. It's recommended to update to the latest version due to security patches and important performance/feature updates";
+  }
+  if (current) current.textContent = status?.currentVersion || window.APP_VERSION || "—";
+  if (expires) expires.textContent = status?.expiresOn || "—";
+
+  const fallback = "https://github.com/kdh462009/Calculus-Concepts-Visualizer/releases/latest";
+  pendingSoftlockDownload = updateInfo?.downloadUrl || updateInfo?.releaseUrl || fallback;
+  pendingSoftlockChangelog = updateInfo?.releaseUrl || fallback;
+
+  startSoftlockTimer(status?.expiresOn);
+  startSoftlockDownloadUnlock();
+  setSoftlockEscHint(false);
+  root.hidden = false;
+}
+
+/**
+ * Softlock when this build is past its six-month SSP window.
+ * @returns {Promise<boolean>} true when locked
+ */
+async function enforceSupportWindow() {
+  try {
+    if (isSspDevBypass()) {
+      ensureDevUnsupportedBanner();
+      return false;
+    }
+    if (typeof window.pywebview?.api?.check_support_status !== "function") {
+      return false;
+    }
+    const status = await window.pywebview.api.check_support_status();
+    if (!status?.expired) return false;
+
+    let updateInfo = null;
+    try {
+      if (typeof window.pywebview.api.check_for_update === "function") {
+        updateInfo = await window.pywebview.api.check_for_update();
+      }
+    } catch {
+      /* offline — still softlock */
+    }
+    showSoftlockModal(status, updateInfo);
+    return !isSspDevBypass();
+  } catch {
+    return false;
+  }
+}
+
+window.enforceSupportWindow = enforceSupportWindow;
+window.showSoftlockModal = showSoftlockModal;
+window.unlockSoftlockForDeveloper = unlockSoftlockForDeveloper;
+
+whenApiReady(() => {
+  // Visualizer pages: enforce immediately. Home runs this from bootstrap.
+  if (document.body?.dataset.page !== "home") {
+    enforceSupportWindow();
+  } else if (isSspDevBypass()) {
+    ensureDevUnsupportedBanner();
   }
 });

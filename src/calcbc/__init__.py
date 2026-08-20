@@ -1,3 +1,4 @@
-"""Calculus Concepts Visualizer - Python package."""
+"""Calculus Concepts Visualizer."""
 
 __version__ = "1.3"
+__release_date__ = "2026-08-22"

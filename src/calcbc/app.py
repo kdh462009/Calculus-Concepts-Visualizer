@@ -150,14 +150,21 @@ class AppApi:
     def check_for_update(self):
         return app_update.check_for_update()
 
+    def check_support_status(self):
+        return app_update.check_support_status()
+
     def open_update_download(self, url: str = ""):
         return app_update.open_download(url)
 
     def get_app_version(self):
+        support = app_update.check_support_status()
         return {
             "ok": True,
             "version": __version__,
             "changelogUrl": app_update.release_notes_url(__version__),
+            "releaseDate": support.get("releaseDate"),
+            "supportExpiresOn": support.get("expiresOn"),
+            "supportExpired": bool(support.get("expired")),
         }
 
     def open_changelog(self):

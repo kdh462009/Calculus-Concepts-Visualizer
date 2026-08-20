@@ -428,18 +428,79 @@ async function bootstrap() {
   renderHub();
   wireHubKeys();
   wireShortcuts();
-  maybeOfferUpdate();
+  maybeEnforceSupportOrUpdate();
 }
 
 let pendingUpdate = null;
+let updateSupportTimerId = null;
+let updateSupportExpiresAtMs = null;
+
+function formatSupportDuration(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  const clock = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  if (days > 0) return `${days}d ${clock}`;
+  return clock;
+}
+
+function stopUpdateSupportTimer() {
+  if (updateSupportTimerId) {
+    clearInterval(updateSupportTimerId);
+    updateSupportTimerId = null;
+  }
+  updateSupportExpiresAtMs = null;
+}
+
+function tickUpdateSupportTimer() {
+  const el = document.getElementById("updateSupportTimer");
+  if (!el || updateSupportExpiresAtMs == null) return;
+  const remaining = updateSupportExpiresAtMs - Date.now();
+  if (remaining <= 0) {
+    el.hidden = false;
+    el.textContent = "SSP support window ended — update required";
+    stopUpdateSupportTimer();
+    if (typeof window.enforceSupportWindow === "function") {
+      window.enforceSupportWindow();
+    }
+    return;
+  }
+  el.hidden = false;
+  el.textContent = `SSP coverage ends in ${formatSupportDuration(remaining)}`;
+}
+
+function startUpdateSupportTimer(expiresOn) {
+  stopUpdateSupportTimer();
+  const el = document.getElementById("updateSupportTimer");
+  const raw = String(expiresOn || "").trim();
+  if (!el || !raw) {
+    if (el) el.hidden = true;
+    return;
+  }
+  const parsed = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    el.hidden = true;
+    return;
+  }
+  updateSupportExpiresAtMs = parsed.getTime();
+  tickUpdateSupportTimer();
+  updateSupportTimerId = setInterval(tickUpdateSupportTimer, 1000);
+}
 
 function hideUpdateModal() {
+  if (window.__sspSoftlocked) return;
   const modal = document.getElementById("updateModal");
   if (modal) modal.hidden = true;
   pendingUpdate = null;
+  stopUpdateSupportTimer();
+  const timer = document.getElementById("updateSupportTimer");
+  if (timer) timer.hidden = true;
 }
 
-function showUpdateModal(info) {
+async function showUpdateModal(info) {
+  if (window.__sspSoftlocked) return;
   pendingUpdate = info;
   const modal = document.getElementById("updateModal");
   if (!modal) return;
@@ -452,14 +513,38 @@ function showUpdateModal(info) {
     instructions.textContent = info.instructions
       || "Download the latest version and replace your current application with it.";
   }
+
+  let expiresOn = info.supportExpiresOn || info.expiresOn || null;
+  if (!expiresOn) {
+    try {
+      const support = await window.pywebview?.api?.check_support_status?.();
+      expiresOn = support?.expiresOn || null;
+    } catch {
+      /* ignore */
+    }
+  }
+  startUpdateSupportTimer(expiresOn);
   modal.hidden = false;
 }
 
 window.showUpdateModal = showUpdateModal;
 window.hideUpdateModal = hideUpdateModal;
 
+async function maybeEnforceSupportOrUpdate() {
+  try {
+    if (typeof window.enforceSupportWindow === "function") {
+      const locked = await window.enforceSupportWindow();
+      if (locked) return;
+    }
+  } catch {
+    /* softlock check failed — still try update offer */
+  }
+  await maybeOfferUpdate();
+}
+
 async function maybeOfferUpdate() {
   try {
+    if (window.__sspSoftlocked) return;
     if (!window.pywebview?.api?.check_for_update) return;
     const info = await window.pywebview.api.check_for_update();
     if (!info?.update) return;
@@ -483,10 +568,20 @@ function wireUpdateModal() {
     } catch {
       /* ignore */
     }
-    hideUpdateModal();
+    if (!window.__sspSoftlocked) hideUpdateModal();
+  });
+  document.getElementById("updateChangelogBtn")?.addEventListener("click", async () => {
+    const url = pendingUpdate?.releaseUrl
+      || pendingUpdate?.downloadUrl
+      || "https://github.com/kdh462009/Calculus-Concepts-Visualizer/releases/latest";
+    try {
+      await window.pywebview.api.open_update_download(url);
+    } catch {
+      /* ignore */
+    }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal && !modal.hidden) {
+    if (e.key === "Escape" && modal && !modal.hidden && !window.__sspSoftlocked) {
       hideUpdateModal();
     }
   });

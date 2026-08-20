@@ -740,3 +740,176 @@ input[type="range"]::-webkit-slider-thumb {
   position: absolute;
   left: auto;
 }
+
+/* SSP six-month support softlock (injected by nav.js) */
+.ssp-softlock {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.ssp-softlock[hidden] {
+  display: none !important;
+}
+
+.ssp-softlock-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 18, 0.82);
+}
+
+.ssp-softlock-card {
+  position: relative;
+  z-index: 1;
+  width: min(460px, 100%);
+  padding: 22px 22px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 176, 120, 0.35);
+  background: linear-gradient(165deg, rgba(42, 28, 24, 0.98), rgba(18, 16, 28, 0.98));
+  box-shadow: 0 18px 48px rgba(4, 8, 20, 0.6);
+  color: #f3ebe6;
+}
+
+.ssp-softlock-card h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ssp-softlock-card p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+  font-size: 14px;
+  color: #d9cfc6;
+}
+
+.ssp-softlock-card .ssp-softlock-meta {
+  font-size: 12px;
+  color: #b5a99e;
+}
+
+.ssp-softlock-timer {
+  margin: 14px 0 0 !important;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 176, 120, 0.28);
+  background: rgba(0, 0, 0, 0.28);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 15px !important;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  color: #ffd2a8 !important;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ssp-softlock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ssp-softlock-actions .update-btn-primary {
+  background: rgba(255, 168, 110, 0.95);
+  border: 1px solid rgba(255, 210, 170, 0.55);
+  color: #1a1008;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ssp-softlock-actions .update-btn-primary:hover {
+  background: rgba(255, 186, 140, 0.98);
+}
+
+.ssp-softlock-actions .update-btn-primary:disabled,
+.ssp-softlock-actions .ssp-softlock-ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ssp-softlock-actions .ssp-softlock-ghost {
+  background: rgba(58, 44, 40, 0.85);
+  border: 1px solid rgba(255, 196, 160, 0.35);
+  color: #f3ebe6;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ssp-softlock-actions .ssp-softlock-ghost:hover {
+  background: rgba(78, 58, 50, 0.95);
+}
+
+body.ssp-softlocked {
+  overflow: hidden;
+}
+
+body.ssp-softlocked .app-shell,
+body.ssp-softlocked .launcher-shell {
+  pointer-events: none;
+  user-select: none;
+  filter: grayscale(0.35) brightness(0.72);
+}
+
+.ssp-softlock-esc-hint {
+  margin: 10px 0 0 !important;
+  font-size: 12px !important;
+  color: #a89890 !important;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.ssp-softlock-esc-hint.is-active {
+  color: #ffe0a8 !important;
+  font-weight: 650;
+}
+
+.ssp-softlock-actions .ssp-softlock-esc-btn {
+  font-variant-numeric: tabular-nums;
+  min-width: 11.5em;
+}
+
+.ssp-softlock-actions .ssp-softlock-esc-btn.is-active {
+  border-color: rgba(255, 210, 140, 0.65);
+  color: #ffe0a8;
+  background: rgba(80, 58, 36, 0.95);
+}
+
+.ssp-dev-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 190;
+  padding: 8px 12px;
+  background: #f5c542;
+  color: #1a1400;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.ssp-dev-banner[hidden] {
+  display: none !important;
+}
+
+body.ssp-dev-bypass {
+  padding-bottom: 34px;
+}
+
+body.ssp-dev-bypass .credit-row {
+  margin-bottom: 28px;
+}

@@ -2,28 +2,42 @@
 
 The app never downloads or replaces itself — it only compares versions and
 opens the official release asset URL in the system browser.
+
+Also enforces a six-month support window from this build's release date
+(SSP coverage softlock).
 """
 
 from __future__ import annotations
 
+import calendar
 import json
 import platform
 import re
 import ssl
 import urllib.error
 import urllib.request
+from datetime import date
 from typing import Any
 
-from calcbc import __version__
+from calcbc import __release_date__, __version__
 
 GITHUB_OWNER = "kdh462009"
 GITHUB_REPO = "Calculus-Concepts-Visualizer"
-RELEASES_API = (
+RELEASES_LATEST_API = (
     f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+)
+RELEASES_LIST_API = (
+    f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases?per_page=50"
 )
 RELEASES_PAGE = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
 USER_AGENT = f"CalcBCVisualizers/{__version__} (+https://github.com/{GITHUB_OWNER}/{GITHUB_REPO})"
 REQUEST_TIMEOUT_S = 6.0
+SUPPORT_MONTHS = 6
+SOFTLOCK_MESSAGE = (
+    "This version is out of date and as a result from current SSP coverage, "
+    "will result in limited functionality. It's recommended to update to the "
+    "latest version due to security patches and important performance/feature updates"
+)
 
 
 def release_notes_url(version: str | None = None) -> str:
@@ -64,6 +78,39 @@ def is_newer(latest: str, current: str) -> bool:
     a.extend([0] * (n - len(a)))
     b.extend([0] * (n - len(b)))
     return tuple(a) > tuple(b)
+
+
+def _add_months(start: date, months: int) -> date:
+    month_index = start.month - 1 + months
+    year = start.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(start.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def build_release_date() -> date:
+    return date.fromisoformat(str(__release_date__).strip())
+
+
+def support_expires_on() -> date:
+    return _add_months(build_release_date(), SUPPORT_MONTHS)
+
+
+def check_support_status() -> dict[str, Any]:
+    """Local six-month support window from this build's release date."""
+    release = build_release_date()
+    expires = support_expires_on()
+    today = date.today()
+    expired = today >= expires
+    return {
+        "ok": True,
+        "expired": expired,
+        "currentVersion": current_version(),
+        "releaseDate": release.isoformat(),
+        "expiresOn": expires.isoformat(),
+        "supportMonths": SUPPORT_MONTHS,
+        "message": SOFTLOCK_MESSAGE if expired else "",
+    }
 
 
 def platform_key() -> str:
@@ -153,9 +200,9 @@ def _ssl_context() -> ssl.SSLContext:
         return ssl.create_default_context()
 
 
-def _fetch_latest_release() -> dict[str, Any] | None:
+def _github_get(url: str) -> Any:
     req = urllib.request.Request(
-        RELEASES_API,
+        url,
         headers={
             "Accept": "application/vnd.github+json",
             "User-Agent": USER_AGENT,
@@ -167,13 +214,53 @@ def _fetch_latest_release() -> dict[str, Any] | None:
         req, timeout=REQUEST_TIMEOUT_S, context=_ssl_context()
     ) as resp:
         raw = resp.read().decode("utf-8", errors="replace")
-    data = json.loads(raw)
+    return json.loads(raw)
+
+
+def _release_tag(release: dict[str, Any]) -> str:
+    return str(release.get("tag_name") or release.get("name") or "").strip()
+
+
+def _pick_highest_version_release(releases: list[Any]) -> dict[str, Any] | None:
+    """Choose the highest semver among published non-prerelease releases."""
+    best: dict[str, Any] | None = None
+    best_ver: tuple[int, ...] = (0,)
+    for item in releases:
+        if not isinstance(item, dict):
+            continue
+        if item.get("draft") or item.get("prerelease"):
+            continue
+        tag = _release_tag(item)
+        if not tag:
+            continue
+        ver = normalize_version(tag)
+        if best is None or ver > best_ver:
+            best = item
+            best_ver = ver
+    return best
+
+
+def _fetch_latest_release() -> dict[str, Any] | None:
+    """
+    Resolve the highest published version (by semver), not merely the
+    chronologically next / most-recently-published GitHub “latest” pointer.
+    """
+    try:
+        data = _github_get(RELEASES_LIST_API)
+        if isinstance(data, list):
+            picked = _pick_highest_version_release(data)
+            if picked:
+                return picked
+    except Exception:
+        pass
+
+    data = _github_get(RELEASES_LATEST_API)
     return data if isinstance(data, dict) else None
 
 
 def check_for_update() -> dict[str, Any]:
     """
-    Compare the running app to the latest GitHub release.
+    Compare the running app to the highest GitHub release version.
 
     Failures (offline, API errors, no releases) return update=False with
     checked=False so the UI can stay quiet on auto-check but still give
@@ -191,7 +278,7 @@ def check_for_update() -> dict[str, Any]:
         release = _fetch_latest_release()
         if not release:
             return base
-        tag = str(release.get("tag_name") or release.get("name") or "").strip()
+        tag = _release_tag(release)
         if not tag:
             return base
 
@@ -209,6 +296,7 @@ def check_for_update() -> dict[str, Any]:
         if not is_allowed_download_url(download_url):
             download_url = RELEASES_PAGE
 
+        support = check_support_status()
         return {
             "ok": True,
             "update": True,
@@ -220,6 +308,11 @@ def check_for_update() -> dict[str, Any]:
             "downloadUrl": download_url,
             "releaseUrl": str(release.get("html_url") or RELEASES_PAGE),
             "instructions": replace_instructions(key),
+            "releaseDate": support.get("releaseDate"),
+            "supportExpiresOn": support.get("expiresOn"),
+            "expiresOn": support.get("expiresOn"),
+            "supportMonths": support.get("supportMonths"),
+            "supportExpired": bool(support.get("expired")),
         }
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
         return base
