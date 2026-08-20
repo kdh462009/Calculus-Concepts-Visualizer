@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fourier Epicycles</title>
+  <link rel="stylesheet" href="../core/styles.css">
+  <link rel="stylesheet" href="../core/transitions.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="../core/transitions.js"></script>
+</head>
+<body class="fourier-page">
+  <div class="fourier-noise" aria-hidden="true"></div>
+  <div class="fourier-orbs" aria-hidden="true">
+    <span class="fourier-orb fourier-orb-a"></span>
+    <span class="fourier-orb fourier-orb-b"></span>
+    <span class="fourier-orb fourier-orb-c"></span>
+  </div>
+
+  <div class="app-shell fourier-shell">
+    <header class="fourier-top">
+      <div class="fourier-brand">
+        <span class="fourier-mark">∮</span>
+        <div>
+          <div class="fourier-title-row">
+            <h1>Fourier Epicycles</h1>
+            <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
+          </div>
+          <p class="fourier-tagline">Draw a closed curve → complex DFT → rotating phasors reconstruct <em>z</em>(<em>t</em>) = Σ <em>c<sub>k</sub></em><em>e</em><sup><em>ikt</em></sup></p>
+        </div>
+      </div>
+      <div class="fourier-pills" role="tablist" aria-label="Mode">
+        <button type="button" class="fourier-pill active" data-mode="draw" role="tab" aria-selected="true">Draw</button>
+        <button type="button" class="fourier-pill" data-mode="animate" role="tab" aria-selected="false">Animate</button>
+      </div>
+    </header>
+
+    <main class="fourier-stage">
+      <canvas id="canvas" width="1200" height="800" aria-label="Drawing and Fourier visualization"></canvas>
+
+      <aside class="fourier-panel" aria-label="Controls">
+        <section class="fourier-block">
+          <h2>Curve</h2>
+          <div class="fourier-btn-row">
+            <button type="button" class="fourier-btn fourier-btn-primary" id="btnAnalyze">Compute Fourier</button>
+            <button type="button" class="fourier-btn" id="btnClear">Clear</button>
+          </div>
+          <p class="fourier-hint">Sketch a <strong>closed</strong> shape (we auto-close the path). More points → smoother reconstruction.</p>
+        </section>
+
+        <section class="fourier-block">
+          <h2>Presets</h2>
+          <div id="presets" class="fourier-preset-grid"></div>
+        </section>
+
+        <section class="fourier-block">
+          <h2>Harmonics</h2>
+          <label class="fourier-slider-label">
+            <span>Terms used</span>
+            <span class="fourier-mono" id="termsReadout">256 / 512</span>
+          </label>
+          <input type="range" id="terms" min="1" max="512" value="256">
+          <label class="fourier-slider-label">
+            <span>Sample size <span class="fourier-mono">N</span></span>
+            <span class="fourier-mono" id="nReadout">512</span>
+          </label>
+          <input type="range" id="sampleN" min="64" max="2048" step="1" value="512">
+          <p class="fourier-hint fourier-tiny"><span class="fourier-mono">N</span> snaps to a power of two. Recompute after changing <span class="fourier-mono">N</span>.</p>
+        </section>
+
+        <section class="fourier-block">
+          <h2>Motion</h2>
+          <label class="fourier-slider-label">
+            <span>Speed</span>
+            <span class="fourier-mono" id="speedReadout">1.00×</span>
+          </label>
+          <input type="range" id="speed" min="0" max="300" value="100">
+          <div class="fourier-toggles">
+            <label class="fourier-toggle"><input type="checkbox" id="showCircles" checked><span>Circles</span></label>
+            <label class="fourier-toggle"><input type="checkbox" id="showRays" checked><span>Spokes</span></label>
+            <label class="fourier-toggle"><input type="checkbox" id="showOrig"><span>Original path</span></label>
+          </div>
+          <div class="fourier-btn-row">
+            <button type="button" class="fourier-btn" id="btnPause">Pause</button>
+            <button type="button" class="fourier-btn" id="btnResetPhase">Reset phase</button>
+          </div>
+        </section>
+
+        <section class="fourier-block fourier-stats">
+          <h2>Coefficients</h2>
+          <dl>
+            <div><dt>Points drawn</dt><dd id="statPoints">0</dd></div>
+            <div><dt>DC offset <span class="fourier-mono">c₀</span></dt><dd id="statDc">—</dd></div>
+            <div><dt>Largest <span class="fourier-mono">|cₖ|</span></dt><dd id="statMax">—</dd></div>
+          </dl>
+          <p id="status" class="fourier-status">ready.</p>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="credit-row">
+      <span>Made by Agniva, Donghui, Manya, and Adam · <span class="app-version" data-app-version>Version 1.2</span></span>
+      <span class="fourier-kbd">Discrete complex signal <span class="fourier-mono">z[n]</span> → FFT → <span class="fourier-mono">cₖ = Z[k]/N</span> · <kbd>Enter</kbd> Fourierize · <kbd>Space</kbd> pause · <kbd>R</kbd> reset · <kbd>C</kbd> clear</span>
+      <span class="credit-legal">
+        Licensed under
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a>
+        (Attribution-NonCommercial-ShareAlike 4.0 International)
+        ·
+        <a href="https://github.com/kdh462009/Calculus-Concepts-Visualizer" data-external="true">GitHub</a>
+        · Covered by the
+        <a href="https://knivier.com/tos-ssp.html" data-external="true">Knivier SSP/ToS (Open Source Restricted)</a>
+      </span>
+    </footer>
+  </div>
+
+  <script src="../core/nav.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

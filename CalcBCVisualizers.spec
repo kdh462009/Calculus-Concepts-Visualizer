@@ -9,6 +9,7 @@ hiddenimports = [
     "calcbc.runtime",
     "calcbc.subjects",
     "calcbc.subjects.calculus",
+    "calcbc.subjects.fun",
     "calcbc.visualizers",
     "calcbc.visualizers.taylor",
     "calcbc.visualizers.riemann",
@@ -18,6 +19,7 @@ hiddenimports = [
     "calcbc.visualizers.inverse",
     "calcbc.visualizers.parametric",
     "calcbc.visualizers.polar",
+    "calcbc.visualizers.fourier",
 ]
 
 a = Analysis(

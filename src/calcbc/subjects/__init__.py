@@ -7,10 +7,12 @@ To add a subject:
 """
 
 from calcbc.subjects.calculus import SUBJECT as CALCULUS
+from calcbc.subjects.fun import SUBJECT as FUN
 
 # Import new subjects here, then append them to this list.
 SUBJECTS = [
     CALCULUS,
+    FUN,
 ]
 
 

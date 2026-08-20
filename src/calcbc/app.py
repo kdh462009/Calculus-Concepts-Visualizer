@@ -19,6 +19,7 @@ from calcbc.visualizers.volume_rotation import VolumeRotationApi
 from calcbc.visualizers.parametric import ParametricApi
 from calcbc.runtime import start_webview
 from calcbc.visualizers.polar import PolarApi
+from calcbc.visualizers.fourier import FourierApi
 
 
 EXTERNAL_URLS = frozenset(
@@ -44,6 +45,7 @@ class AppApi:
         self._inverse = InverseApi()
         self._parametric = ParametricApi()
         self._polar = PolarApi()
+        self._fourier = FourierApi()
 
     def bind_window(self, window) -> None:
         self._window = window
@@ -186,6 +188,15 @@ class AppApi:
 
     def compute_polar(self, payload):
         return self._polar.compute(payload)
+
+    def get_fourier_bootstrap(self):
+        return self._fourier.get_bootstrap()
+
+    def get_fourier_preset(self, payload):
+        return self._fourier.get_preset(payload)
+
+    def compute_fourier(self, payload):
+        return self._fourier.compute(payload)
 
 
 def main():
