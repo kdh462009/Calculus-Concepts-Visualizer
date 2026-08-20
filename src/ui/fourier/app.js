@@ -100,7 +100,7 @@ function clientToCanvas(clientX, clientY) {
 }
 
 function formatDc(dc) {
-  if (!dc) return "—";
+  if (!dc) return "--";
   const sign = dc.im >= 0 ? "+" : "−";
   return `${dc.re.toFixed(3)} ${sign} ${Math.abs(dc.im).toFixed(3)}i`;
 }
@@ -117,7 +117,7 @@ function applyResult(result) {
   const mx = result.terms[0];
   el.statMax.textContent = mx
     ? `k=${mx.k}, |c|=${mx.amp.toFixed(4)}`
-    : "—";
+    : "--";
   state.trail = [];
   state.phase = 0;
   setMode("animate");
@@ -129,8 +129,8 @@ function clearDrawing() {
   state.trail = [];
   state.phase = 0;
   el.statPoints.textContent = "0";
-  el.statDc.textContent = "—";
-  el.statMax.textContent = "—";
+  el.statDc.textContent = "--";
+  el.statMax.textContent = "--";
   syncAnalyzeEnabled();
   setMode("draw");
   requestRender();
@@ -419,7 +419,7 @@ async function loadPreset(id) {
     syncCanvasSize();
   }
   if (state.width < 2 || state.height < 2) {
-    setStatus("canvas is still laying out — try again.", true);
+    setStatus("canvas is still laying out; try again.", true);
     return;
   }
   setStatus("loading preset…");
@@ -440,7 +440,7 @@ async function loadPreset(id) {
     setMode("draw");
     el.statPoints.textContent = String(state.stroke.length);
     requestRender();
-    setStatus(`${id} ready — press Compute Fourier.`);
+    setStatus(`${id} ready. Press Compute Fourier.`);
   } catch (err) {
     setStatus(String(err), true);
   }
@@ -610,6 +610,7 @@ async function bootstrap() {
   el.statMax = $("statMax");
   el.status = $("status");
   el.presets = $("presets");
+  el.latexImage = $("latexImage");
   el.pills = [...document.querySelectorAll(".fourier-pill")];
 
   wireInteractions();
@@ -625,6 +626,7 @@ async function bootstrap() {
     return;
   }
   renderPresets(boot?.presets);
+  LatexDisplay.setImage(el.latexImage, boot?.latexPng);
   if (boot?.nDefault) {
     el.sampleN.value = String(boot.nDefault);
     el.nReadout.textContent = String(boot.nDefault);
@@ -639,7 +641,7 @@ async function bootstrap() {
     requestRender();
   };
   startLoop();
-  setStatus("ready — draw a closed curve or pick a preset.");
+  setStatus("ready. Draw a closed curve or pick a preset.");
 }
 
 whenApiReady(bootstrap);

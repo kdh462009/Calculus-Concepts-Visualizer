@@ -283,18 +283,21 @@ class ParametricRenderer {
       this.drawParticle(traceIndex);
       el.phaseLine.textContent = "Phase 1: parametric curve (x(t), y(t))";
       el.legendLine.textContent = "Legend: cyan curve + gold particle motion";
+      LatexDisplay.setImage(el.latexImage, data.latexPngRules?.curve || data.latexPng);
     } else if (seg.phase === "velocity") {
       this.drawCurve(null, "#2ee8bb", 2.5, 0.8);
       this.drawVectors(t);
       this.drawParticle(Math.floor(0.35 * (data.xCurve.length - 1)));
       el.phaseLine.textContent = "Phase 2: velocity vectors ⟨x′(t), y′(t)⟩";
       el.legendLine.textContent = "Legend: pink arrows = velocity";
+      LatexDisplay.setImage(el.latexImage, data.latexPngRules?.velocity || data.latexPng);
     } else if (seg.phase === "slope") {
       this.drawCurve(null, "#2ee8bb", 2.4, 0.62);
       this.drawVectors(0.25);
       this.drawTangents(t);
       el.phaseLine.textContent = "Phase 3: tangent slope dy/dx = y′/x′";
       el.legendLine.textContent = "Legend: bold blue tangents = dy/dx";
+      LatexDisplay.setImage(el.latexImage, data.latexPngRules?.slope || data.latexPng);
     } else {
       this.drawCurve(null, "#2ee8bb", 2.4, 0.55);
       this.drawVectors(0.2);
@@ -302,6 +305,7 @@ class ParametricRenderer {
       this.drawSpeedMarkers(t);
       el.phaseLine.textContent = "Phase 4: speed ‖v‖ and arc length";
       el.legendLine.textContent = "Legend: all layers + gold speed markers";
+      LatexDisplay.setImage(el.latexImage, data.latexPngRules?.speed || data.latexPng);
     }
 
     this.drawLegendBox();
@@ -441,9 +445,7 @@ async function computeModel() {
   state.progress = 0;
   state.phase = "curve";
   applyDataView(result);
-  el.ruleLine.textContent = result.slopeRule;
-  el.formulaLine.textContent =
-    `(x,y)=(${result.xExpr}, ${result.yExpr})  |  x′=${result.dxExpr}, y′=${result.dyExpr}`;
+  LatexDisplay.setImage(el.latexImage, result.latexPng);
   renderer.draw();
   setStatus("ready. press Animate.");
   return true;
@@ -536,7 +538,7 @@ async function bootstrap() {
   el.legendLine = $("legendLine");
   el.metricLine = $("metricLine");
   el.ruleLine = $("ruleLine");
-  el.formulaLine = $("formulaLine");
+  el.latexImage = $("latexImage");
 
   renderer = new ParametricRenderer($("paramCanvas"));
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {

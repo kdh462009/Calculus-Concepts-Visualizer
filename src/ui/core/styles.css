@@ -86,9 +86,53 @@ body {
   overflow: hidden;
 }
 
+.slope-readout {
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+  min-height: auto;
+  padding: 2px 0 4px;
+  overflow: visible;
+}
+
+.slope-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(159, 182, 255, 0.24);
+  background: rgba(18, 26, 48, 0.58);
+  min-width: 0;
+  flex: 1 1 140px;
+}
+
+.slope-metric-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #96a6de;
+}
+
+.slope-metric-value {
+  font-size: 13px;
+  font-weight: 650;
+  color: #f5c842;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slope-metric.is-live .slope-metric-value {
+  color: #7df0cd;
+}
+
 #latexImage {
   max-width: 100%;
-  max-height: 40px;
+  max-height: 48px;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(245, 200, 66, 0.16));
 }

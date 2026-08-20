@@ -263,6 +263,7 @@ async function runAnimation() {
   view.includeSecond = Boolean(el.showSecondInput.checked);
   view.showDerivatives = false;
   viewer.setData(result, payload);
+  LatexDisplay.setImage(el.latexImage, result.latexPng);
   drawFunctionOnly();
   await FunctionPreview.delay(FunctionPreview.PREVIEW_HOLD_MS);
 
@@ -348,6 +349,7 @@ async function bootstrap() {
   el.termCounter = $("termCounter");
   el.analysis = $("analysis");
   el.concavityStatus = $("concavityStatus");
+  el.latexImage = $("latexImage");
   el.stepsValue = $("stepsValue");
   el.speedValue = $("speedValue");
 
@@ -360,10 +362,11 @@ async function bootstrap() {
         b: Number(el.bInput.value),
       });
     }
-    return window.pywebview.api.preview_function(payload);
+    return window.pywebview.api.preview_derivatives(payload);
   };
   viewer.onDataExpanded = (result, payload) => {
     viewer.setData(result, payload, { preserveView: true });
+    LatexDisplay.setImage(el.latexImage, result.latexPng);
     redrawOverlay();
   };
   viewer.setRedrawHandler(() => {
@@ -400,7 +403,7 @@ async function bootstrap() {
     exprInput: el.exprInput,
     extraInputs: [el.xminInput, el.xmaxInput],
     getPayload: previewPayload,
-    previewApi: (payload) => window.pywebview.api.preview_function(payload),
+    previewApi: (payload) => window.pywebview.api.preview_derivatives(payload),
     onBeforePlot: () => {
       stopAnimation();
       view.showDerivatives = false;
@@ -408,6 +411,7 @@ async function bootstrap() {
     },
     onPlotted: () => {
       drawFunctionOnly();
+      LatexDisplay.setImage(el.latexImage, viewer.data?.latexPng);
       setStatus("f(x) plotted. press Animate.");
     },
     onError: (msg) => setStatus(`error: ${msg}`),

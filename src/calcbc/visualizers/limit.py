@@ -15,6 +15,7 @@ from calcbc.graph import (
     to_js_array,
     x,
 )
+from calcbc.latex_formulas import limit_formal_latex, limit_readout_latex, render_formula
 
 FUNCTION_HINTS = [
     "(x^2-1)/(x-1)",
@@ -98,6 +99,7 @@ class LimitApi:
         return {
             "hints": FUNCTION_HINTS,
             "presets": PRESETS,
+            "latexPng": render_formula(limit_formal_latex(), wide=True),
         }
 
     def compute(self, payload):
@@ -160,6 +162,11 @@ class LimitApi:
                 "epsPath": [float(v) for v in eps_path],
                 "deltaPath": [float(v) for v in deltas],
                 "definitionText": "If x is close enough to a, then f(x) stays close to L.",
+                "latexPng": render_formula(limit_formal_latex(), wide=True),
+                "latexReadoutPng": render_formula(
+                    limit_readout_latex(float(limit_val), float(eps_path[0]), float(deltas[0])),
+                    wide=True,
+                ),
             }
         except Exception as exc:
             return {"ok": False, "error": f"{exc}"}

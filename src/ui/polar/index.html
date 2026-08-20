@@ -14,11 +14,14 @@
       <div class="header-top">
         <div class="title-row">
           <h1>Polar area</h1>
-          <span>BC Unit 9 — sector slices and area</span>
+          <span>BC Unit 9 · sector slices and area</span>
         </div>
         <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
       </div>
-      <div id="ruleLine" class="error-bound">A = (1/2) ∫[α,β] r² dθ</div>
+      <div id="ruleLine" class="error-bound">Sector slices approximate polar area on [α, β].</div>
+      <div class="latex-row">
+        <img id="latexImage" alt="Polar area formula">
+      </div>
       <div class="latex-row">
         <div id="areaLine" style="color:#f5c842;font-weight:700;">Area: --</div>
       </div>
@@ -69,6 +72,7 @@
   </div>
 
   <script src="../core/nav.js"></script>
+  <script src="../core/latex.js"></script>
   <script src="../core/math-input.js"></script>
   <script src="../core/scale-bar.js"></script>
   <script src="./app.js"></script>

@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 
 from calcbc.graph import launch_app
+from calcbc.latex_formulas import fourier_reconstruction_latex, render_formula
 
 N_MIN = 64
 N_MAX = 2048
@@ -257,6 +258,7 @@ class FourierApi:
             "nMin": N_MIN,
             "nMax": N_MAX,
             "nDefault": N_DEFAULT,
+            "latexPng": render_formula(fourier_reconstruction_latex(), wide=True),
         }
 
     def get_preset(self, payload):

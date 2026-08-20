@@ -24,7 +24,7 @@ function setStatus(text) {
 }
 
 function formatPlotNum(v) {
-  if (!Number.isFinite(v)) return "—";
+  if (!Number.isFinite(v)) return "--";
   if (Math.abs(v) < 1e-10) return "0";
   const rounded = Math.round(v);
   if (Math.abs(v - rounded) < 1e-8) return String(rounded);
@@ -545,6 +545,7 @@ async function computeModel() {
     return false;
   }
   state.data = res;
+  LatexDisplay.setImage(el.latexImage, res.latexPng);
   state.elapsed = 0;
   state.idx = 0;
   renderer.fitView(res);
@@ -633,6 +634,7 @@ async function bootstrap() {
   el.readout = $("readout");
   el.bandLine = $("bandLine");
   el.definitionLine = $("definitionLine");
+  el.latexImage = $("latexImage");
 
   renderer = new LimitRenderer($("limitCanvas"));
   renderer.onViewChange = scheduleLimitCoverage;
@@ -653,6 +655,7 @@ async function bootstrap() {
     op.value = h;
     hints.appendChild(op);
   });
+  LatexDisplay.setImage(el.latexImage, boot.latexPng);
 
   const presets = $("presets");
   boot.presets.forEach(([label, expr, a]) => {

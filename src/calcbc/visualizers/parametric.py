@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Parametric visualizer backend — AP Calc BC Unit 9 concepts.
+Parametric visualizer backend - AP Calc BC Unit 9 concepts.
 """
 
 from __future__ import annotations
@@ -9,6 +9,11 @@ import numpy as np
 import sympy as sp
 
 from calcbc.graph import classroom_str, launch_app, parse_user_expr, sample_domain, to_js_array
+from calcbc.latex_formulas import (
+    parametric_curve_latex,
+    parametric_rule_latex,
+    render_formula,
+)
 
 t = sp.symbols("t")
 
@@ -196,6 +201,11 @@ class ParametricApi:
             ux, uy, speed = _unit_vectors(dx_vals, dy_vals)
             arc_len = _arc_length(speed, t_vals)
             x_range, y_range = _xy_range(x_vals, y_vals)
+            curve_latex = parametric_curve_latex(x_expr, y_expr, dx_expr, dy_expr)
+            rule_pngs = {
+                phase: render_formula(parametric_rule_latex(phase), wide=True)
+                for phase in ("curve", "velocity", "slope", "speed")
+            }
 
             return {
                 "ok": True,
@@ -220,6 +230,12 @@ class ParametricApi:
                 "arcLengthRule": "L = ∫‖v(t)‖ dt",
                 "secondDerivRule": "d²y/dx² = (y″x′ − y′x″) / (x′)³",
                 "arcLength": arc_len,
+                "latexPng": render_formula(
+                    rf"{parametric_rule_latex('slope')} \qquad {curve_latex}",
+                    wide=True,
+                ),
+                "latexPngRules": rule_pngs,
+                "latexPngCurve": render_formula(curve_latex, wide=True),
                 "tRange": [tmin, tmax],
                 "xRange": x_range,
                 "yRange": y_range,

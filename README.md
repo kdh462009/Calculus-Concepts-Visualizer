@@ -14,13 +14,13 @@ THIS CODE IS CLAIMED BY THE KNIVIER SSP/TOS. Email legal@knivier.com for questio
 
 ## Current Visualizers
 
-- **Unit 1** — Limits (Epsilon-Delta)
-- **Unit 2** — Derivatives
-- **Unit 3** — Inverse Visualizer
-- **Unit 6** — Riemann Sums
-- **Unit 8** — Volume Rotation
-- **Unit 9** — Parametric Curves, Polar Area
-- **Unit 10** — Taylor Series
+- **Unit 1**: Limits (Epsilon-Delta)
+- **Unit 2**: Derivatives
+- **Unit 3**: Inverse Visualizer
+- **Unit 6**: Riemann Sums
+- **Unit 8**: Volume Rotation
+- **Unit 9**: Parametric Curves, Polar Area
+- **Unit 10**: Taylor Series
 
 ## Highlights
 
@@ -42,14 +42,14 @@ THIS CODE IS CLAIMED BY THE KNIVIER SSP/TOS. Email legal@knivier.com for questio
 
 ## Project Structure
 
-- `app.py` — thin launcher (`python app.py`)
-- `src/calcbc/` — Python package (window, routing, graph engine)
-- `src/calcbc/subjects/` — one module per subject (Calculus today; add more here)
-- `src/calcbc/catalog.py` — subject/visualizer registry used by the home hub
-- `src/calcbc/visualizers/` — per-concept backends
-- `src/ui/core/` — shared frontend (graph, transitions, nav)
-- `src/ui/<visualizer>/` — per-visualizer HTML/JS
-- `scripts/build_macos_app.sh` — macOS packaging
+- `app.py`: thin launcher (`python app.py`)
+- `src/calcbc/`: Python package (window, routing, graph engine)
+- `src/calcbc/subjects/`: one module per subject (Calculus today; add more here)
+- `src/calcbc/catalog.py`: subject/visualizer registry used by the home hub
+- `src/calcbc/visualizers/`: per-concept backends
+- `src/ui/core/`: shared frontend (graph, transitions, nav)
+- `src/ui/<visualizer>/`: per-visualizer HTML/JS
+- `scripts/build_macos_app.sh`: macOS packaging
 
 ## Build
 

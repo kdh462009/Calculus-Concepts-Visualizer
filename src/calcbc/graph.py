@@ -184,8 +184,14 @@ def sample_domain(xmin: float, xmax: float, samples: int = 1400):
     return np.linspace(xmin, xmax, max(samples, 500))
 
 
-def render_latex_png(latex_body: str, color: str = "#f5c842") -> str:
-    fig = Figure(figsize=(14, 0.85), dpi=200)
+def render_latex_png(
+    latex_body: str,
+    color: str = "#f5c842",
+    *,
+    figsize: tuple[float, float] = (14.0, 0.85),
+    fontsize: float = 20.0,
+) -> str:
+    fig = Figure(figsize=figsize, dpi=200)
     fig.patch.set_alpha(0.0)
     ax = fig.add_subplot(111)
     ax.axis("off")
@@ -195,7 +201,7 @@ def render_latex_png(latex_body: str, color: str = "#f5c842") -> str:
         0.5,
         f"${latex_body}$",
         color=color,
-        fontsize=20,
+        fontsize=fontsize,
         va="center",
         ha="left",
     )

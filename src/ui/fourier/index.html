@@ -26,8 +26,11 @@
             <h1>Fourier Epicycles</h1>
             <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
           </div>
-          <p class="fourier-tagline">Draw a closed curve → complex DFT → rotating phasors reconstruct <em>z</em>(<em>t</em>) = Σ <em>c<sub>k</sub></em><em>e</em><sup><em>ikt</em></sup></p>
+          <p class="fourier-tagline">Draw a closed curve, run a complex DFT, and watch phasors reconstruct the path.</p>
         </div>
+      </div>
+      <div class="latex-row">
+        <img id="latexImage" alt="Fourier reconstruction formula">
       </div>
       <div class="fourier-top-actions">
         <span class="beta-badge" data-tip="Production testing is live" tabindex="0">Beta</span>
@@ -93,8 +96,8 @@
           <h2>Coefficients</h2>
           <dl>
             <div><dt>Points drawn</dt><dd id="statPoints">0</dd></div>
-            <div><dt>DC offset <span class="fourier-mono">c₀</span></dt><dd id="statDc">—</dd></div>
-            <div><dt>Largest <span class="fourier-mono">|cₖ|</span></dt><dd id="statMax">—</dd></div>
+            <div><dt>DC offset <span class="fourier-mono">c₀</span></dt><dd id="statDc">--</dd></div>
+            <div><dt>Largest <span class="fourier-mono">|cₖ|</span></dt><dd id="statMax">--</dd></div>
           </dl>
           <p id="status" class="fourier-status">ready.</p>
         </section>
@@ -104,6 +107,7 @@
   </div>
 
   <script src="../core/nav.js"></script>
+  <script src="../core/latex.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

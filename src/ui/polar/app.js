@@ -414,7 +414,7 @@ function sectorEstimate(data, count) {
 }
 
 function formatErrorLabel(exact, estimate) {
-  if (!Number.isFinite(exact) || !Number.isFinite(estimate)) return "error —";
+  if (!Number.isFinite(exact) || !Number.isFinite(estimate)) return "error --";
   const absErr = Math.abs(estimate - exact);
   if (absErr < 5e-7) return "error 0%";
   const pct = Math.abs(exact) > 1e-12 ? (absErr / Math.abs(exact)) * 100 : absErr * 100;
@@ -526,7 +526,7 @@ async function computeModel() {
   state.params = payload;
   state.progress = 0;
   applyDataView(result);
-  el.ruleLine.textContent = result.areaFormula;
+  LatexDisplay.setImage(el.latexImage, result.latexPng);
   renderer.draw();
   setStatus("ready. press Animate.");
   return true;
@@ -635,6 +635,7 @@ async function bootstrap() {
   el.phaseLine = $("phaseLine");
   el.intersectionLine = $("intersectionLine");
   el.ruleLine = $("ruleLine");
+  el.latexImage = $("latexImage");
   el.areaLine = $("areaLine");
 
   renderer = new PolarRenderer($("polarCanvas"));

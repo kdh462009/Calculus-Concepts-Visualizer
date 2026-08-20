@@ -1,3 +1,3 @@
-"""Calculus Concepts Visualizer — Python package."""
+"""Calculus Concepts Visualizer - Python package."""
 
 __version__ = "1.3"

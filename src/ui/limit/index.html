@@ -19,7 +19,9 @@
         <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
       </div>
       <div id="definitionLine" class="error-bound">If x is close enough to a, then f(x) stays close to L.</div>
-      <div id="formalLine" class="formal-line">Formal: for every ε &gt; 0 there exists δ &gt; 0 such that 0 &lt; |x − a| &lt; δ implies |f(x) − L| &lt; ε.</div>
+      <div class="latex-row">
+        <img id="latexImage" alt="Epsilon-delta definition">
+      </div>
       <div class="latex-row">
         <div id="bandLine" style="color:#f5c842;font-weight:700;">L = --</div>
       </div>
@@ -80,6 +82,7 @@
   </div>
 
   <script src="../core/nav.js"></script>
+  <script src="../core/latex.js"></script>
   <script src="../core/math-input.js"></script>
   <script src="../core/scale-bar.js"></script>
   <script src="./app.js"></script>

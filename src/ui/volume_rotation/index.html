@@ -18,9 +18,9 @@
         </div>
         <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
       </div>
-      <div id="formulaLine" class="error-bound">Preview updates as you type — press Animate to sweep.</div>
+      <div id="formulaLine" class="error-bound">Area and volume formulas for the current bounds and axis.</div>
       <div class="latex-row">
-        <div id="volumeReadout" style="color:#f5c842;font-weight:700;">Volume: --</div>
+        <img id="latexImage" alt="Area and volume formulas">
       </div>
     </header>
 
@@ -58,7 +58,8 @@
         </div>
 
         <div id="status" class="status">ready.</div>
-        <div id="areaReadout" class="term-counter"></div>
+        <div id="volumeReadout" class="term-counter">Volume: --</div>
+        <div id="areaReadout" class="term-counter">Area: --</div>
       </aside>
 
       <section class="plot-wrap glass">
@@ -68,6 +69,7 @@
   </div>
 
   <script src="../core/nav.js"></script>
+  <script src="../core/latex.js"></script>
   <script src="../core/math-input.js"></script>
   <script src="../core/scale-bar.js"></script>
   <script src="./app.js"></script>

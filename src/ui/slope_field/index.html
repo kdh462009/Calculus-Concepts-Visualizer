@@ -14,16 +14,34 @@
       <div class="header-top">
         <div class="title-row">
           <h1>Slope fields</h1>
-          <span>BC Unit 7 — y′ = f(x, y) and numerical IVPs</span>
+          <span>BC Unit 7 · y′ = f(x, y) and numerical IVPs</span>
         </div>
         <div class="header-actions">
           <span class="beta-badge" data-tip="Production testing is live" tabindex="0">Beta</span>
           <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
         </div>
       </div>
-      <div id="ruleLine" class="error-bound">y<sub>n+1</sub> = y<sub>n</sub> + h f(x<sub>n</sub>, y<sub>n</sub>)</div>
+      <div id="ruleLine" class="error-bound">Euler steps trace the IVP through the slope field.</div>
       <div class="latex-row">
-        <div id="exprLine" style="color:#f5c842;font-weight:700;">y′ = —</div>
+        <img id="latexImage" alt="Euler step and differential equation">
+      </div>
+      <div class="latex-row slope-readout">
+        <div class="slope-metric">
+          <span class="slope-metric-label">Differential equation</span>
+          <span id="deLine" class="slope-metric-value">y′ = --</span>
+        </div>
+        <div class="slope-metric">
+          <span class="slope-metric-label">Initial condition</span>
+          <span id="ivpLine" class="slope-metric-value">y(x₀) = --</span>
+        </div>
+        <div class="slope-metric">
+          <span class="slope-metric-label">Step</span>
+          <span id="stepLine" class="slope-metric-value">h = --</span>
+        </div>
+        <div class="slope-metric">
+          <span class="slope-metric-label">Field slope</span>
+          <span id="slopeLine" class="slope-metric-value">f(x, y) = --</span>
+        </div>
       </div>
     </header>
 
@@ -41,7 +59,7 @@
           <input id="x0Input" type="number" value="0" step="0.25">
           <input id="y0Input" type="number" value="1" step="0.25">
         </div>
-        <p class="formal-line">The white dot is your IVP start: y(x<sub>0</sub>) = y<sub>0</sub>. Click the plot or drag the dot — solution curves update live.</p>
+        <p class="formal-line">The white dot is your IVP start: y(x<sub>0</sub>) = y<sub>0</sub>. Click the plot or drag the dot; solution curves update live.</p>
 
         <label class="section-label">STEP SIZE h <span id="hValue">0.25</span></label>
         <input id="hInput" type="range" min="5" max="80" value="25" step="1">
@@ -97,6 +115,7 @@
   </div>
 
   <script src="../core/nav.js"></script>
+  <script src="../core/latex.js"></script>
   <script src="../core/math-input.js"></script>
   <script src="../core/scale-bar.js"></script>
   <script src="../core/graph.js"></script>

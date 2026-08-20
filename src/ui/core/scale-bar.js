@@ -26,7 +26,7 @@
       this.setView = options.setView;
       this.root = document.createElement("div");
       this.root.className = "scale-bar";
-      this.root.title = "Plot scale — type a range and press Enter";
+      this.root.title = "Plot scale: type a range and press Enter";
       this.root.innerHTML = `
         <span class="scale-bar-k">x</span>
         <input class="scale-bar-input" data-k="xmin" type="number" step="any" inputmode="decimal" autocomplete="off" aria-label="x min">

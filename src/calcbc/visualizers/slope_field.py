@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Slope field + IVP visualizer backend — DiffEQ.
+Slope field + IVP visualizer backend - DiffEQ.
 
 y' = f(x, y). Ticks show the field; Euler / Midpoint / RK4 trace
 the solution through a dragged initial condition.
@@ -12,6 +12,7 @@ import numpy as np
 import sympy as sp
 
 from calcbc.graph import classroom_str, launch_app, parse_user_expr, to_js_array
+from calcbc.latex_formulas import render_formula, slope_field_header_latex
 
 x, y = sp.symbols("x y", real=True)
 
@@ -237,6 +238,8 @@ def integrate_method(f, name, x0, y0, h, xmin, xmax, ymin, ymax):
 
 class SlopeFieldApi:
     def get_bootstrap(self):
+        from calcbc.latex_formulas import euler_step_latex
+
         return {
             "hints": FUNCTION_HINTS,
             "presets": PRESETS,
@@ -245,6 +248,7 @@ class SlopeFieldApi:
                 ("midpoint", "Midpoint"),
                 ("rk4", "RK4"),
             ],
+            "latexPng": render_formula(euler_step_latex(), wide=True),
         }
 
     def compute(self, payload):
@@ -313,6 +317,7 @@ class SlopeFieldApi:
                     if not np.isfinite(f(x0, y0))
                     else float(f(x0, y0))
                 ),
+                "latexPng": render_formula(slope_field_header_latex(expr), wide=True),
             }
         except Exception as exc:
             return {"ok": False, "error": f"{exc}"}

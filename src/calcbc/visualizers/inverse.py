@@ -9,6 +9,7 @@ import numpy as np
 import sympy as sp
 
 from calcbc.graph import classroom_str, launch_app, parse_expr, safe_eval, sample_domain, to_js_array, x
+from calcbc.latex_formulas import inverse_formulas_latex, render_formula
 
 FUNCTION_HINTS = [
     "x^3",
@@ -144,6 +145,7 @@ class InverseApi:
                 "yMirror": to_js_array(mirror_line),
                 "derivativeExpr": classroom_str(deriv_expr),
                 "inverseDerivativeRule": "(f^{-1})'(x) = 1 / f'(f^{-1}(x))",
+                "latexPng": render_formula(inverse_formulas_latex(deriv_expr), wide=True),
                 "monotonicity": monotonicity,
                 "phaseYRanges": {
                     "function": y_range_fn,

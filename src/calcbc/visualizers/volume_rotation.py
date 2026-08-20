@@ -16,6 +16,7 @@ from calcbc.graph import (
     sample_domain,
     to_js_array,
 )
+from calcbc.latex_formulas import render_formula, volume_formulas_latex
 
 FUNCTION_HINTS = [
     "sin(x)+2",
@@ -53,6 +54,10 @@ def _volume_formula(axis: str) -> str:
     if axis == "x":
         return "V = π ∫[a,b] (f(x))^2 dx"
     return "V = 2π ∫[a,b] |x| |f(x)| dx (shell method)"
+
+
+def _volume_latex(a: float, b: float, axis: str) -> str:
+    return volume_formulas_latex(a, b, axis)
 
 
 class VolumeRotationApi:
@@ -121,6 +126,7 @@ class VolumeRotationApi:
                 "volume": volume,
                 "areaFormula": "A = ∫[a,b] |f(x)| dx",
                 "volumeFormula": _volume_formula(axis),
+                "latexPng": render_formula(_volume_latex(a, b, axis), wide=True),
                 "assumption": "Area uses |f(x)|; y-axis rotation uses shell radius |x|.",
                 "scaleHints": {
                     "maxAbsX": float(max_abs_x),

@@ -175,8 +175,7 @@ async function computeModel({ resetStage = true } = {}) {
   viewer.setData(result, payload, { preserveView: !resetStage });
   if (resetStage) applyStageView(state.stage);
   drawStage(state.stage);
-  el.ruleLine.textContent = result.inverseDerivativeRule;
-  el.exprLine.textContent = `f'(x): ${result.derivativeExpr}  |  monotonicity: ${result.monotonicity}`;
+  LatexDisplay.setImage(el.latexImage, result.latexPng);
   setStatus(state.stage === "function" ? "f(x) plotted. Plot Inverse when ready." : "updated.");
   return true;
 }
@@ -246,7 +245,7 @@ async function bootstrap() {
   el.phaseLine = $("phaseLine");
   el.plotLegend = $("plotLegend");
   el.ruleLine = $("ruleLine");
-  el.exprLine = $("exprLine");
+  el.latexImage = $("latexImage");
 
   viewer = new GraphViewer($("plotCanvas"));
   viewer.setRedrawHandler(() => paintPlot());

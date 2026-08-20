@@ -1,4 +1,4 @@
-"""Fun subject catalog — playground visualizers outside the calculus sequence."""
+"""Fun subject catalog - playground visualizers outside the calculus sequence."""
 
 SUBJECT = {
     "id": "fun",

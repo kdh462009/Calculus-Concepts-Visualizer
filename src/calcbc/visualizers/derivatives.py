@@ -20,6 +20,7 @@ from calcbc.graph import (
     to_js_array,
     x,
 )
+from calcbc.latex_formulas import derivative_symbols_latex, render_formula
 
 FUNCTION_HINTS = [
     "sin(x)",
@@ -75,7 +76,21 @@ class DerivativesApi:
         }
 
     def preview(self, payload):
-        return compute_function_preview(payload)
+        result = compute_function_preview(payload)
+        if result.get("ok"):
+            try:
+                expr_text = (payload or {}).get("expr", "").strip()
+                if expr_text:
+                    expr = parse_expr(expr_text)
+                    first_derivative = _safe_symbolic_derivative(expr, 1)
+                    second_derivative = _safe_symbolic_derivative(expr, 2)
+                    result["latexPng"] = render_formula(
+                        derivative_symbols_latex(expr, first_derivative, second_derivative),
+                        wide=True,
+                    )
+            except Exception:
+                pass
+        return result
 
     def preview_function(self, payload):
         return self.preview(payload)
@@ -120,6 +135,10 @@ class DerivativesApi:
                     "firstDerivativeExpr": classroom_str(first_derivative),
                     "secondDerivativeExpr": classroom_str(second_derivative),
                     "concavityInterval": concavity_label,
+                    "latexPng": render_formula(
+                        derivative_symbols_latex(expr, first_derivative, second_derivative),
+                        wide=True,
+                    ),
                 },
             )
         except Exception as exc:

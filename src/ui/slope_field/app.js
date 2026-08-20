@@ -39,7 +39,7 @@ function clamp(v, lo, hi) {
 }
 
 function formatNum(v, digits = 3) {
-  if (!Number.isFinite(v)) return "—";
+  if (!Number.isFinite(v)) return "--";
   const n = Number(v);
   const abs = Math.abs(n);
   if (abs !== 0 && (abs >= 1e4 || abs < 1e-3)) return n.toExponential(2);
@@ -90,6 +90,7 @@ function stopAnimation() {
   if (state.rafId) cancelAnimationFrame(state.rafId);
   state.rafId = null;
   el.pauseBtn.textContent = "Pause";
+  updateHeader();
 }
 
 function eventToWorld(event) {
@@ -127,12 +128,43 @@ function setIc(x0, y0, { recompute = true } = {}) {
   }
 }
 
+function animationSample() {
+  const euler = state.data?.solutions?.euler?.forward;
+  if (!state.animating || !euler?.x?.length) return null;
+  const i = clamp(state.stepIndex - 1, 0, euler.x.length - 1);
+  return {
+    x: euler.x[i],
+    y: euler.y[i],
+    slope: euler.slopes?.[i],
+    step: state.stepIndex,
+    maxSteps: state.maxSteps,
+  };
+}
+
 function updateHeader() {
   const expr = state.data?.expr || el.exprInput.value.trim() || "f(x, y)";
-  const slope = state.data?.slopeAtIC;
-  el.exprLine.textContent = `y′ = ${expr}    y(${formatNum(state.x0)}) = ${formatNum(state.y0)}${
-    Number.isFinite(slope) ? `    y′(x₀, y₀) = ${formatNum(slope)}` : ""
-  }`;
+  const h = Number.isFinite(state.data?.h) ? state.data.h : stepH();
+  const sample = animationSample();
+
+  el.deLine.textContent = `y′ = ${expr}`;
+
+  if (sample) {
+    el.ivpLine.textContent = `(xₙ, yₙ) = (${formatNum(sample.x)}, ${formatNum(sample.y)})`;
+    el.stepLine.textContent = `n = ${sample.step} / ${sample.maxSteps}`;
+    el.ivpMetric?.classList.add("is-live");
+    el.stepMetric?.classList.add("is-live");
+  } else {
+    el.ivpLine.textContent = `y(${formatNum(state.x0)}) = ${formatNum(state.y0)}`;
+    el.stepLine.textContent = `h = ${formatNum(h)}`;
+    el.ivpMetric?.classList.remove("is-live");
+    el.stepMetric?.classList.remove("is-live");
+  }
+
+  const slope = sample?.slope ?? state.data?.slopeAtIC;
+  el.slopeLine.textContent = Number.isFinite(slope)
+    ? `f(x, y) = ${formatNum(slope)}`
+    : "f(x, y) = --";
+  el.slopeMetric?.classList.toggle("is-live", Boolean(sample && Number.isFinite(slope)));
 }
 
 function tickLength(x, y, slope) {
@@ -310,6 +342,7 @@ function frameLoop(ts) {
     state.stepIndex += 1;
   }
   drawScene();
+  updateHeader();
   setCounter(`step ${Math.min(state.stepIndex, state.maxSteps)} / ${state.maxSteps}`);
   if (state.stepIndex >= state.maxSteps) {
     stopAnimation();
@@ -361,6 +394,7 @@ async function computeNow(options = {}) {
       state.data = result;
       state.params = payload;
       state.lastViewKey = viewKey();
+      LatexDisplay.setImage(el.latexImage, result.latexPng);
       viewer.setData(
         { xRange: result.xRange, yRange: result.yRange },
         payload,
@@ -371,7 +405,7 @@ async function computeNow(options = {}) {
     drawScene();
     const n = state.data.tickX?.length || 0;
     if (state.draggingIC) {
-      setStatus(`initial condition (${formatNum(state.x0)}, ${formatNum(state.y0)}) — release to settle.`);
+      setStatus(`initial condition (${formatNum(state.x0)}, ${formatNum(state.y0)}); release to settle.`);
     } else {
       setStatus(`slope field ready · ${n} ticks · click or drag the white point.`);
     }
@@ -430,6 +464,7 @@ async function runAnimation() {
   state.paused = false;
   setCounter(`step 1 / ${state.maxSteps}`);
   setStatus("animating Euler hops against midpoint and RK4…");
+  updateHeader();
   drawScene();
   state.rafId = requestAnimationFrame(frameLoop);
 }
@@ -529,6 +564,7 @@ function wireInteractions() {
 
   el.hInput.addEventListener("input", () => {
     el.hValue.textContent = stepH().toFixed(2);
+    updateHeader();
   });
   el.hInput.addEventListener("change", () => {
     stopAnimation();
@@ -592,7 +628,14 @@ async function bootstrap() {
   el.resetBtn = $("resetBtn");
   el.status = $("status");
   el.termCounter = $("termCounter");
-  el.exprLine = $("exprLine");
+  el.ruleLine = $("ruleLine");
+  el.latexImage = $("latexImage");
+  el.ivpLine = $("ivpLine");
+  el.stepLine = $("stepLine");
+  el.slopeLine = $("slopeLine");
+  el.ivpMetric = el.ivpLine?.closest(".slope-metric");
+  el.stepMetric = el.stepLine?.closest(".slope-metric");
+  el.slopeMetric = el.slopeLine?.closest(".slope-metric");
 
   viewer = new GraphViewer($("plotCanvas"), {
     initialView: { xmin: -4, xmax: 4, ymin: -4, ymax: 4 },
@@ -638,6 +681,7 @@ async function bootstrap() {
   wireCanvas();
   wireInteractions();
   el.hValue.textContent = stepH().toFixed(2);
+  LatexDisplay.setImage(el.latexImage, boot?.latexPng);
   updateHeader();
   await computeNow();
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Polar area visualizer backend — AP Calc BC Unit 9.
+Polar area visualizer backend - AP Calc BC Unit 9.
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ import numpy as np
 import sympy as sp
 
 from calcbc.graph import classroom_str, launch_app, parse_user_expr, sample_domain, to_js_array
+from calcbc.latex_formulas import polar_area_latex, render_formula
 
 theta = sp.symbols("theta", real=True)
 
@@ -344,6 +345,7 @@ class PolarApi:
                     "sectorSum": sector_sum,
                     "intersections": intersections,
                     "areaFormula": "A = (1/2) ∫[α,β] (r_outer² − r_inner²) dθ",
+                    "latexPng": render_formula(polar_area_latex(alpha, beta, compare=True), wide=True),
                     "xRange": x_range,
                     "yRange": y_range,
                 }
@@ -371,6 +373,7 @@ class PolarApi:
                 "sectorSum": sector_sum,
                 "intersections": [],
                 "areaFormula": "A = (1/2) ∫[α,β] r² dθ",
+                "latexPng": render_formula(polar_area_latex(alpha, beta, compare=False), wide=True),
                 "xRange": x_range,
                 "yRange": y_range,
             }

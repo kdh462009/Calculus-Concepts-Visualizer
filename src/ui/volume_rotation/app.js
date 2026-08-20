@@ -401,7 +401,7 @@ function loop(ts) {
   }
 
   drawCurrentFrame();
-  setStatus(phase < 1 ? "animating sweep to 3D..." : "3D view active — rotating.");
+  setStatus(phase < 1 ? "animating sweep to 3D..." : "3D view active; rotating.");
   state.rafId = requestAnimationFrame(loop);
 }
 
@@ -421,7 +421,7 @@ function renderReadouts(data) {
   const axisLabel = data.axis === "y" ? "y-axis" : "x-axis";
   el.areaReadout.textContent = `Area [a,b]: ${data.area.toFixed(6)}`;
   el.volumeReadout.textContent = `Volume (${axisLabel}): ${data.volume.toFixed(6)}`;
-  el.formulaLine.textContent = `${data.areaFormula}   |   ${data.volumeFormula}`;
+  LatexDisplay.setImage(el.latexImage, data.latexPng);
 }
 
 let previewTimer = null;
@@ -623,7 +623,7 @@ async function bootstrap() {
   el.status = $("status");
   el.areaReadout = $("areaReadout");
   el.volumeReadout = $("volumeReadout");
-  el.formulaLine = $("formulaLine");
+  el.latexImage = $("latexImage");
 
   renderer = new VolumeRenderer($("volumeCanvas"));
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {

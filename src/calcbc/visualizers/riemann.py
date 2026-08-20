@@ -16,6 +16,7 @@ from calcbc.graph import (
     sample_domain,
     x,
 )
+from calcbc.latex_formulas import render_formula, riemann_integral_latex
 
 FUNCTION_HINTS = [
     "sin(x)",
@@ -50,7 +51,7 @@ SUM_TYPES = [
 
 
 def _eval_for_integral(expr, xs: np.ndarray) -> np.ndarray:
-    """Sample f for quadrature — do not insert plot-only jump/clip NaNs."""
+    """Sample f for quadrature - do not insert plot-only jump/clip NaNs."""
     return safe_eval(expr, xs, clip=None, break_jumps=False)
 
 
@@ -101,7 +102,7 @@ def _high_res_integral(expr, a: float, b: float) -> float:
 
 
 def _integral_abs_f(expr, a: float, b: float) -> float:
-    """Total area under |f| on [a, b] — stable scale when ∫f ≈ 0."""
+    """Total area under |f| on [a, b] - stable scale when ∫f ≈ 0."""
     xs = np.linspace(a, b, 24000)
     signed = _eval_for_integral(expr, xs)
     _reject_if_singular(xs, signed, label="Area scale")
@@ -169,8 +170,22 @@ class RiemannApi:
             "sumTypes": SUM_TYPES,
         }
 
+    def _attach_formula(self, result: dict, payload: dict | None) -> None:
+        data = payload or {}
+        a = float(data.get("a", 0.0))
+        b = float(data.get("b", 4.0))
+        if a >= b:
+            return
+        result["latexPng"] = render_formula(riemann_integral_latex(a, b), wide=True)
+
     def preview(self, payload):
-        return compute_function_preview(payload)
+        result = compute_function_preview(payload)
+        if result.get("ok"):
+            try:
+                self._attach_formula(result, payload)
+            except Exception:
+                pass
+        return result
 
     def preview_function(self, payload):
         return self.preview(payload)
@@ -222,6 +237,7 @@ class RiemannApi:
                     "error": error_value,
                     "percentError": pct,
                     "percentBasis": pct_basis,
+                    "latexPng": render_formula(riemann_integral_latex(a, b), wide=True),
                 },
             )
         except Exception as exc:

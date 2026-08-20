@@ -27,7 +27,7 @@ function setTermCounter(text) {
 }
 
 function formatErrorPct(pct) {
-  if (!Number.isFinite(pct)) return "—";
+  if (!Number.isFinite(pct)) return "--";
   if (pct >= 1e6) return ">1,000,000";
   if (pct >= 100) return pct.toFixed(1);
   if (pct >= 1) return pct.toFixed(2);

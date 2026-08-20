@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Calc BC visualizer hub — launcher and navigation shell."""
+"""Calc BC visualizer hub - launcher and navigation shell."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from calcbc.graph import compute_function_preview, resolve_resource
 from calcbc.catalog import find_visualizer, get_catalog as build_catalog
 from calcbc.visualizers.limit import LimitApi
 from calcbc.visualizers.inverse import InverseApi
+from calcbc.visualizers.arc_length import ArcLengthApi
 from calcbc.visualizers.riemann import RiemannApi
 from calcbc.visualizers.slope_field import SlopeFieldApi
 from calcbc.visualizers.taylor import TaylorApi
@@ -40,6 +41,7 @@ class AppApi:
         self._nav_pending = False
         self._taylor = TaylorApi()
         self._riemann = RiemannApi()
+        self._arc_length = ArcLengthApi()
         self._slope_field = SlopeFieldApi()
         self._derivatives = DerivativesApi()
         self._volume_rotation = VolumeRotationApi()
@@ -152,6 +154,18 @@ class AppApi:
     def compute_riemann(self, payload):
         return self._riemann.compute(payload)
 
+    def preview_riemann(self, payload):
+        return self._riemann.preview(payload)
+
+    def get_arc_length_bootstrap(self):
+        return self._arc_length.get_bootstrap()
+
+    def compute_arc_length(self, payload):
+        return self._arc_length.compute(payload)
+
+    def preview_arc_length(self, payload):
+        return self._arc_length.preview(payload)
+
     def get_slope_field_bootstrap(self):
         return self._slope_field.get_bootstrap()
 
@@ -163,6 +177,9 @@ class AppApi:
 
     def compute_derivatives(self, payload):
         return self._derivatives.compute(payload)
+
+    def preview_derivatives(self, payload):
+        return self._derivatives.preview(payload)
 
     def preview_function(self, payload):
         return compute_function_preview(payload)
