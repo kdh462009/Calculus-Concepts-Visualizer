@@ -418,10 +418,13 @@ function payloadFromInputs() {
 }
 
 function renderReadouts(data) {
-  const axisLabel = data.axis === "y" ? "y-axis" : "x-axis";
-  el.areaReadout.textContent = `Area [a,b]: ${data.area.toFixed(6)}`;
-  el.volumeReadout.textContent = `Volume (${axisLabel}): ${data.volume.toFixed(6)}`;
   LatexDisplay.setImage(el.latexImage, data.latexPng);
+  LatexDisplay.renderReadout(el.readoutImage, {
+    kind: "volume",
+    area: data.area,
+    volume: data.volume,
+    axis: data.axis,
+  });
 }
 
 let previewTimer = null;
@@ -621,9 +624,8 @@ async function bootstrap() {
   el.pauseBtn = $("pauseBtn");
   el.resetBtn = $("resetBtn");
   el.status = $("status");
-  el.areaReadout = $("areaReadout");
-  el.volumeReadout = $("volumeReadout");
   el.latexImage = $("latexImage");
+  el.readoutImage = $("readoutImage");
 
   renderer = new VolumeRenderer($("volumeCanvas"));
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {

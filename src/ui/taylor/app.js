@@ -26,22 +26,6 @@ function setTermCounter(text) {
   el.termCounter.textContent = text;
 }
 
-function formatErrorPct(pct) {
-  if (!Number.isFinite(pct)) return "--";
-  if (pct >= 1e6) return ">1,000,000";
-  if (pct >= 100) return pct.toFixed(1);
-  if (pct >= 1) return pct.toFixed(2);
-  return pct.toFixed(3);
-}
-
-function errorWindowLabel(data) {
-  const w = data?.errorWindow;
-  if (Array.isArray(w) && w.length === 2) {
-    return `x ∈ [${w[0]}, ${w[1]}]`;
-  }
-  return "plot window";
-}
-
 function updateTaylorHeader(termIdx) {
   if (!viewer?.data) return;
   const idx = Math.max(0, Math.min(termIdx, (viewer.data.termCount || 1) - 1));
@@ -51,12 +35,12 @@ function updateTaylorHeader(termIdx) {
   if (bounds?.length) {
     const lagrange = bounds[idx];
     const maxErr = observed?.[idx];
-    const window = errorWindowLabel(viewer.data);
-    let text = `Lagrange error bound ≤ ~${formatErrorPct(lagrange)}% of max |f(x)| on ${window}`;
-    if (Number.isFinite(maxErr)) {
-      text += ` (max observed error ~${formatErrorPct(maxErr)}%)`;
-    }
-    el.errorBound.textContent = text;
+    LatexDisplay.renderReadout(el.readoutImage, {
+      kind: "taylor_error",
+      boundPct: lagrange,
+      observedPct: Number.isFinite(maxErr) ? maxErr : null,
+      windowRange: viewer.data.errorWindow,
+    });
   }
   if (pngs?.length) {
     el.latexImage.src = pngs[idx];
@@ -66,7 +50,7 @@ function updateTaylorHeader(termIdx) {
 }
 
 function clearTaylorHeader() {
-  el.errorBound.textContent = "Lagrange error bound will appear after Animate.";
+  LatexDisplay.clearReadout(el.readoutImage);
   el.latexImage.src = "";
 }
 
@@ -290,7 +274,7 @@ async function bootstrap() {
   el.status = $("status");
   el.termCounter = $("termCounter");
   el.latexImage = $("latexImage");
-  el.errorBound = $("errorBound");
+  el.readoutImage = $("readoutImage");
   el.termsValue = $("termsValue");
   el.speedValue = $("speedValue");
 

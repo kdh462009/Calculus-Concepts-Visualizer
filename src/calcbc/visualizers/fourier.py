@@ -237,8 +237,7 @@ def compute_from_points(payload: dict | None) -> dict:
     z = resample_closed(points, n)
     if z is None:
         return {"ok": False, "error": "Path is too small to sample. Draw a larger shape."}
-    include_samples = bool(data.get("includeSamples"))
-    result = analyze_samples(z, include_samples=include_samples)
+    result = analyze_samples(z, include_samples=True)
     result["pointCount"] = len(points)
     return result
 

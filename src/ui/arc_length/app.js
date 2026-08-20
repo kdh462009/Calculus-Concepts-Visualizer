@@ -34,17 +34,17 @@ function formatNum(v, digits = 6) {
   return Number(v).toFixed(digits);
 }
 
-function formatAnalysis(lengthRef, estimate, n) {
-  const err = estimate - lengthRef;
-  const absErr = Math.abs(err);
-  const absL = Math.abs(lengthRef);
-  let errText = "Exact";
-  if (absErr >= 1e-12) {
-    const pct = absL > 1e-9 ? (absErr / absL) * 100 : absErr * 100;
-    const verdict = err > 0 ? "OVER" : "UNDER";
-    errText = `${verdict} by ~${pct.toFixed(2)}%`;
+function updateAnalysisReadout(lengthRef, estimate, n) {
+  if (!Number.isFinite(lengthRef) || !Number.isFinite(estimate)) {
+    LatexDisplay.clearReadout(el.readoutImage);
+    return;
   }
-  return `L ≈ ${formatNum(lengthRef)}  |  L_n (n=${n}) ≈ ${formatNum(estimate)}  |  ${errText}`;
+  LatexDisplay.renderReadout(el.readoutImage, {
+    kind: "arc_length",
+    lengthRef,
+    estimate,
+    n,
+  });
 }
 
 function stopAnimation() {
@@ -120,9 +120,7 @@ function renderFunctionOnly() {
   drawBounds();
   const deriv = viewer.data.derivExpr;
   updateFormula(viewer.data);
-  el.analysis.textContent = deriv
-    ? `f(x) plotted · f′(x) = ${deriv}. Press Animate to build L_n`
-    : "f(x) plotted. Press Animate to build L_n";
+  LatexDisplay.clearReadout(el.readoutImage);
   setCounter("");
 }
 
@@ -195,7 +193,7 @@ function renderFrame(n) {
   const estimate = polygonalLength(n, a, b);
   const lengthRef = viewer.data.lengthRef;
   updateFormula(viewer.data);
-  el.analysis.textContent = formatAnalysis(lengthRef, estimate, n);
+  updateAnalysisReadout(lengthRef, estimate, n);
   setCounter(`n ${n} chords  (target: n → ∞)`);
 }
 
@@ -351,7 +349,7 @@ function wireInteractions() {
     viewer.drawGrid();
     setStatus("reset.");
     setCounter("");
-    el.analysis.textContent = "Pick a curve, then press Animate.";
+    LatexDisplay.clearReadout(el.readoutImage);
     updateFormula(null);
   });
 
@@ -383,8 +381,8 @@ async function bootstrap() {
   el.resetBtn = $("resetBtn");
   el.status = $("status");
   el.termCounter = $("termCounter");
-  el.analysis = $("analysis");
   el.latexImage = $("latexImage");
+  el.readoutImage = $("readoutImage");
   el.nValue = $("nValue");
   el.nMaxValue = $("nMaxValue");
   el.speedValue = $("speedValue");

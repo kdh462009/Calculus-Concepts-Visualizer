@@ -397,8 +397,12 @@ function updateReadout() {
   const L = state.data.limitValue;
   const eps = state.data.epsPath[i];
   const delta = state.data.deltaPath[i];
-  el.bandLine.textContent =
-    `L = ${formatPlotNum(L)}   |   y within ${formatPlotNum(eps)} of L  (ε)   |   x within ${formatPlotNum(delta)} of a  (δ)`;
+  LatexDisplay.renderReadout(el.readoutImage, {
+    kind: "limit_band",
+    limit: L,
+    epsilon: eps,
+    delta,
+  });
   el.readout.textContent =
     `a = ${formatPlotNum(state.data.a)}   ε = ${formatPlotNum(eps)} (y-window)   δ = ${formatPlotNum(delta)} (x-window)`;
 }
@@ -632,7 +636,7 @@ async function bootstrap() {
   el.resetBtn = $("resetBtn");
   el.status = $("status");
   el.readout = $("readout");
-  el.bandLine = $("bandLine");
+  el.readoutImage = $("readoutImage");
   el.definitionLine = $("definitionLine");
   el.latexImage = $("latexImage");
 

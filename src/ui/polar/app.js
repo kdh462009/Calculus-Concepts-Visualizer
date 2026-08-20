@@ -413,15 +413,6 @@ function sectorEstimate(data, count) {
   return data.sectors[idx].cumulative;
 }
 
-function formatErrorLabel(exact, estimate) {
-  if (!Number.isFinite(exact) || !Number.isFinite(estimate)) return "error --";
-  const absErr = Math.abs(estimate - exact);
-  if (absErr < 5e-7) return "error 0%";
-  const pct = Math.abs(exact) > 1e-12 ? (absErr / Math.abs(exact)) * 100 : absErr * 100;
-  const pctText = pct >= 0.01 ? pct.toFixed(2) : pct.toFixed(4);
-  return `error ${pctText}% (Δ=${absErr.toFixed(6)})`;
-}
-
 function updateReadouts(visibleCount = null, phase = null) {
   renderer?.scaleBar?.sync();
   if (!state.data) return;
@@ -433,17 +424,34 @@ function updateReadouts(visibleCount = null, phase = null) {
     ? (state.animating ? state.visibleSectors : n)
     : visibleCount;
   const estimate = sectorEstimate(data, k);
-  const errLabel = formatErrorLabel(exact, estimate);
 
   if (phase === "curve" || (state.animating && k <= 0)) {
-    el.areaLine.textContent =
-      `Exact area ≈ ${exact.toFixed(6)}  |  Sector estimate: 0.000000 (0/${n})`;
+    LatexDisplay.renderReadout(el.readoutImage, {
+      kind: "polar",
+      exact,
+      estimate: 0,
+      n,
+      k: 0,
+      phase: "curve",
+    });
   } else if (state.animating && k < n) {
-    el.areaLine.textContent =
-      `Exact ≈ ${exact.toFixed(6)}  |  Estimate (${k}/${n} slices): ${estimate.toFixed(6)}  |  ${errLabel}`;
+    LatexDisplay.renderReadout(el.readoutImage, {
+      kind: "polar",
+      exact,
+      estimate,
+      n,
+      k,
+      phase: "slices",
+    });
   } else {
-    el.areaLine.textContent =
-      `Exact ≈ ${exact.toFixed(6)}  |  Estimate (n=${n}): ${estimate.toFixed(6)}  |  ${errLabel}`;
+    LatexDisplay.renderReadout(el.readoutImage, {
+      kind: "polar",
+      exact,
+      estimate,
+      n,
+      k: n,
+      phase: "full",
+    });
   }
 
   if (data.intersections?.length) {
@@ -636,6 +644,7 @@ async function bootstrap() {
   el.intersectionLine = $("intersectionLine");
   el.ruleLine = $("ruleLine");
   el.latexImage = $("latexImage");
+  el.readoutImage = $("readoutImage");
   el.areaLine = $("areaLine");
 
   renderer = new PolarRenderer($("polarCanvas"));

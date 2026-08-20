@@ -370,7 +370,12 @@ class ParametricRenderer {
 function updateReadouts() {
   renderer?.scaleBar?.sync();
   if (state.data?.arcLength != null && Number.isFinite(state.data.arcLength)) {
-    el.metricLine.textContent = `Arc length ≈ ${state.data.arcLength.toFixed(5)}`;
+    LatexDisplay.renderReadout(el.readoutImage, {
+      kind: "parametric_arc",
+      length: state.data.arcLength,
+    });
+  } else {
+    LatexDisplay.clearReadout(el.readoutImage);
   }
 }
 
@@ -539,6 +544,7 @@ async function bootstrap() {
   el.metricLine = $("metricLine");
   el.ruleLine = $("ruleLine");
   el.latexImage = $("latexImage");
+  el.readoutImage = $("readoutImage");
 
   renderer = new ParametricRenderer($("paramCanvas"));
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {

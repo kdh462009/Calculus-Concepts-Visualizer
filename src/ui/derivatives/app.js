@@ -139,9 +139,13 @@ function drawCurrentState(sampleX) {
   }
 
   const showSecond = view.includeSecond && ySecond !== null;
-  el.analysis.textContent = `x=${formatNum(sampleX)} | f(x)=${formatNum(yTrue)} | f'(x)=${formatNum(yPrime)}${
-    showSecond ? ` | f''(x)=${formatNum(ySecond)}` : ""
-  }`;
+  LatexDisplay.renderReadout(el.readoutImage, {
+    kind: "derivative_point",
+    x: sampleX,
+    fx: yTrue,
+    fpx: yPrime,
+    fppx: showSecond ? ySecond : null,
+  });
   if (!showSecond) {
     setConcavityText("Second derivative hidden.");
     return;
@@ -197,6 +201,7 @@ function applySecondDerivativeVisibility() {
 
 function drawFunctionOnly() {
   FunctionPreview.drawFunctionOnly(viewer);
+  LatexDisplay.clearReadout(el.readoutImage);
   el.analysis.textContent = "f(x) plotted. Press Animate to start slope animation.";
   setConcavityText(
     view.includeSecond
@@ -350,6 +355,7 @@ async function bootstrap() {
   el.analysis = $("analysis");
   el.concavityStatus = $("concavityStatus");
   el.latexImage = $("latexImage");
+  el.readoutImage = $("readoutImage");
   el.stepsValue = $("stepsValue");
   el.speedValue = $("speedValue");
 

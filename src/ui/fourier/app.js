@@ -374,7 +374,7 @@ function render(ts) {
 }
 
 function requestRender() {
-  if (state.loopActive && needsAnimationLoop()) return;
+  if (state.loopActive && needsAnimationLoop() && !state.paused) return;
   state.lastTs = 0;
   requestAnimationFrame(render);
 }
@@ -394,7 +394,6 @@ async function analyze() {
       n,
       width: state.width,
       height: state.height,
-      includeSamples: el.showOrig?.checked ?? false,
     });
     if (gen !== state.analyzeGen) return;
     if (!result?.ok) {
@@ -514,6 +513,7 @@ function wireInteractions() {
   el.terms.addEventListener("input", () => {
     const maxT = state.data?.terms.length || parseInt(el.terms.max, 10) || 1;
     el.termsReadout.textContent = `${el.terms.value} / ${maxT}`;
+    requestRender();
   });
 
   el.sampleN.addEventListener("input", () => {

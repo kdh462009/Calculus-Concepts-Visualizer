@@ -181,6 +181,11 @@ class AppApi:
     def preview_derivatives(self, payload):
         return self._derivatives.preview(payload)
 
+    def render_readout(self, payload):
+        from calcbc.readouts import render_readout as build_readout_png
+
+        return build_readout_png(payload)
+
     def preview_function(self, payload):
         return compute_function_preview(payload)
 

@@ -51,23 +51,19 @@ function errorPercent(integral, estimate, absFIntegral) {
   return { pct: (absErr / Math.max(Math.abs(estimate), 1e-9)) * 100, basis: "sum" };
 }
 
-function formatAnalysis(integral, estimate, sumType, n, absFIntegral) {
-  const err = estimate - integral;
-  const verdict = err > 0 ? "OVER-estimate" : err < 0 ? "UNDER-estimate" : "Exact";
-  const { pct, basis } = errorPercent(integral, estimate, absFIntegral);
-
-  let errText;
-  if (basis === "exact") {
-    errText = "Exact";
-  } else if (basis === "area") {
-    errText = `${verdict} by ~${pct.toFixed(2)}% of ∫|f|dx`;
-  } else if (basis === "sum") {
-    errText = `${verdict} by ~${pct.toFixed(2)}% (integral ≈ 0)`;
-  } else {
-    errText = `${verdict} by ~${pct.toFixed(2)}%`;
+function updateAnalysisReadout(integral, estimate, sumType, n, absFIntegral) {
+  if (!Number.isFinite(integral) || !Number.isFinite(estimate)) {
+    LatexDisplay.clearReadout(el.readoutImage);
+    return;
   }
-
-  return `Integral ≈ ${formatNum(integral)} | ${sumType} sum (n=${n}) ≈ ${formatNum(estimate)} | ${errText}`;
+  LatexDisplay.renderReadout(el.readoutImage, {
+    kind: "riemann",
+    integral,
+    estimate,
+    sumType,
+    n,
+    absFIntegral: absFIntegral ?? 0,
+  });
 }
 
 function stopAnimation() {
@@ -172,7 +168,7 @@ function renderFunctionOnly() {
   viewer.drawGrid();
   viewer.drawLine(viewer.data.x, viewer.data.yTrue, "#2ee8bb", 2.55, 0.92);
   updateFormula(viewer.data);
-  el.analysis.textContent = "f(x) plotted · press Animate for Riemann sums";
+  LatexDisplay.clearReadout(el.readoutImage);
   setCounter("");
 }
 
@@ -252,13 +248,7 @@ function renderFrame(n) {
 
   const estimate = riemannEstimate(n, sumType, a, b);
   const integral = viewer.data.integralRef;
-  el.analysis.textContent = formatAnalysis(
-    integral,
-    estimate,
-    sumType,
-    n,
-    viewer.data.absFIntegral,
-  );
+  updateAnalysisReadout(integral, estimate, sumType, n, viewer.data.absFIntegral);
   setCounter(`n ${n}  (target: n → ∞)`);
 }
 
@@ -384,7 +374,7 @@ function wireInteractions() {
     viewer.drawGrid();
     setStatus("reset.");
     setCounter("");
-    el.analysis.textContent = "Set values and press Animate.";
+    LatexDisplay.clearReadout(el.readoutImage);
   });
 
   el.nInput.addEventListener("input", () => {
@@ -416,7 +406,7 @@ async function bootstrap() {
   el.resetBtn = $("resetBtn");
   el.status = $("status");
   el.termCounter = $("termCounter");
-  el.analysis = $("analysis");
+  el.readoutImage = $("readoutImage");
   el.latexImage = $("latexImage");
   el.nValue = $("nValue");
   el.nMaxValue = $("nMaxValue");

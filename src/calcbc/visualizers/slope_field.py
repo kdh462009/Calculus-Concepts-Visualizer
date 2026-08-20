@@ -99,8 +99,11 @@ def make_f(expr):
             if arr.ndim == 0:
                 val = float(arr.reshape(-1)[0])
                 if not np.isfinite(val) or abs(val) > F_CLIP:
-                    return np.nan
-                return val
+                    val = np.nan
+                if np.isscalar(xv) and np.isscalar(yv):
+                    return val
+                shape = np.broadcast(xv, yv).shape
+                return np.full(shape, val, dtype=float)
             arr = np.where(np.isfinite(arr) & (np.abs(arr) <= F_CLIP), arr, np.nan)
             return arr
         except Exception:
