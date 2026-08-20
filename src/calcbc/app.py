@@ -210,7 +210,7 @@ class AppApi:
 def main():
     api = AppApi()
     window = webview.create_window(
-        title="Concept Visualizers 1.2",
+        title="Concept Visualizers 1.3",
         url=resolve_resource("ui/home/index.html").as_uri(),
         js_api=api,
         width=1320,

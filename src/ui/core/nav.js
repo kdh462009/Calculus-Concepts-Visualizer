@@ -1,10 +1,42 @@
-window.APP_VERSION = "1.2";
+window.APP_VERSION = "1.3";
 
 const APP_LOGO_URL = (() => {
   const script = document.currentScript;
   if (script?.src) return new URL("logo.png", script.src).href;
   return "../core/logo.png";
 })();
+
+function stampAppFooter() {
+  const shell = document.querySelector(".app-shell");
+  if (!shell) return;
+
+  const extras = [...document.querySelectorAll("[data-credit-extra]")];
+  let footer = document.querySelector("footer.credit-row");
+  if (!footer) {
+    footer = document.createElement("footer");
+    footer.className = "credit-row";
+    shell.appendChild(footer);
+  }
+
+  footer.innerHTML = `
+    <span>Made with ❤️ by Agniva, Donghui, Manya, and Adam · <span class="app-version" data-app-version></span></span>
+    <span class="credit-legal">
+      Licensed under
+      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a>
+      (Attribution-NonCommercial-ShareAlike 4.0 International)
+      ·
+      <a href="https://github.com/kdh462009/Calculus-Concepts-Visualizer" data-external="true">GitHub</a>
+      · Covered by the
+      <a href="https://knivier.com/tos-ssp.html" data-external="true">Knivier SSP/ToS (Open Source Restricted with educational exceptions)</a>
+    </span>
+  `;
+
+  const legal = footer.querySelector(".credit-legal");
+  extras.forEach((extra) => {
+    extra.removeAttribute("data-credit-extra");
+    footer.insertBefore(extra, legal);
+  });
+}
 
 function stampAppVersion() {
   document.querySelectorAll("[data-app-version]").forEach((el) => {
@@ -38,6 +70,7 @@ function stampAppLogo() {
 }
 
 function stampChrome() {
+  stampAppFooter();
   stampAppVersion();
   stampAppLogo();
 }

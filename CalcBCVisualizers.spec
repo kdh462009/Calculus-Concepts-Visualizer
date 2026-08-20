@@ -78,8 +78,8 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleName": "Concept Visualizers",
             "CFBundleDisplayName": "Concept Visualizers",
-            "CFBundleShortVersionString": "1.2",
-            "CFBundleVersion": "1.2",
+            "CFBundleShortVersionString": "1.3",
+            "CFBundleVersion": "1.3",
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "12.0",
         },
