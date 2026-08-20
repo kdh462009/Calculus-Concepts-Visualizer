@@ -19,6 +19,8 @@ const state = {
   drawing: false,
   lastTs: 0,
   analyzing: false,
+  analyzeGen: 0,
+  loopActive: false,
 };
 
 const el = {};
@@ -55,6 +57,7 @@ function setMode(mode) {
     pill.classList.toggle("active", on);
     pill.setAttribute("aria-selected", on ? "true" : "false");
   });
+  requestRender();
 }
 
 function syncAnalyzeEnabled() {
@@ -62,6 +65,8 @@ function syncAnalyzeEnabled() {
 }
 
 function syncCanvasSize() {
+  const prevW = state.width;
+  const prevH = state.height;
   state.dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = el.canvas.getBoundingClientRect();
   state.width = rect.width;
@@ -69,6 +74,16 @@ function syncCanvasSize() {
   el.canvas.width = Math.floor(state.width * state.dpr);
   el.canvas.height = Math.floor(state.height * state.dpr);
   el.ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+  if (
+    prevW > 0
+    && prevH > 0
+    && state.stroke.length
+    && (state.width !== prevW || state.height !== prevH)
+  ) {
+    const sx = state.width / prevW;
+    const sy = state.height / prevH;
+    state.stroke = state.stroke.map((p) => ({ x: p.x * sx, y: p.y * sy }));
+  }
 }
 
 function toScreen(x, y) {
@@ -118,6 +133,7 @@ function clearDrawing() {
   el.statMax.textContent = "—";
   syncAnalyzeEnabled();
   setMode("draw");
+  requestRender();
   setStatus("cleared.");
 }
 
@@ -279,17 +295,16 @@ function drawFourierFrame(dt) {
   el.ctx.save();
   el.ctx.lineJoin = "round";
   el.ctx.lineCap = "round";
+  el.ctx.strokeStyle = "rgba(93,240,213,0.45)";
+  el.ctx.lineWidth = 2;
+  el.ctx.beginPath();
   for (let i = 1; i < state.trail.length; i++) {
-    const t = i / state.trail.length;
     const a = toScreen(state.trail[i - 1].x, state.trail[i - 1].y);
     const b = toScreen(state.trail[i].x, state.trail[i].y);
-    el.ctx.strokeStyle = `rgba(93,240,213,${0.08 + t * 0.55})`;
-    el.ctx.lineWidth = 1 + t * 2.2;
-    el.ctx.beginPath();
     el.ctx.moveTo(a.x, a.y);
     el.ctx.lineTo(b.x, b.y);
-    el.ctx.stroke();
   }
+  el.ctx.stroke();
   el.ctx.restore();
 
   const tip = toScreen(pos.x, pos.y);
@@ -329,7 +344,11 @@ function drawFourierFrame(dt) {
   el.ctx.restore();
 }
 
-function render(ts) {
+function needsAnimationLoop() {
+  return state.mode === "animate" && Boolean(state.data) && !state.paused;
+}
+
+function paintFrame(ts) {
   const last = state.lastTs || ts;
   const dt = clamp((ts - last) / 1000, 0, 0.05);
   state.lastTs = ts;
@@ -342,11 +361,27 @@ function render(ts) {
   } else {
     drawBackground();
   }
+}
+
+function render(ts) {
+  paintFrame(ts);
+  if (needsAnimationLoop()) {
+    state.loopActive = true;
+    requestAnimationFrame(render);
+  } else {
+    state.loopActive = false;
+  }
+}
+
+function requestRender() {
+  if (state.loopActive && needsAnimationLoop()) return;
+  state.lastTs = 0;
   requestAnimationFrame(render);
 }
 
 async function analyze() {
   if (state.stroke.length < 3 || state.analyzing) return;
+  const gen = ++state.analyzeGen;
   const n = nearestPow2(parseInt(el.sampleN.value, 10) || 512);
   el.sampleN.value = String(n);
   el.nReadout.textContent = String(n);
@@ -359,18 +394,23 @@ async function analyze() {
       n,
       width: state.width,
       height: state.height,
+      includeSamples: el.showOrig?.checked ?? false,
     });
+    if (gen !== state.analyzeGen) return;
     if (!result?.ok) {
       setStatus(result?.error || "Could not compute Fourier series.", true);
       return;
     }
     applyResult(result);
+    requestRender();
     setStatus(`reconstructing with ${result.termCount} harmonics.`);
   } catch (err) {
-    setStatus(String(err), true);
+    if (gen === state.analyzeGen) setStatus(String(err), true);
   } finally {
-    state.analyzing = false;
-    syncAnalyzeEnabled();
+    if (gen === state.analyzeGen) {
+      state.analyzing = false;
+      syncAnalyzeEnabled();
+    }
   }
 }
 
@@ -399,6 +439,7 @@ async function loadPreset(id) {
     syncAnalyzeEnabled();
     setMode("draw");
     el.statPoints.textContent = String(state.stroke.length);
+    requestRender();
     setStatus(`${id} ready — press Compute Fourier.`);
   } catch (err) {
     setStatus(String(err), true);
@@ -423,6 +464,7 @@ function pointerMove(event) {
   const last = state.stroke[state.stroke.length - 1];
   if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 1.5) {
     state.stroke.push(p);
+    requestRender();
   }
   syncAnalyzeEnabled();
 }
@@ -437,6 +479,7 @@ function pointerUp() {
     if (d > 2 && d < 36) state.stroke[state.stroke.length - 1] = { x: a.x, y: a.y };
   }
   syncAnalyzeEnabled();
+  requestRender();
 }
 
 function wireInteractions() {
@@ -459,11 +502,13 @@ function wireInteractions() {
     state.paused = !state.paused;
     el.btnPause.textContent = state.paused ? "Resume" : "Pause";
     setStatus(state.paused ? "paused." : "resumed.");
+    requestRender();
   });
   el.btnResetPhase.addEventListener("click", () => {
     state.phase = 0;
     state.trail = [];
     setStatus("phase reset.");
+    requestRender();
   });
 
   el.terms.addEventListener("input", () => {
@@ -484,6 +529,10 @@ function wireInteractions() {
   el.speed.addEventListener("input", () => {
     const s = el.speed.valueAsNumber / 100;
     el.speedReadout.textContent = `${s.toFixed(2)}×`;
+  });
+
+  [el.showCircles, el.showRays, el.showOrig].forEach((input) => {
+    input?.addEventListener("change", () => requestRender());
   });
 
   el.pills.forEach((pill) => {
@@ -514,9 +563,15 @@ function wireInteractions() {
     }
   });
 
-  window.addEventListener("resize", syncCanvasSize);
+  window.addEventListener("resize", () => {
+    syncCanvasSize();
+    requestRender();
+  });
   if (typeof ResizeObserver !== "undefined") {
-    new ResizeObserver(() => syncCanvasSize()).observe(el.canvas);
+    new ResizeObserver(() => {
+      syncCanvasSize();
+      requestRender();
+    }).observe(el.canvas);
   }
 }
 
@@ -561,7 +616,14 @@ async function bootstrap() {
   syncCanvasSize();
   syncAnalyzeEnabled();
 
-  const boot = await window.pywebview.api.get_fourier_bootstrap();
+  let boot;
+  try {
+    boot = await window.pywebview.api.get_fourier_bootstrap();
+  } catch (err) {
+    setStatus(String(err), true);
+    requestRender();
+    return;
+  }
   renderPresets(boot?.presets);
   if (boot?.nDefault) {
     el.sampleN.value = String(boot.nDefault);
@@ -574,7 +636,7 @@ async function bootstrap() {
       requestAnimationFrame(startLoop);
       return;
     }
-    requestAnimationFrame(render);
+    requestRender();
   };
   startLoop();
   setStatus("ready — draw a closed curve or pick a preset.");

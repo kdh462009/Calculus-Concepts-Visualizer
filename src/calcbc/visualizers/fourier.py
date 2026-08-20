@@ -192,7 +192,7 @@ def _c_js(z: complex) -> dict:
     return {"re": float(z.real), "im": float(z.imag)}
 
 
-def analyze_samples(z: np.ndarray) -> dict:
+def analyze_samples(z: np.ndarray, *, include_samples: bool = False) -> dict:
     n = int(z.size)
     spectrum = np.fft.fft(z)
     coeffs = spectrum / n
@@ -215,15 +215,16 @@ def analyze_samples(z: np.ndarray) -> dict:
             }
         )
     terms.sort(key=lambda item: item["amp"], reverse=True)
-    samples = [{"re": float(v.real), "im": float(v.imag)} for v in z]
-    return {
+    result = {
         "ok": True,
         "n": n,
         "dc": _c_js(dc),
         "terms": terms,
-        "samples": samples,
         "termCount": len(terms),
     }
+    if include_samples:
+        result["samples"] = [{"re": float(v.real), "im": float(v.imag)} for v in z]
+    return result
 
 
 def compute_from_points(payload: dict | None) -> dict:
@@ -235,7 +236,8 @@ def compute_from_points(payload: dict | None) -> dict:
     z = resample_closed(points, n)
     if z is None:
         return {"ok": False, "error": "Path is too small to sample. Draw a larger shape."}
-    result = analyze_samples(z)
+    include_samples = bool(data.get("includeSamples"))
+    result = analyze_samples(z, include_samples=include_samples)
     result["pointCount"] = len(points)
     return result
 

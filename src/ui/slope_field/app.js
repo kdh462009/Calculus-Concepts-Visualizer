@@ -156,6 +156,7 @@ function drawField() {
   const xs = state.data.tickX;
   const ys = state.data.tickY;
   const ss = state.data.tickSlope;
+  ctx.beginPath();
   for (let i = 0; i < xs.length; i += 1) {
     const slope = ss[i];
     if (!Number.isFinite(slope)) continue;
@@ -163,11 +164,10 @@ function drawField() {
     if (!s) continue;
     const [x0, y0] = viewer.worldToScreen(xs[i] - s, ys[i] - s * slope);
     const [x1, y1] = viewer.worldToScreen(xs[i] + s, ys[i] + s * slope);
-    ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
-    ctx.stroke();
   }
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -322,7 +322,10 @@ function frameLoop(ts) {
 
 async function computeNow(options = {}) {
   const { solutionsOnly = false } = options;
-  const payload = currentPayload();
+  const payload = currentPayload({
+    integrateOnly: solutionsOnly,
+    fieldOnly: false,
+  });
   if (!payload.expr) {
     setStatus("Please enter y′ = f(x, y).");
     return false;
@@ -333,11 +336,13 @@ async function computeNow(options = {}) {
     return false;
   }
   const gen = ++state.computeGen;
+  const viewAtStart = viewKey();
   state.inFlight = true;
   if (!state.draggingIC) setStatus("computing slope field…");
   try {
     const result = await window.pywebview.api.compute_slope_field(payload);
     if (gen !== state.computeGen) return false;
+    if (viewAtStart !== viewKey()) return false;
     if (!result?.ok) {
       setStatus(`error: ${result?.error || "could not compute."}`);
       return false;
@@ -443,6 +448,7 @@ function wireCanvas() {
         return;
       }
       state.clickStart = { x: event.clientX, y: event.clientY };
+      event.stopPropagation();
     },
     true,
   );
@@ -601,7 +607,13 @@ async function bootstrap() {
   });
   viewer.onViewChange = onViewChange;
 
-  const boot = await window.pywebview.api.get_slope_field_bootstrap();
+  let boot;
+  try {
+    boot = await window.pywebview.api.get_slope_field_bootstrap();
+  } catch (err) {
+    setStatus(String(err));
+    return;
+  }
   const hints = $("functionHints");
   (boot?.hints || []).forEach((h) => {
     const op = document.createElement("option");

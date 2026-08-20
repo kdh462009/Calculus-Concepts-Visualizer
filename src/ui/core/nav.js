@@ -9,20 +9,18 @@ const APP_LOGO_URL = (() => {
 function stampAppFooter() {
   const shell = document.querySelector(".app-shell");
   if (!shell) return;
+  if (document.documentElement.dataset.appFooterStamped === "1") return;
 
   const extras = [...document.querySelectorAll("[data-credit-extra]")];
-  let footer = document.querySelector("footer.credit-row");
-  if (!footer) {
-    footer = document.createElement("footer");
-    footer.className = "credit-row";
-    shell.appendChild(footer);
-  }
+  const footer = document.createElement("footer");
+  footer.className = "credit-row";
+  shell.appendChild(footer);
 
   footer.innerHTML = `
     <span>Made with ❤️ by Agniva, Donghui, Manya, and Adam · <span class="app-version" data-app-version></span></span>
     <span class="credit-legal">
       Licensed under
-      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a>
+      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a> 
       (Attribution-NonCommercial-ShareAlike 4.0 International)
       ·
       <a href="https://github.com/kdh462009/Calculus-Concepts-Visualizer" data-external="true">GitHub</a>
@@ -36,6 +34,8 @@ function stampAppFooter() {
     extra.removeAttribute("data-credit-extra");
     footer.insertBefore(extra, legal);
   });
+
+  document.documentElement.dataset.appFooterStamped = "1";
 }
 
 function stampAppVersion() {
@@ -102,7 +102,14 @@ function whenApiReady(fn) {
       return;
     }
     tries += 1;
-    if (tries >= 80) clearInterval(poll);
+    if (tries >= 80) {
+      clearInterval(poll);
+      const status = document.querySelector(".status, .fourier-status, #status");
+      if (status && !window.pywebview?.api) {
+        status.textContent = "Could not connect to the app backend. Restart the application.";
+        status.classList?.add("is-error");
+      }
+    }
   }, 50);
 }
 

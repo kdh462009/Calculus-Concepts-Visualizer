@@ -75,6 +75,7 @@ class GraphViewer {
     this.domainExpandInFlight = false;
     this._expandGen = 0;
     this._expandQueued = false;
+    this._redrawFrame = null;
     this.onDomainExpand = options.onDomainExpand || null;
     this.activeParams = null;
     this.scaleBar = null;
@@ -421,7 +422,14 @@ class GraphViewer {
         this.drawLine(this.data.x, layer.ys, layer.color, layer.width, layer.alpha);
       }
     }
-    this.notifyView();
+  }
+
+  scheduleRedraw() {
+    if (this._redrawFrame !== null) return;
+    this._redrawFrame = requestAnimationFrame(() => {
+      this._redrawFrame = null;
+      this.redraw();
+    });
   }
 
   scheduleDomainExpansion() {
@@ -481,6 +489,8 @@ class GraphViewer {
         }
         this.redraw();
       }
+    } catch {
+      // Swallow bridge / parse failures so pan/zoom expansion can retry.
     } finally {
       this.domainExpandInFlight = false;
     }
@@ -528,7 +538,7 @@ class GraphViewer {
       this.view.ymin = this.dragStart.view.ymin + (dy / h) * yv;
       this.view.ymax = this.dragStart.view.ymax + (dy / h) * yv;
       this.clampView();
-      this.redraw();
+      this.scheduleRedraw();
       if (this.data) this.scheduleDomainExpansion();
     });
 
@@ -547,13 +557,13 @@ class GraphViewer {
         this.view.ymin = wy + (this.view.ymin - wy) * zoom;
         this.view.ymax = wy + (this.view.ymax - wy) * zoom;
         this.clampView();
-        this.redraw();
+        this.scheduleRedraw();
         if (this.data) this.scheduleDomainExpansion();
       },
       { passive: false },
     );
 
-    window.addEventListener("resize", () => this.redraw());
+    window.addEventListener("resize", () => this.scheduleRedraw());
   }
 }
 

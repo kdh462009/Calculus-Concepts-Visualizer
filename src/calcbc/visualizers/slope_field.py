@@ -94,14 +94,19 @@ def make_f(expr):
         try:
             with np.errstate(divide="ignore", invalid="ignore", over="ignore", under="ignore"):
                 out = fn(xv, yv)
-            val = float(np.asarray(out, dtype=float).reshape(-1)[0])
-            if not np.isfinite(val):
-                return np.nan
-            if abs(val) > F_CLIP:
-                return np.nan
-            return val
+            arr = np.asarray(out, dtype=float)
+            if arr.ndim == 0:
+                val = float(arr.reshape(-1)[0])
+                if not np.isfinite(val) or abs(val) > F_CLIP:
+                    return np.nan
+                return val
+            arr = np.where(np.isfinite(arr) & (np.abs(arr) <= F_CLIP), arr, np.nan)
+            return arr
         except Exception:
-            return np.nan
+            if np.isscalar(xv) and np.isscalar(yv):
+                return np.nan
+            shape = np.broadcast(xv, yv).shape
+            return np.full(shape, np.nan)
 
     return f
 
@@ -198,18 +203,14 @@ def build_ticks(f, xmin, xmax, ymin, ymax, n: int):
     n = int(np.clip(n, 6, 36))
     xs = np.linspace(xmin, xmax, n)
     ys = np.linspace(ymin, ymax, n)
-    tick_x = []
-    tick_y = []
-    tick_s = []
-    for xv in xs:
-        for yv in ys:
-            slope = f(float(xv), float(yv))
-            if not np.isfinite(slope):
-                continue
-            tick_x.append(float(xv))
-            tick_y.append(float(yv))
-            tick_s.append(float(slope))
-    return tick_x, tick_y, tick_s
+    xv, yv = np.meshgrid(xs, ys)
+    slopes = f(xv, yv)
+    mask = np.isfinite(slopes)
+    return (
+        xv[mask].ravel().astype(float).tolist(),
+        yv[mask].ravel().astype(float).tolist(),
+        slopes[mask].ravel().astype(float).tolist(),
+    )
 
 
 def _pack_branch(xs, ys, slopes):
@@ -264,7 +265,9 @@ class SlopeFieldApi:
 
             grid_n = int(data.get("gridN", 16) or 16)
             h = float(np.clip(_as_float(data.get("h"), 0.25), H_MIN, H_MAX))
-            want_ivp = bool(data.get("integrate", True))
+            integrate_only = bool(data.get("integrateOnly"))
+            field_only = bool(data.get("fieldOnly"))
+            want_ivp = bool(data.get("integrate", True)) and not field_only
             x0 = _as_float(data.get("x0"), 0.0)
             y0 = _as_float(data.get("y0"), 1.0)
 
@@ -279,7 +282,10 @@ class SlopeFieldApi:
 
             expr = parse_f(expr_text)
             f = make_f(expr)
-            tick_x, tick_y, tick_s = build_ticks(f, xmin, xmax, ymin, ymax, grid_n)
+            if integrate_only:
+                tick_x, tick_y, tick_s = [], [], []
+            else:
+                tick_x, tick_y, tick_s = build_ticks(f, xmin, xmax, ymin, ymax, grid_n)
 
             solutions = {}
             if want_ivp:

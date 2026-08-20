@@ -30,12 +30,15 @@ window.FunctionPreview = {
     debounceMs = 160,
   }) {
     let timer = null;
+    let previewGen = 0;
 
     const plot = async () => {
       const payload = getPayload();
       if (!payload?.expr?.trim()) return;
+      const gen = ++previewGen;
       onBeforePlot?.();
       const result = await previewApi(payload);
+      if (gen !== previewGen) return;
       if (!result?.ok) {
         onError?.(result.error);
         return;
@@ -56,13 +59,11 @@ window.FunctionPreview = {
     };
 
     exprInput.addEventListener("input", schedule);
-    exprInput.addEventListener("change", schedule);
     exprInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") plotNow();
     });
     extraInputs.forEach((input) => {
       input.addEventListener("input", schedule);
-      input.addEventListener("change", schedule);
     });
 
     return { plot, plotNow, schedule };
