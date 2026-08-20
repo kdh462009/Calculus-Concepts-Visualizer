@@ -7,6 +7,7 @@ from calcbc.visualizers.limit import LimitApi
 from calcbc.visualizers.parametric import ParametricApi
 from calcbc.visualizers.polar import PolarApi
 from calcbc.visualizers.riemann import RiemannApi
+from calcbc.visualizers.slope_field import SlopeFieldApi
 from calcbc.visualizers.taylor import TaylorApi
 from calcbc.visualizers.volume_rotation import VolumeRotationApi
 
@@ -18,6 +19,7 @@ __all__ = [
     "ParametricApi",
     "PolarApi",
     "RiemannApi",
+    "SlopeFieldApi",
     "TaylorApi",
     "VolumeRotationApi",
 ]

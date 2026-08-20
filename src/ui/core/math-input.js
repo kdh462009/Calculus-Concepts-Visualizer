@@ -337,12 +337,14 @@
         const item = row[this.caret.at];
         if (item.t === "pow") {
           if (item.base.length) {
+            const powIdx = this.caret.at;
             item.base.shift();
-            this.caret.path.push({ i: this.caret.at, slot: "base" });
+            this.caret.path.push({ i: powIdx, slot: "base" });
             this.caret.at = 0;
             if (!item.base.length && !item.exp.length) {
               this.caret.path.pop();
-              row.splice(this.caret.at, 1);
+              row.splice(powIdx, 1);
+              this.caret.at = powIdx;
             }
             return;
           }

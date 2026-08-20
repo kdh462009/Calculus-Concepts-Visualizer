@@ -18,6 +18,7 @@ SUBJECT = {
             "subtitle": "Draw a closed curve; rotating phasors reconstruct it",
             "symbol": "Σcₖ",
             "path": "ui/fourier/index.html",
+            "beta": True,
         },
     ],
 }

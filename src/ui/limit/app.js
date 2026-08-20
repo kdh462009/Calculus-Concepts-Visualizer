@@ -447,9 +447,44 @@ function payloadFromInputs() {
 
 let coverTimer = null;
 let coverInFlight = false;
+let coverGen = 0;
+let coverQueued = false;
+
+function mergeLimitCurve(prev, next) {
+  if (!prev?.x?.length || !next?.x?.length) return next;
+  const nLo = next.x[0];
+  const nHi = next.x[next.x.length - 1];
+  const xs = [];
+  const ys = [];
+  const pushPair = (xarr, yarr, i) => {
+    xs.push(xarr[i]);
+    ys.push(yarr[i]);
+  };
+  for (let i = 0; i < prev.x.length; i += 1) {
+    if (prev.x[i] < nLo) pushPair(prev.x, prev.yTrue, i);
+  }
+  for (let j = 0; j < next.x.length; j += 1) {
+    pushPair(next.x, next.yTrue, j);
+  }
+  for (let i = 0; i < prev.x.length; i += 1) {
+    if (prev.x[i] > nHi) pushPair(prev.x, prev.yTrue, i);
+  }
+  return {
+    ...prev,
+    x: xs,
+    yTrue: ys,
+    xRange: [xs[0], xs[xs.length - 1]],
+  };
+}
 
 function scheduleLimitCoverage() {
   if (!state.data || !state.view) return;
+  coverGen += 1;
+  if (coverInFlight) {
+    coverQueued = true;
+    clearTimeout(coverTimer);
+    return;
+  }
   clearTimeout(coverTimer);
   coverTimer = setTimeout(() => {
     ensureLimitCoverage();
@@ -457,11 +492,21 @@ function scheduleLimitCoverage() {
 }
 
 async function ensureLimitCoverage() {
-  if (!state.data || !state.view || coverInFlight) return;
+  if (!state.data || !state.view) return;
   const { xmin, xmax } = state.view;
   const [domainMin, domainMax] = state.data.xRange || [];
   if (!Number.isFinite(domainMin) || !Number.isFinite(domainMax)) return;
-  if (xmin >= domainMin && xmax <= domainMax) return;
+  if (xmin >= domainMin && xmax <= domainMax) {
+    coverQueued = false;
+    return;
+  }
+  if (coverInFlight) {
+    coverQueued = true;
+    return;
+  }
+
+  const gen = coverGen;
+  const prev = state.data;
   const span = Math.max(xmax - xmin, 1e-3);
   const pad = Math.max(span * 0.12, 0.05);
   const payload = {
@@ -472,16 +517,22 @@ async function ensureLimitCoverage() {
   coverInFlight = true;
   try {
     const res = await window.pywebview.api.compute_limit(payload);
-    if (!res?.ok) return;
-    state.data = res;
+    if (gen !== coverGen || state.data !== prev || !res?.ok) return;
+    state.data = mergeLimitCurve(prev, res);
     drawCurrentFrame();
     updateReadout();
   } finally {
     coverInFlight = false;
+    if (coverQueued) {
+      coverQueued = false;
+      ensureLimitCoverage();
+    }
   }
 }
 
 async function computeModel() {
+  coverGen += 1;
+  clearTimeout(coverTimer);
   const payload = payloadFromInputs();
   if (!payload.expr) {
     setStatus("Please enter a function.");

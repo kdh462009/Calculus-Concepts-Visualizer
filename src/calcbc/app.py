@@ -14,6 +14,7 @@ from calcbc.catalog import find_visualizer, get_catalog as build_catalog
 from calcbc.visualizers.limit import LimitApi
 from calcbc.visualizers.inverse import InverseApi
 from calcbc.visualizers.riemann import RiemannApi
+from calcbc.visualizers.slope_field import SlopeFieldApi
 from calcbc.visualizers.taylor import TaylorApi
 from calcbc.visualizers.volume_rotation import VolumeRotationApi
 from calcbc.visualizers.parametric import ParametricApi
@@ -39,6 +40,7 @@ class AppApi:
         self._nav_pending = False
         self._taylor = TaylorApi()
         self._riemann = RiemannApi()
+        self._slope_field = SlopeFieldApi()
         self._derivatives = DerivativesApi()
         self._volume_rotation = VolumeRotationApi()
         self._limit = LimitApi()
@@ -149,6 +151,12 @@ class AppApi:
 
     def compute_riemann(self, payload):
         return self._riemann.compute(payload)
+
+    def get_slope_field_bootstrap(self):
+        return self._slope_field.get_bootstrap()
+
+    def compute_slope_field(self, payload):
+        return self._slope_field.compute(payload)
 
     def get_derivatives_bootstrap(self):
         return self._derivatives.get_bootstrap()

@@ -91,6 +91,20 @@
   flex-wrap: wrap;
   border-bottom: 1px solid var(--fourier-border);
   margin-bottom: 8px;
+  position: relative;
+}
+
+.fourier-top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fourier-top-actions .beta-badge::after {
+  right: 0;
+  left: auto;
 }
 
 .fourier-brand {

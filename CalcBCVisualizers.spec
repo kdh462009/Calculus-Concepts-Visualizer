@@ -13,6 +13,7 @@ hiddenimports = [
     "calcbc.visualizers",
     "calcbc.visualizers.taylor",
     "calcbc.visualizers.riemann",
+    "calcbc.visualizers.slope_field",
     "calcbc.visualizers.derivatives",
     "calcbc.visualizers.volume_rotation",
     "calcbc.visualizers.limit",

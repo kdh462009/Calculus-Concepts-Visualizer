@@ -184,11 +184,17 @@ function renderUnits() {
         <span class="viz-card-sub">${escapeHtml(viz.subtitle)}</span>
       </span>
       <span class="viz-card-go">Open</span>
+      ${viz.beta ? '<span class="beta-badge beta-badge--card" data-tip="Production testing is live" tabindex="0">Beta</span>' : ""}
     `;
     card.addEventListener("click", () => {
       hub.cardIndex = index;
       openVisualizer(viz);
     });
+    if (viz.beta) {
+      const badge = card.querySelector(".beta-badge");
+      badge?.addEventListener("click", (event) => event.stopPropagation());
+      badge?.addEventListener("mousedown", (event) => event.stopPropagation());
+    }
     grid.appendChild(card);
   });
 
