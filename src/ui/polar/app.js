@@ -109,12 +109,13 @@ class PolarRenderer {
     const cx = 0.5 * (v.xmin + v.xmax);
     const cy = 0.5 * (v.ymin + v.ymax);
     const maxR = Math.min(v.xmax - cx, v.ymax - cy);
-    const [scx, scy] = this.worldToScreen(cx, cy);
 
+    const radii = [];
     ctx.strokeStyle = "rgba(90, 109, 161, 0.3)";
     ctx.lineWidth = 1;
     for (let k = 1; k <= 4; k += 1) {
       const r = (maxR * k) / 4;
+      radii.push(r);
       ctx.beginPath();
       for (let a = 0; a <= 64; a += 1) {
         const th = (a / 64) * Math.PI * 2;
@@ -147,6 +148,16 @@ class PolarRenderer {
     ctx.moveTo(p.left, y0);
     ctx.lineTo(p.right, y0);
     ctx.stroke();
+
+    window.GraphAxisLabels?.drawPolarRadii?.(ctx, {
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      cx,
+      cy,
+      radii,
+      width: this.w,
+      height: this.h,
+      pixelScale: 1,
+    });
   }
 
   drawCurve(xs, ys, color, width = 2.6, alpha = 1) {

@@ -844,17 +844,28 @@ async function runAnimation() {
   state.rafId = requestAnimationFrame(frame);
 }
 
+function clearSampleCloud() {
+  state.nDone = 0;
+  state.nInside = 0;
+  state.pointsX = null;
+  state.pointsY = null;
+  state.pointsIn = null;
+  state.falling = [];
+  state.errorHistory = [];
+  state.convProgress = 0;
+  state.exactFade = 0;
+  el.convCanvas.hidden = true;
+  el.finalPanel.hidden = true;
+}
+
 function softReset() {
   stopLoop();
   setPhase(PHASE.IDLE);
-  state.falling = [];
-  state.nDone = 0;
-  state.nInside = 0;
+  clearSampleCloud();
   state.boundPulse = 0;
   state.rectEdges = 0;
   state.shadeAlpha = 0;
   state.revealExact = false;
-  state.exactFade = 0;
   state.phaseLabelUntil = 0;
   el.phaseLabel.hidden = true;
   resetStatsDisplay(true);
@@ -914,6 +925,7 @@ function wireInteractions() {
     onBeforePlot: () => {
       if (state.animating) stopLoop();
       setPhase(PHASE.IDLE);
+      clearSampleCloud();
       state.rectEdges = 0;
       state.shadeAlpha = 0;
       state.boundPulse = 0;
@@ -922,7 +934,10 @@ function wireInteractions() {
     },
     onPlotted: () => {
       state.data = viewer.data;
+      // Preview responses lack the sampling envelope; keep cloud cleared.
+      clearSampleCloud();
       LatexDisplay.fromData(el.latexImage, viewer.data);
+      FunctionPreview.drawFunctionOnly(viewer);
       setStatus("f(x) plotted. press Animate to sample.");
     },
     onError: (err) => setStatus(`error: ${err}`),

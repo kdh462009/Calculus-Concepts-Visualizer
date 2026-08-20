@@ -7,6 +7,9 @@ const MIN_VISIBLE_SAMPLES = 80;
 const MAX_MERGED_SAMPLES = 16000;
 
 function niceGridStep(span, targetLines) {
+  if (typeof window.GraphAxisLabels?.niceStep === "function") {
+    return window.GraphAxisLabels.niceStep(span, targetLines);
+  }
   if (!Number.isFinite(span) || span <= 0) return 1;
   const raw = span / Math.max(targetLines, 1);
   const exp = 10 ** Math.floor(Math.log10(raw));
@@ -411,6 +414,18 @@ class GraphViewer {
     ctx.moveTo(0, y0);
     ctx.lineTo(w, y0);
     ctx.stroke();
+
+    window.GraphAxisLabels?.drawCartesian?.(ctx, {
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      xmin,
+      xmax,
+      ymin,
+      ymax,
+      width: w,
+      height: h,
+      stepX,
+      stepY,
+    });
   }
 
   draw(layers = []) {

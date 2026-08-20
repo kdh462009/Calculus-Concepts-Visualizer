@@ -7,14 +7,13 @@ SUBJECT = {
     "symbol": "∮",
     "order": 2,
     "unitChips": {
-        "1": "Fourier",
-        "2": "Monte Carlo",
+        "1": "Other",
     },
     "visualizers": [
         {
             "id": "fourier",
             "unit": 1,
-            "unitTitle": "Fourier Playground",
+            "unitTitle": "Other",
             "title": "Epicycles",
             "subtitle": "Draw a closed curve; rotating phasors rebuild $z(θ) ≈ Σ cₖ e^{ikθ}$",
             "symbol": "Σcₖ",
@@ -23,8 +22,8 @@ SUBJECT = {
         },
         {
             "id": "monte_carlo",
-            "unit": 2,
-            "unitTitle": "Monte Carlo Integration",
+            "unit": 1,
+            "unitTitle": "Other",
             "title": "Monte Carlo",
             "subtitle": "Estimate $∫ₐᵇ f(x) dx$ by random samples in a bounding box",
             "symbol": "Nᵢₙ/N",

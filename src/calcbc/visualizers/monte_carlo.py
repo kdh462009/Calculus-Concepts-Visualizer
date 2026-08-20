@@ -103,16 +103,16 @@ def _require_nonnegative(ys: np.ndarray) -> None:
 
 
 def _bounding_box(a: float, b: float, curve_y: np.ndarray) -> dict:
+    """Math sampling envelope: height is exactly y_max (matches A_box formula)."""
     finite = curve_y[np.isfinite(curve_y)]
     y_hi = float(np.max(finite)) if finite.size else 1.0
     if y_hi < 1e-9:
         y_hi = 1.0
-    pad = max(y_hi * BOX_PAD, 0.03)
     return {
         "x0": float(a),
         "x1": float(b),
         "y0": 0.0,
-        "y1": float(y_hi + pad),
+        "y1": float(y_hi),  # == yMax; used for sampling + boxArea
         "yMax": float(y_hi),
     }
 
@@ -178,9 +178,9 @@ class MonteCarloApi:
 
             x_vals = sample_domain(xmin, xmax, 1800)
             y_true = safe_eval(expr, x_vals, clip=1.0e9)
-            # Keep plot framing tight to the sampling box so under-curve density reads.
-            y_pad = max((box["y1"] - box["y0"]) * 0.04, 0.04)
-            y_lo = box["y0"] - y_pad
+            # Plot framing only: a little air around the math box (not part of A_box).
+            y_pad = max(box["yMax"] * BOX_PAD, 0.04)
+            y_lo = box["y0"] - y_pad * 0.35
             y_hi = box["y1"] + y_pad
 
             return plot_payload(
@@ -192,7 +192,7 @@ class MonteCarloApi:
                     "expr": expr_text,
                     "interval": [a, b],
                     "box": box,
-                    "boxArea": float((box["x1"] - box["x0"]) * (box["y1"] - box["y0"])),
+                    "boxArea": float((box["x1"] - box["x0"]) * box["yMax"]),
                     "curveX": [float(v) for v in curve_x],
                     "curveY": [
                         None if not np.isfinite(v) else float(v) for v in curve_y

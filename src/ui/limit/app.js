@@ -188,21 +188,32 @@ class LimitRenderer {
   drawGrid(xmin, xmax, ymin, ymax) {
     const ctx = this.ctx;
     const p = this.plotArea();
+    const xSpan = xmax - xmin;
+    const ySpan = ymax - ymin;
+    const stepX = window.GraphAxisLabels?.niceStep?.(xSpan, 8) || xSpan / 8;
+    const stepY = window.GraphAxisLabels?.niceStep?.(ySpan, 8) || ySpan / 8;
+    const startX = Math.ceil(xmin / stepX) * stepX;
+    const startY = Math.ceil(ymin / stepY) * stepY;
+
     ctx.strokeStyle = "rgba(142, 164, 230, 0.18)";
     ctx.lineWidth = 1;
-    for (let i = 0; i <= 8; i += 1) {
-      const x = p.left + (i / 8) * p.width;
+    let count = 0;
+    for (let gx = startX; gx <= xmax + stepX * 0.5 && count < 48; gx += stepX) {
+      const x = this.mapX(gx, xmin, xmax);
       ctx.beginPath();
       ctx.moveTo(x, p.top);
       ctx.lineTo(x, p.bottom);
       ctx.stroke();
+      count += 1;
     }
-    for (let j = 0; j <= 8; j += 1) {
-      const y = p.top + (j / 8) * p.height;
+    count = 0;
+    for (let gy = startY; gy <= ymax + stepY * 0.5 && count < 48; gy += stepY) {
+      const y = this.mapY(gy, ymin, ymax);
       ctx.beginPath();
       ctx.moveTo(p.left, y);
       ctx.lineTo(p.right, y);
       ctx.stroke();
+      count += 1;
     }
 
     const x0 = this.mapX(0, xmin, xmax);
@@ -214,6 +225,19 @@ class LimitRenderer {
     ctx.moveTo(p.left, y0);
     ctx.lineTo(p.right, y0);
     ctx.stroke();
+
+    window.GraphAxisLabels?.drawCartesian?.(ctx, {
+      worldToScreen: (x, y) => [this.mapX(x, xmin, xmax), this.mapY(y, ymin, ymax)],
+      xmin,
+      xmax,
+      ymin,
+      ymax,
+      width: this.w,
+      height: this.h,
+      stepX,
+      stepY,
+      pixelScale: 1,
+    });
   }
 
   drawFunction(data, xmin, xmax, ymin, ymax) {

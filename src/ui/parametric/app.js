@@ -103,21 +103,32 @@ class ParametricRenderer {
 
     const v = state.view;
     const p = this.plotArea();
+    const xSpan = v.xmax - v.xmin;
+    const ySpan = v.ymax - v.ymin;
+    const stepX = window.GraphAxisLabels?.niceStep?.(xSpan, 10) || xSpan / 10;
+    const stepY = window.GraphAxisLabels?.niceStep?.(ySpan, 8) || ySpan / 8;
+    const startX = Math.ceil(v.xmin / stepX) * stepX;
+    const startY = Math.ceil(v.ymin / stepY) * stepY;
+
     ctx.strokeStyle = "rgba(90, 109, 161, 0.35)";
     ctx.lineWidth = 1;
-    for (let i = 0; i <= 10; i += 1) {
-      const x = p.left + (i / 10) * p.width;
+    let count = 0;
+    for (let gx = startX; gx <= v.xmax + stepX * 0.5 && count < 48; gx += stepX) {
+      const [sx] = this.worldToScreen(gx, v.ymin);
       ctx.beginPath();
-      ctx.moveTo(x, p.top);
-      ctx.lineTo(x, p.bottom);
+      ctx.moveTo(sx, p.top);
+      ctx.lineTo(sx, p.bottom);
       ctx.stroke();
+      count += 1;
     }
-    for (let j = 0; j <= 8; j += 1) {
-      const y = p.top + (j / 8) * p.height;
+    count = 0;
+    for (let gy = startY; gy <= v.ymax + stepY * 0.5 && count < 48; gy += stepY) {
+      const [, sy] = this.worldToScreen(v.xmin, gy);
       ctx.beginPath();
-      ctx.moveTo(p.left, y);
-      ctx.lineTo(p.right, y);
+      ctx.moveTo(p.left, sy);
+      ctx.lineTo(p.right, sy);
       ctx.stroke();
+      count += 1;
     }
 
     const [x0] = this.worldToScreen(0, v.ymin);
@@ -130,6 +141,19 @@ class ParametricRenderer {
     ctx.moveTo(p.left, y0);
     ctx.lineTo(p.right, y0);
     ctx.stroke();
+
+    window.GraphAxisLabels?.drawCartesian?.(ctx, {
+      worldToScreen: (x, y) => this.worldToScreen(x, y),
+      xmin: v.xmin,
+      xmax: v.xmax,
+      ymin: v.ymin,
+      ymax: v.ymax,
+      width: this.w,
+      height: this.h,
+      stepX,
+      stepY,
+      pixelScale: 1,
+    });
   }
 
   drawCurve(endIndex = null, color = "#2ee8bb", width = 2.8, alpha = 1) {
