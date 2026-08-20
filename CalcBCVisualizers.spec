@@ -7,6 +7,8 @@ hiddenimports = [
     "calcbc.graph",
     "calcbc.catalog",
     "calcbc.runtime",
+    "calcbc.update",
+    "certifi",
     "calcbc.subjects",
     "calcbc.subjects.calculus",
     "calcbc.subjects.fun",
@@ -22,6 +24,7 @@ hiddenimports = [
     "calcbc.visualizers.parametric",
     "calcbc.visualizers.polar",
     "calcbc.visualizers.fourier",
+    "calcbc.visualizers.monte_carlo",
 ]
 
 a = Analysis(

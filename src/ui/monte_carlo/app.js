@@ -863,8 +863,9 @@ async function prepareExperiment() {
     }
     drawScene();
     return true;
-  } finally {
-    state.preparing = false;
+  } catch (err) {
+    setStatus(`error: ${err}`);
+    return false;
   }
 }
 
@@ -872,10 +873,16 @@ async function runAnimation() {
   stopLoop();
   functionPreview?.invalidate?.();
   const ok = await prepareExperiment();
-  if (!ok) return;
+  if (!ok) {
+    state.preparing = false;
+    return;
+  }
+  // Keep preparing=true until the experiment loop owns the data, so a late
+  // preview cannot slip in between prepare and animating=true.
   functionPreview?.invalidate?.();
   setPhase(PHASE.SETUP);
   state.animating = true;
+  state.preparing = false;
   state.paused = false;
   state.lastTs = 0;
   el.pauseBtn.textContent = "Pause";
@@ -899,6 +906,8 @@ function clearSampleCloud() {
 
 function softReset() {
   stopLoop();
+  functionPreview?.invalidate?.();
+  state.preparing = false;
   setPhase(PHASE.IDLE);
   clearSampleCloud();
   state.boundPulse = 0;
@@ -982,6 +991,8 @@ function wireInteractions() {
     onPlotted: () => {
       // Preview lacks box/curveX — never apply while sampling / after Animate.
       if (state.preparing || state.animating || state.phase !== PHASE.IDLE) return;
+      // Never replace a live experiment envelope with a preview curve-only payload.
+      if (state.data?.box && !viewer.data?.box) return;
       state.data = viewer.data;
       clearSampleCloud();
       if (Array.isArray(viewer.data?.xRange) && viewer.data.xRange.length >= 2) {

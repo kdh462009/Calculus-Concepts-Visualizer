@@ -46,14 +46,20 @@ window.FunctionPreview = {
       const gen = ++previewGen;
       onBeforePlot?.();
       const result = await previewApi(payload);
+      // Re-check after every await / callback — Animate may invalidate mid-flight.
       if (gen !== previewGen) return;
       if (typeof canApply === "function" && !canApply()) return;
+      if (gen !== previewGen) return;
       if (!result?.ok) {
         onError?.(result.error);
         return;
       }
+      if (gen !== previewGen) return;
+      if (typeof canApply === "function" && !canApply()) return;
       viewer.setData(result, { ...payload, preview: true });
+      if (gen !== previewGen) return;
       FunctionPreview.drawFunctionOnly(viewer);
+      if (gen !== previewGen) return;
       onPlotted?.();
     };
 
