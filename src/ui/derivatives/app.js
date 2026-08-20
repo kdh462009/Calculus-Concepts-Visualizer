@@ -9,12 +9,15 @@ const LEGEND_SECOND = [
   { id: "second", color: "#f06090", label: "f″(x)" },
 ];
 
+const TARGET_FPS = 90;
+const FRAME_MS = 1000 / TARGET_FPS;
+
 const anim = {
   animating: false,
   paused: false,
   rafId: null,
-  frameIndex: 0,
-  elapsed: 0,
+  progress: 0,
+  drawAccum: 0,
   lastTs: 0,
   sampleXs: [],
 };
@@ -273,16 +276,24 @@ function stopAnimation() {
   anim.animating = false;
   anim.paused = false;
   anim.lastTs = 0;
-  anim.elapsed = 0;
+  anim.progress = 0;
+  anim.drawAccum = 0;
   if (anim.rafId) cancelAnimationFrame(anim.rafId);
   anim.rafId = null;
   el.pauseBtn.textContent = "Pause";
 }
 
+function animationBounds() {
+  if (anim.sampleXs.length >= 2) {
+    return { a: anim.sampleXs[0], b: anim.sampleXs[anim.sampleXs.length - 1] };
+  }
+  return { a: Number(el.aInput.value), b: Number(el.bInput.value) };
+}
+
 function currentSampleX() {
-  if (anim.sampleXs.length) {
-    const i = Math.max(0, Math.min(anim.frameIndex, anim.sampleXs.length - 1));
-    return anim.sampleXs[i];
+  if (anim.animating || (anim.sampleXs.length && view.showDerivatives)) {
+    const { a, b } = animationBounds();
+    return a + anim.progress * (b - a);
   }
   return Number(el.aInput.value);
 }
@@ -322,35 +333,44 @@ function drawFunctionOnly() {
 
 function frameLoop(ts) {
   if (!anim.animating || !viewer?.data) return;
+  anim.rafId = requestAnimationFrame(frameLoop);
+
   if (anim.paused) {
     anim.lastTs = ts;
-    anim.rafId = requestAnimationFrame(frameLoop);
     return;
   }
 
   if (!anim.lastTs) anim.lastTs = ts;
-  const dt = ts - anim.lastTs;
+  // Cap hitch spikes so a tab-switch doesn't jump the marker.
+  const dt = Math.min(ts - anim.lastTs, 48);
   anim.lastTs = ts;
-  anim.elapsed += dt;
 
-  const speed = Number(el.speedInput.value);
-  if (anim.elapsed >= speed) {
-    anim.elapsed = 0;
-    anim.frameIndex += 1;
+  const stepMs = Math.max(1, Number(el.speedInput.value) || 70);
+  const segments = Math.max(1, (anim.sampleXs.length || 2) - 1);
+  const duration = segments * stepMs;
+
+  anim.progress += dt / duration;
+  let looped = false;
+  while (anim.progress >= 1) {
+    anim.progress -= 1;
+    looped = true;
   }
+  if (looped) setStatus("looping derivative animation...");
 
-  if (anim.frameIndex >= anim.sampleXs.length) {
-    anim.frameIndex = 0;
-    anim.elapsed = 0;
-    anim.lastTs = ts;
-    setStatus("looping derivative animation...");
-  }
+  anim.drawAccum += dt;
+  if (anim.drawAccum < FRAME_MS) return;
+  anim.drawAccum %= FRAME_MS;
 
-  const x = anim.sampleXs[anim.frameIndex];
-  drawCurrentState(x);
-  setCounter(`frame ${anim.frameIndex + 1} / ${anim.sampleXs.length}`);
+  const { a, b } = animationBounds();
+  const x = a + anim.progress * (b - a);
+  drawCurrentState(x, { skipLegendRebuild: true });
+
+  const frameApprox = Math.min(
+    anim.sampleXs.length,
+    1 + Math.floor(anim.progress * segments),
+  );
+  setCounter(`frame ${frameApprox} / ${anim.sampleXs.length}`);
   setStatus(`animating derivative at x=${formatNum(x, 3)}`);
-  anim.rafId = requestAnimationFrame(frameLoop);
 }
 
 async function runAnimation() {
@@ -384,8 +404,8 @@ async function runAnimation() {
 
   view.showDerivatives = true;
   anim.sampleXs = buildSampleXs(payload.a, payload.b, Number(el.stepsInput.value));
-  anim.frameIndex = 0;
-  anim.elapsed = 0;
+  anim.progress = 0;
+  anim.drawAccum = 0;
   anim.lastTs = 0;
   anim.animating = true;
 
