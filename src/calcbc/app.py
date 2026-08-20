@@ -154,7 +154,14 @@ class AppApi:
         return app_update.open_download(url)
 
     def get_app_version(self):
-        return {"ok": True, "version": __version__}
+        return {
+            "ok": True,
+            "version": __version__,
+            "changelogUrl": app_update.release_notes_url(__version__),
+        }
+
+    def open_changelog(self):
+        return app_update.open_download(app_update.release_notes_url())
 
     def get_bootstrap(self):
         return self._taylor.get_bootstrap()

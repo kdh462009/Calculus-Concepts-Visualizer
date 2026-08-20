@@ -26,6 +26,16 @@ USER_AGENT = f"CalcBCVisualizers/{__version__} (+https://github.com/{GITHUB_OWNE
 REQUEST_TIMEOUT_S = 6.0
 
 
+def release_notes_url(version: str | None = None) -> str:
+    """GitHub release page for this build's tag (falls back to /releases/latest)."""
+    tag = str(version if version is not None else current_version()).strip()
+    if not tag:
+        return RELEASES_PAGE
+    # Tags are published as 1.4.0 (no leading v) in this repo.
+    tag = tag.lstrip("vV")
+    return f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases/tag/{tag}"
+
+
 def current_version() -> str:
     return str(__version__).strip()
 

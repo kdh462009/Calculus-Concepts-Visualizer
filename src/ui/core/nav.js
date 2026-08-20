@@ -1,5 +1,16 @@
 window.APP_VERSION = "1.3";
 
+const RELEASE_NOTES_BASE =
+  "https://github.com/kdh462009/Calculus-Concepts-Visualizer/releases/tag/";
+
+function changelogHrefFor(version) {
+  const tag = String(version || window.APP_VERSION || "").trim().replace(/^v/i, "");
+  if (!tag) {
+    return "https://github.com/kdh462009/Calculus-Concepts-Visualizer/releases/latest";
+  }
+  return `${RELEASE_NOTES_BASE}${encodeURIComponent(tag)}`;
+}
+
 const APP_LOGO_URL = (() => {
   const script = document.currentScript;
   if (script?.src) return new URL("logo.png", script.src).href;
@@ -17,7 +28,7 @@ function stampAppFooter() {
   shell.appendChild(footer);
 
   footer.innerHTML = `
-    <span>Made with ❤️ by Agniva, Donghui, Manya, and Adam · <button type="button" class="app-version" data-app-version data-check-updates title="Check for updates">Version ${window.APP_VERSION}</button></span>
+    <span>Made with ❤️ by Agniva, Donghui, Manya, and Adam · <button type="button" class="app-version" data-app-version data-check-updates title="Check for updates">Version ${window.APP_VERSION}</button> · <a href="${changelogHrefFor(window.APP_VERSION)}" class="app-changelog" data-external="true" data-app-changelog title="Release notes for this version">Changelog</a></span>
     <span class="credit-legal">
       Licensed under
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a> 
@@ -41,6 +52,9 @@ function stampAppFooter() {
 function stampAppVersion() {
   document.querySelectorAll("[data-app-version]").forEach((el) => {
     el.textContent = `Version ${window.APP_VERSION}`;
+  });
+  document.querySelectorAll("[data-app-changelog]").forEach((el) => {
+    el.setAttribute("href", changelogHrefFor(window.APP_VERSION));
   });
 }
 

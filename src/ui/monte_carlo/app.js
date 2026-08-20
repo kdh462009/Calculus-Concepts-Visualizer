@@ -65,10 +65,12 @@ const state = {
   phaseLabelUntil: 0,
   slowGap: 0,
   formulaBeat: 0,
+  preparing: false,
 };
 
 const el = {};
 let viewer;
+let functionPreview = null;
 
 function $(id) {
   return document.getElementById(id);
@@ -808,58 +810,70 @@ function frame(ts) {
 }
 
 async function prepareExperiment() {
-  framePlotToInterval(true);
-  const payload = payloadFromInputs();
-  if (!payload.expr) {
-    setStatus("Please enter a function.");
-    return false;
-  }
-  setStatus("preparing experiment…");
-  const result = await window.pywebview.api.compute_monte_carlo(payload);
-  if (!result?.ok) {
-    setStatus(`error: ${result?.error || "could not compute."}`);
-    return false;
-  }
-  const seed = Number(el.seedInput.value);
-  state.seed = Number.isFinite(seed) ? (seed >>> 0) : 184729;
-  el.seedInput.value = String(state.seed);
+  // Drop any in-flight / scheduled FunctionPreview so a late preview payload
+  // cannot overwrite the experiment envelope (box, curveX) mid-run.
+  functionPreview?.invalidate?.();
+  state.preparing = true;
+  try {
+    framePlotToInterval(true);
+    const payload = payloadFromInputs();
+    if (!payload.expr) {
+      setStatus("Please enter a function.");
+      return false;
+    }
+    setStatus("preparing experiment…");
+    const result = await window.pywebview.api.compute_monte_carlo(payload);
+    if (!result?.ok) {
+      setStatus(`error: ${result?.error || "could not compute."}`);
+      return false;
+    }
+    // A brand-new preview may have been typed during await — drop it again.
+    functionPreview?.invalidate?.();
+    const seed = Number(el.seedInput.value);
+    state.seed = Number.isFinite(seed) ? (seed >>> 0) : 184729;
+    el.seedInput.value = String(state.seed);
 
-  state.data = result;
-  state.nTarget = result.n || Number(el.nInput.value) || 10000;
-  state.experiment = {
-    expr: result.expr || payload.expr,
-    a: result.interval[0],
-    b: result.interval[1],
-    n: state.nTarget,
-    seed: state.seed,
-  };
-  state.rng = mulberry32(state.seed);
-  allocBuffers(state.nTarget);
-  state.revealExact = false;
-  state.exactFade = 0;
-  state.boundPulse = 0;
-  state.rectEdges = 0;
-  state.shadeAlpha = 0;
-  state.phaseT = 0;
-  state.convProgress = 0;
-  state.slowGap = 0;
-  state.formulaBeat = 0;
-  resetStatsDisplay(true);
-  syncExperimentPanel();
-  applyFormulaBeat(0);
-  viewer.setData(result, payload, { preserveView: false });
-  if (Array.isArray(result.xRange) && result.xRange.length >= 2) {
-    el.xminInput.value = String(Number(result.xRange[0].toFixed?.(4) ?? result.xRange[0]));
-    el.xmaxInput.value = String(Number(result.xRange[1].toFixed?.(4) ?? result.xRange[1]));
+    state.data = result;
+    state.nTarget = result.n || Number(el.nInput.value) || 10000;
+    state.experiment = {
+      expr: result.expr || payload.expr,
+      a: result.interval[0],
+      b: result.interval[1],
+      n: state.nTarget,
+      seed: state.seed,
+    };
+    state.rng = mulberry32(state.seed);
+    allocBuffers(state.nTarget);
+    state.revealExact = false;
+    state.exactFade = 0;
+    state.boundPulse = 0;
+    state.rectEdges = 0;
+    state.shadeAlpha = 0;
+    state.phaseT = 0;
+    state.convProgress = 0;
+    state.slowGap = 0;
+    state.formulaBeat = 0;
+    resetStatsDisplay(true);
+    syncExperimentPanel();
+    applyFormulaBeat(0);
+    viewer.setData(result, payload, { preserveView: false });
+    if (Array.isArray(result.xRange) && result.xRange.length >= 2) {
+      el.xminInput.value = String(Number(result.xRange[0].toFixed?.(4) ?? result.xRange[0]));
+      el.xmaxInput.value = String(Number(result.xRange[1].toFixed?.(4) ?? result.xRange[1]));
+    }
+    drawScene();
+    return true;
+  } finally {
+    state.preparing = false;
   }
-  drawScene();
-  return true;
 }
 
 async function runAnimation() {
   stopLoop();
+  functionPreview?.invalidate?.();
   const ok = await prepareExperiment();
   if (!ok) return;
+  functionPreview?.invalidate?.();
   setPhase(PHASE.SETUP);
   state.animating = true;
   state.paused = false;
@@ -941,7 +955,7 @@ function wireInteractions() {
     });
   });
 
-  FunctionPreview.wire({
+  functionPreview = FunctionPreview.wire({
     viewer,
     exprInput: el.exprInput,
     extraInputs: [el.aInput, el.bInput, el.xminInput, el.xmaxInput],
@@ -950,9 +964,14 @@ function wireInteractions() {
       return payloadFromInputs();
     },
     previewApi: (payload) => window.pywebview.api.preview_monte_carlo(payload),
+    canApply: () => (
+      !state.preparing
+      && !state.animating
+      && state.phase === PHASE.IDLE
+    ),
     onBeforePlot: () => {
-      if (state.animating) stopLoop();
-      setPhase(PHASE.IDLE);
+      // Don't clobber an active / preparing experiment if a stale preview fires.
+      if (state.preparing || state.animating || state.phase !== PHASE.IDLE) return;
       clearSampleCloud();
       state.rectEdges = 0;
       state.shadeAlpha = 0;
@@ -961,8 +980,9 @@ function wireInteractions() {
       resetStatsDisplay(true);
     },
     onPlotted: () => {
+      // Preview lacks box/curveX — never apply while sampling / after Animate.
+      if (state.preparing || state.animating || state.phase !== PHASE.IDLE) return;
       state.data = viewer.data;
-      // Preview responses lack the sampling envelope; keep cloud cleared.
       clearSampleCloud();
       if (Array.isArray(viewer.data?.xRange) && viewer.data.xRange.length >= 2) {
         const [x0, x1] = viewer.data.xRange;
@@ -973,7 +993,10 @@ function wireInteractions() {
       FunctionPreview.drawFunctionOnly(viewer);
       setStatus("f(x) plotted. press Animate to sample.");
     },
-    onError: (err) => setStatus(`error: ${err}`),
+    onError: (err) => {
+      if (state.preparing || state.animating || state.phase !== PHASE.IDLE) return;
+      setStatus(`error: ${err}`);
+    },
   });
 
   // Changing [a, b] must reframe the plot; otherwise a stale x-window + new y_max

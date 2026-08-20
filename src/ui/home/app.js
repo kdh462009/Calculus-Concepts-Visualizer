@@ -497,9 +497,17 @@ async function syncDisplayedVersion() {
     const res = await window.pywebview.api.get_app_version?.();
     const version = res?.version;
     if (!version) return;
+    window.APP_VERSION = version;
     document.querySelectorAll("[data-app-version]").forEach((node) => {
       node.textContent = `Version ${version}`;
     });
+    const changelogUrl = res.changelogUrl
+      || (typeof changelogHrefFor === "function" ? changelogHrefFor(version) : null);
+    if (changelogUrl) {
+      document.querySelectorAll("[data-app-changelog]").forEach((node) => {
+        node.setAttribute("href", changelogUrl);
+      });
+    }
   } catch {
     /* ignore */
   }

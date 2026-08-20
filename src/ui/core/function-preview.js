@@ -27,10 +27,18 @@ window.FunctionPreview = {
     onBeforePlot,
     onPlotted,
     onError,
+    /** Return false to drop a completed preview (e.g. Animate started). */
+    canApply = null,
     debounceMs = 160,
   }) {
     let timer = null;
     let previewGen = 0;
+
+    const invalidate = () => {
+      previewGen += 1;
+      clearTimeout(timer);
+      timer = null;
+    };
 
     const plot = async () => {
       const payload = getPayload();
@@ -39,6 +47,7 @@ window.FunctionPreview = {
       onBeforePlot?.();
       const result = await previewApi(payload);
       if (gen !== previewGen) return;
+      if (typeof canApply === "function" && !canApply()) return;
       if (!result?.ok) {
         onError?.(result.error);
         return;
@@ -66,6 +75,6 @@ window.FunctionPreview = {
       input.addEventListener("input", schedule);
     });
 
-    return { plot, plotNow, schedule };
+    return { plot, plotNow, schedule, invalidate };
   },
 };
