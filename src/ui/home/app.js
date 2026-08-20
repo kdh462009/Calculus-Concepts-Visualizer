@@ -37,6 +37,73 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+/** Turn $...$ math islands into native-looking inline math (not LaTeX). */
+function formatSubtitle(text) {
+  const parts = String(text || "").split(/(\$[^$]+\$)/g);
+  return parts.map((part) => {
+    if (part.startsWith("$") && part.endsWith("$") && part.length > 2) {
+      return `<span class="math">${formatMathIsland(part.slice(1, -1))}</span>`;
+    }
+    return escapeHtml(part);
+  }).join("");
+}
+
+function formatMathIsland(raw) {
+  let html = escapeHtml(raw);
+  const slots = [];
+  const stash = (markup) => {
+    const key = `\uE000${slots.length}\uE001`;
+    slots.push(markup);
+    return key;
+  };
+  // Keep differential operators and summation/product upright.
+  html = html.replace(/(^|[^A-Za-zΑ-Ωα-ω])d([xyztrθϕ])(?![A-Za-zΑ-Ωα-ω])/g, (_, pre, v) => (
+    `${pre}${stash(`<span class="math-op">d</span><i>${v}</i>`)}`
+  ));
+  html = html.replace(/[ΣΠ]/g, (op) => stash(`<span class="math-op">${op}</span>`));
+  // Italicize variables (before any remaining tags are introduced).
+  html = html.replace(
+    /([A-Za-zΑ-Ωα-ωϑϕϖϱϵ])([′″‴⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ⁿₐₑₒₓₕₖₗₘₙₚₛₜ]*)/g,
+    "<i>$1</i>$2",
+  );
+  // ^{...} → superscript (content may already contain <i> tags)
+  html = html.replace(/\^\{([^}]+)\}/g, "<sup>$1</sup>");
+  html = html.replace(/\^((?:<i>[^<]+<\/i>|[0-9ιθϕ])+)/g, "<sup>$1</sup>");
+  slots.forEach((markup, i) => {
+    html = html.replace(`\uE000${i}\uE001`, markup);
+  });
+  return html;
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function playCardPress(card) {
+  if (!card || prefersReducedMotion()) return;
+  card.classList.remove("is-pressing");
+  // Force reflow so re-triggering the animation works on rapid opens.
+  void card.offsetWidth;
+  card.classList.add("is-pressing");
+  await Promise.race([
+    wait(220),
+    new Promise((resolve) => {
+      card.addEventListener("animationend", resolve, { once: true });
+    }),
+  ]);
+}
+
+async function openVisualizer(viz, card) {
+  await playCardPress(card);
+  VizTransition.navigateWithWoosh(VizTransition.forward, () => {
+    return window.pywebview.api.open_visualizer(viz.id);
+  });
+}
+
 function unitStorageKey(subjectId) {
   return `${SELECTED_UNIT_KEY}:${subjectId}`;
 }
@@ -74,12 +141,6 @@ function loadSubject(subjectId, cardIndex = -1) {
   hub.unit = resolveSelectedUnit(hub.groups, subject.id);
   hub.cardIndex = cardIndex;
   sessionStorage.setItem(SELECTED_SUBJECT_KEY, subject.id);
-}
-
-function openVisualizer(viz) {
-  VizTransition.navigateWithWoosh(VizTransition.forward, () => {
-    return window.pywebview.api.open_visualizer(viz.id);
-  });
 }
 
 function applyHubFocus() {
@@ -181,14 +242,14 @@ function renderUnits() {
       <span class="viz-card-symbol">${escapeHtml(viz.symbol)}</span>
       <span class="viz-card-body">
         <span class="viz-card-title">${escapeHtml(viz.title)}</span>
-        <span class="viz-card-sub">${escapeHtml(viz.subtitle)}</span>
+        <span class="viz-card-sub">${formatSubtitle(viz.subtitle)}</span>
       </span>
       <span class="viz-card-go">Open</span>
       ${viz.beta ? '<span class="beta-badge beta-badge--card" data-tip="Production testing is live" tabindex="0">Beta</span>' : ""}
     `;
     card.addEventListener("click", () => {
       hub.cardIndex = index;
-      openVisualizer(viz);
+      openVisualizer(viz, card);
     });
     if (viz.beta) {
       const badge = card.querySelector(".beta-badge");
@@ -251,7 +312,8 @@ function openFocusedCard() {
   const group = currentGroup();
   if (!group || hub.cardIndex < 0) return;
   const viz = group.items[hub.cardIndex];
-  if (viz) openVisualizer(viz);
+  const card = document.querySelectorAll(".viz-card")[hub.cardIndex];
+  if (viz) openVisualizer(viz, card);
 }
 
 function isTypingTarget(target) {

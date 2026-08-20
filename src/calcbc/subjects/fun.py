@@ -15,7 +15,7 @@ SUBJECT = {
             "unit": 1,
             "unitTitle": "Fourier Playground",
             "title": "Epicycles",
-            "subtitle": "Draw a closed curve; rotating phasors reconstruct it",
+            "subtitle": "Draw a closed curve; rotating phasors rebuild $z(θ) ≈ Σ cₖ e^{ikθ}$",
             "symbol": "Σcₖ",
             "path": "ui/fourier/index.html",
             "beta": True,
