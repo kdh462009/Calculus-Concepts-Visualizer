@@ -57,17 +57,43 @@ function layerVisible(id) {
 function currentLegendItems() {
   if (!viewer?.data) return [];
   if (!view.showDerivatives && !anim.animating) return LEGEND_FN;
-  if (view.includeSecond && viewer.data.secondDerivative) return LEGEND_SECOND;
+  // Keep f″ in the legend whenever data exists so unchecking does not remove the control.
+  if (viewer.data.secondDerivative) return LEGEND_SECOND;
   return LEGEND_DERIV;
 }
 
-function renderLegend() {
+function legendItemsKey(items) {
+  return items.map((item) => item.id).join("|");
+}
+
+function syncLegendChecks() {
+  if (!el.plotLegend) return;
+  el.plotLegend.querySelectorAll(".plot-legend-item").forEach((row) => {
+    const id = row.dataset.id;
+    if (!id) return;
+    const on = layerVisible(id);
+    row.classList.toggle("is-off", !on);
+    const box = row.querySelector('input[type="checkbox"]');
+    if (box && box.checked !== on) box.checked = on;
+  });
+}
+
+let legendBuiltKey = "";
+
+function renderLegend({ force = false } = {}) {
   if (!el.plotLegend) return;
   const items = currentLegendItems();
+  const key = legendItemsKey(items);
+  if (!force && key === legendBuiltKey && items.length > 0 && !el.plotLegend.hidden) {
+    syncLegendChecks();
+    return;
+  }
+  legendBuiltKey = key;
   el.plotLegend.replaceChildren(
     ...items.map((item) => {
       const row = document.createElement("label");
       row.className = `plot-legend-item${view.hidden.has(item.id) ? " is-off" : ""}`;
+      row.dataset.id = item.id;
       const box = document.createElement("input");
       box.type = "checkbox";
       box.checked = !view.hidden.has(item.id);
@@ -75,15 +101,12 @@ function renderLegend() {
         if (box.checked) view.hidden.delete(item.id);
         else view.hidden.add(item.id);
         row.classList.toggle("is-off", !box.checked);
-        if (item.id === "second" && el.showSecondInput) {
-          // Keep the panel checkbox in sync with the legend toggle.
-          const wantSecond = box.checked;
-          if (el.showSecondInput.checked !== wantSecond) {
-            el.showSecondInput.checked = wantSecond;
-            view.includeSecond = wantSecond;
-          }
+        if (item.id === "second") {
+          view.includeSecond = box.checked;
+          if (el.showSecondInput) el.showSecondInput.checked = box.checked;
         }
-        redrawOverlay();
+        // Live redraw; do not rebuild legend DOM (force stays false).
+        redrawOverlay({ skipLegendRebuild: true });
       });
       const swatch = document.createElement("span");
       swatch.className = "plot-legend-swatch";
@@ -130,7 +153,7 @@ function buildSampleXs(a, b, steps) {
   return arr;
 }
 
-function drawCurrentState(sampleX) {
+function drawCurrentState(sampleX, { skipLegendRebuild = false } = {}) {
   if (!viewer?.data) return;
   const layers = [];
   if (layerVisible("fn")) {
@@ -145,7 +168,7 @@ function drawCurrentState(sampleX) {
         alpha: 0.95,
       });
     }
-    if (view.includeSecond && viewer.data.secondDerivative && layerVisible("second")) {
+    if (viewer.data.secondDerivative && layerVisible("second")) {
       layers.push({
         ys: viewer.data.secondDerivative,
         color: "#f06090",
@@ -155,12 +178,13 @@ function drawCurrentState(sampleX) {
     }
   }
   viewer.draw(layers);
-  renderLegend();
+  if (skipLegendRebuild) syncLegendChecks();
+  else renderLegend();
 
   const xVals = viewer.data.x;
   const yTrue = yAt(xVals, viewer.data.yTrue, sampleX);
   const yPrime = yAt(xVals, viewer.data.firstDerivative, sampleX);
-  const ySecond = view.includeSecond && layerVisible("second")
+  const ySecond = layerVisible("second")
     ? yAt(xVals, viewer.data.secondDerivative, sampleX)
     : null;
   if (yTrue === null || yPrime === null) {
@@ -208,7 +232,7 @@ function drawCurrentState(sampleX) {
     ctx.fill();
   }
 
-  if (view.includeSecond && ySecond !== null && layerVisible("second")) {
+  if (ySecond !== null && layerVisible("second")) {
     const [sxSecond, sySecond] = viewer.worldToScreen(sampleX, ySecond);
     ctx.fillStyle = "#f06090";
     ctx.beginPath();
@@ -216,7 +240,7 @@ function drawCurrentState(sampleX) {
     ctx.fill();
   }
 
-  const showSecond = view.includeSecond && ySecond !== null && layerVisible("second");
+  const showSecond = ySecond !== null && layerVisible("second");
   LatexDisplay.renderReadout(el.readoutImage, {
     kind: "derivative_point",
     x: sampleX,
@@ -225,11 +249,7 @@ function drawCurrentState(sampleX) {
     fppx: showSecond ? ySecond : null,
   });
   if (!showSecond) {
-    setConcavityText(
-      view.includeSecond && layerVisible("second")
-        ? "Concavity insight unavailable at this x."
-        : "Second derivative hidden.",
-    );
+    setConcavityText("Second derivative hidden.");
     return;
   }
   const curvature = ySecond > 1e-5
@@ -267,10 +287,10 @@ function currentSampleX() {
   return Number(el.aInput.value);
 }
 
-function redrawOverlay() {
+function redrawOverlay(options = {}) {
   if (!viewer?.data) return;
   if (view.showDerivatives || anim.animating) {
-    drawCurrentState(currentSampleX());
+    drawCurrentState(currentSampleX(), options);
     return;
   }
   drawFunctionOnly();
@@ -280,7 +300,8 @@ function applySecondDerivativeVisibility() {
   view.includeSecond = Boolean(el.showSecondInput?.checked);
   if (view.includeSecond) view.hidden.delete("second");
   else view.hidden.add("second");
-  redrawOverlay();
+  // Live update while animating; only sync checkbox state in the legend.
+  redrawOverlay({ skipLegendRebuild: true });
 }
 
 function drawFunctionOnly() {
@@ -402,6 +423,7 @@ function wireInteractions() {
     stopAnimation();
     view.showDerivatives = false;
     view.hidden.clear();
+    legendBuiltKey = "";
     viewer.clearData();
     viewer.resetView();
     viewer.drawGrid();

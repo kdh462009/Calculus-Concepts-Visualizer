@@ -38,9 +38,6 @@
         <h1>Concept Visualizers</h1>
         <p class="opening-sub">Pick a subject</p>
       </div>
-      <button id="shortcutsBtn" class="shortcuts-toggle" type="button" aria-expanded="false" aria-controls="shortcutsPanel">
-        Shortcuts
-      </button>
     </header>
 
     <main class="launcher-panel" aria-label="Available visualizers">
@@ -49,24 +46,12 @@
         <div id="hubMain" class="hub-main">
           <nav id="unitRail" class="unit-rail" role="tablist" aria-label="Units"></nav>
           <section id="vizStage" class="viz-stage" role="tabpanel"></section>
-          <aside id="shortcutsPanel" class="shortcuts-panel" hidden>
-            <p class="shortcuts-title">Keyboard</p>
-            <ul class="shortcuts-list">
-              <li><kbd>[</kbd> <kbd>]</kbd> <span>Switch subject</span></li>
-              <li><kbd>←</kbd> <kbd>→</kbd> <span>Switch unit</span></li>
-              <li><kbd>↑</kbd> <kbd>↓</kbd> <span>Select visualizer</span></li>
-              <li><kbd>Enter</kbd> <span>Open selected</span></li>
-              <li><kbd>Esc</kbd> <span>Home from a visualizer</span></li>
-              <li><kbd>?</kbd> <span>Toggle this menu</span></li>
-            </ul>
-          </aside>
           <div class="shortcut-strip" aria-hidden="true">
             <span><kbd>[</kbd><kbd>]</kbd> subject</span>
             <span><kbd>←</kbd><kbd>→</kbd> unit</span>
             <span><kbd>↑</kbd><kbd>↓</kbd> select</span>
             <span><kbd>Enter</kbd> open</span>
             <span><kbd>Esc</kbd> home</span>
-            <span><kbd>?</kbd> shortcuts</span>
           </div>
         </div>
       </div>

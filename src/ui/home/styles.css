@@ -31,24 +31,6 @@ body {
   justify-content: center;
 }
 
-.shortcuts-toggle {
-  grid-column: 3;
-  justify-self: end;
-  border: 1px solid rgba(159, 182, 255, 0.4);
-  border-radius: 10px;
-  padding: 8px 14px;
-  background: rgba(42, 55, 94, 0.92);
-  color: var(--text, #e8eaf6);
-  font-size: 13px;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.shortcuts-toggle:hover,
-.shortcuts-toggle[aria-expanded="true"] {
-  background: rgba(62, 78, 122, 0.95);
-}
-
 .launcher-header .title-row h1 {
   margin: 0;
   font-size: 32px;
@@ -465,40 +447,6 @@ body {
 .viz-card .beta-badge.beta-badge--card:hover::after,
 .viz-card .beta-badge.beta-badge--card:focus-visible::after {
   transform: translateY(0);
-}
-
-.shortcuts-panel {
-  margin-top: 12px;
-  padding: 12px 14px;
-  border: 1px solid rgba(159, 182, 255, 0.22);
-  border-radius: 12px;
-  background: rgba(18, 26, 48, 0.55);
-}
-
-.shortcuts-title {
-  margin: 0 0 8px;
-  color: #9e8dff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.shortcuts-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 16px;
-}
-
-.shortcuts-list li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #dfe6ff;
-  font-size: 13px;
 }
 
 .shortcut-strip {

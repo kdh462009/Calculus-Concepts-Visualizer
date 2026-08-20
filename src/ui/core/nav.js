@@ -242,11 +242,8 @@ document.addEventListener("keydown", (event) => {
     beginSoftlockEscHold();
     return;
   }
-  if (document.body?.dataset.page === "home") {
+    if (document.body?.dataset.page === "home") {
     if (isTypingTarget(event.target)) return;
-    if (typeof window.closeHomeShortcuts === "function" && window.closeHomeShortcuts()) {
-      event.preventDefault();
-    }
     return;
   }
   event.preventDefault();

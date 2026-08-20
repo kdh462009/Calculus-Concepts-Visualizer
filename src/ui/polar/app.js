@@ -62,6 +62,7 @@ class PolarRenderer {
     this.canvas.width = Math.floor(this.w * this.dpr);
     this.canvas.height = Math.floor(this.h * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    // Reuse remembered world-per-pixel; do not recapture (avoids zoom ratchet).
     this.lockAspect();
     this.draw();
   }
@@ -97,28 +98,35 @@ class PolarRenderer {
     return [r * Math.cos(th), r * Math.sin(th)];
   }
 
-  /** Keep equal world units per pixel so polar rings stay circular. */
-  lockAspect(anchorX = null, anchorY = null) {
+  /** Keep equal world units per pixel so polar rings stay circular.
+   * Uses a remembered world-per-pixel scale so resize does not ratchet zoom-out. */
+  lockAspect(anchorX = null, anchorY = null, { captureScale = false } = {}) {
     const v = state.view;
     const p = this.plotArea();
     if (!(p.width > 0 && p.height > 0)) return;
-    const screenAspect = p.width / p.height;
     let spanX = v.xmax - v.xmin;
     let spanY = v.ymax - v.ymin;
     if (!(spanX > 0 && spanY > 0)) return;
 
     const ax = Number.isFinite(anchorX) ? anchorX : 0.5 * (v.xmin + v.xmax);
     const ay = Number.isFinite(anchorY) ? anchorY : 0.5 * (v.ymin + v.ymax);
-    const worldAspect = spanX / spanY;
 
-    if (worldAspect > screenAspect) {
-      spanY = spanX / screenAspect;
-    } else {
-      spanX = spanY * screenAspect;
+    const scaleX = spanX / p.width;
+    const scaleY = spanY / p.height;
+    let scale = this._worldPerPx;
+    if (captureScale || !(scale > 0)) {
+      // Fit current content without expanding beyond the denser axis.
+      scale = Math.max(scaleX, scaleY);
+      this._worldPerPx = scale;
     }
 
-    const fx = (ax - v.xmin) / (v.xmax - v.xmin);
-    const fy = (ay - v.ymin) / (v.ymax - v.ymin);
+    spanX = scale * p.width;
+    spanY = scale * p.height;
+
+    const prevSpanX = v.xmax - v.xmin;
+    const prevSpanY = v.ymax - v.ymin;
+    const fx = prevSpanX > 0 ? (ax - v.xmin) / prevSpanX : 0.5;
+    const fy = prevSpanY > 0 ? (ay - v.ymin) / prevSpanY : 0.5;
     state.view = {
       xmin: ax - fx * spanX,
       xmax: ax + (1 - fx) * spanX,
@@ -448,7 +456,7 @@ class PolarRenderer {
         state.view.xmax = wx + (state.view.xmax - wx) * zoom;
         state.view.ymin = wy + (state.view.ymin - wy) * zoom;
         state.view.ymax = wy + (state.view.ymax - wy) * zoom;
-        this.lockAspect(wx, wy);
+        this.lockAspect(wx, wy, { captureScale: true });
         this.draw();
       },
       { passive: false },
@@ -582,7 +590,7 @@ function applyDataView(data) {
     ymin: data.yRange[0],
     ymax: data.yRange[1],
   };
-  renderer?.lockAspect?.(0, 0);
+  renderer?.lockAspect?.(0, 0, { captureScale: true });
 }
 
 function updateModeUi() {
@@ -725,7 +733,7 @@ async function bootstrap() {
     getView: () => state.view,
     setView: (view) => {
       state.view = { ...state.view, ...view };
-      renderer.lockAspect();
+      renderer.lockAspect(null, null, { captureScale: true });
       renderer.draw();
     },
   });

@@ -330,11 +330,6 @@ function wireHubKeys() {
   document.addEventListener("keydown", (event) => {
     if (event.defaultPrevented || isTypingTarget(event.target)) return;
 
-    if (event.key === "?" || (event.key === "/" && event.shiftKey)) {
-      event.preventDefault();
-      toggleShortcuts();
-      return;
-    }
     if (event.key === "[" || event.key === "PageUp") {
       event.preventDefault();
       moveSubject(-1);
@@ -373,31 +368,6 @@ function wireHubKeys() {
   });
 }
 
-function setShortcutsOpen(open) {
-  const panel = $("shortcutsPanel");
-  const btn = $("shortcutsBtn");
-  if (!panel || !btn) return;
-  panel.hidden = !open;
-  btn.setAttribute("aria-expanded", open ? "true" : "false");
-}
-
-function toggleShortcuts() {
-  const panel = $("shortcutsPanel");
-  setShortcutsOpen(Boolean(panel?.hidden));
-}
-
-function closeHomeShortcuts() {
-  const panel = $("shortcutsPanel");
-  if (!panel || panel.hidden) return false;
-  setShortcutsOpen(false);
-  return true;
-}
-
-function wireShortcuts() {
-  window.closeHomeShortcuts = closeHomeShortcuts;
-  $("shortcutsBtn")?.addEventListener("click", toggleShortcuts);
-}
-
 async function readCatalog() {
   const fetchCatalog = async () => {
     const catalog = await window.pywebview.api.get_catalog();
@@ -427,7 +397,6 @@ async function bootstrap() {
   loadSubject(resolveSelectedSubject(hub.subjects), -1);
   renderHub();
   wireHubKeys();
-  wireShortcuts();
   maybeEnforceSupportOrUpdate();
 }
 
