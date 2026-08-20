@@ -66,9 +66,12 @@ function formatMathIsland(raw) {
     /([A-Za-zΑ-Ωα-ωϑϕϖϱϵ])([′″‴⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ⁿₐₑₒₓₕₖₗₘₙₚₛₜ]*)/g,
     "<i>$1</i>$2",
   );
-  // ^{...} → superscript (content may already contain <i> tags)
+  // _{...} / _n and ^{...} / ^n → sub/superscript (may wrap <i> tags)
+  const scriptAtom = "(?:<i>[^<]+</i>|[0-9ιθϕn])";
+  html = html.replace(/_\{([^}]+)\}/g, "<sub>$1</sub>");
+  html = html.replace(new RegExp(`_((?:${scriptAtom})+)`, "g"), "<sub>$1</sub>");
   html = html.replace(/\^\{([^}]+)\}/g, "<sup>$1</sup>");
-  html = html.replace(/\^((?:<i>[^<]+<\/i>|[0-9ιθϕ])+)/g, "<sup>$1</sup>");
+  html = html.replace(new RegExp(`\\^((?:${scriptAtom})+)`, "g"), "<sup>$1</sup>");
   slots.forEach((markup, i) => {
     html = html.replace(`\uE000${i}\uE001`, markup);
   });

@@ -22,6 +22,7 @@ from calcbc.visualizers.parametric import ParametricApi
 from calcbc.runtime import start_webview
 from calcbc.visualizers.polar import PolarApi
 from calcbc.visualizers.fourier import FourierApi
+from calcbc.visualizers.monte_carlo import MonteCarloApi
 
 
 EXTERNAL_URLS = frozenset(
@@ -50,6 +51,7 @@ class AppApi:
         self._parametric = ParametricApi()
         self._polar = PolarApi()
         self._fourier = FourierApi()
+        self._monte_carlo = MonteCarloApi()
 
     def bind_window(self, window) -> None:
         self._window = window
@@ -227,6 +229,15 @@ class AppApi:
 
     def compute_fourier(self, payload):
         return self._fourier.compute(payload)
+
+    def get_monte_carlo_bootstrap(self):
+        return self._monte_carlo.get_bootstrap()
+
+    def compute_monte_carlo(self, payload):
+        return self._monte_carlo.compute(payload)
+
+    def preview_monte_carlo(self, payload):
+        return self._monte_carlo.preview(payload)
 
 
 def main():

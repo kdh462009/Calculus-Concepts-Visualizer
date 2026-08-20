@@ -5,6 +5,7 @@ from calcbc.visualizers.derivatives import DerivativesApi
 from calcbc.visualizers.fourier import FourierApi
 from calcbc.visualizers.inverse import InverseApi
 from calcbc.visualizers.limit import LimitApi
+from calcbc.visualizers.monte_carlo import MonteCarloApi
 from calcbc.visualizers.parametric import ParametricApi
 from calcbc.visualizers.polar import PolarApi
 from calcbc.visualizers.riemann import RiemannApi
@@ -18,6 +19,7 @@ __all__ = [
     "FourierApi",
     "InverseApi",
     "LimitApi",
+    "MonteCarloApi",
     "ParametricApi",
     "PolarApi",
     "RiemannApi",

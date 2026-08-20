@@ -117,6 +117,27 @@ def riemann_integral_latex(a: float, b: float) -> str:
     return rf"\int_{{{a_ltx}}}^{{{b_ltx}}} f(x)\, dx \approx \sum f(x_i)\,\Delta x"
 
 
+def monte_carlo_latex_simple() -> str:
+    return r"A \approx \dfrac{N_{\mathrm{in}}}{N}\, A_{\mathrm{box}}"
+
+
+def monte_carlo_latex_box(a: float, b: float) -> str:
+    a_ltx = latex_endpoint(a)
+    b_ltx = latex_endpoint(b)
+    return (
+        rf"A_{{\mathrm{{box}}}} = (b-a)\, y_{{\max}}"
+        rf" = ({b_ltx}-{a_ltx})\, y_{{\max}}"
+    )
+
+
+def monte_carlo_latex(a: float, b: float) -> str:
+    """Full formula used after setup / for bootstrap."""
+    return (
+        rf"{monte_carlo_latex_simple()}"
+        rf" \qquad {monte_carlo_latex_box(a, b)}"
+    )
+
+
 def fourier_reconstruction_latex() -> str:
     return r"z(t) = \sum_k c_k e^{ikt}, \qquad c_k = \frac{Z[k]}{N}"
 

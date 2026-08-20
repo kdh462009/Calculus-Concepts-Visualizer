@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monte Carlo Integration</title>
+  <link rel="stylesheet" href="../core/styles.css">
+  <link rel="stylesheet" href="../core/transitions.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="../core/transitions.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="header">
+      <div class="header-top">
+        <div class="title-row">
+          <h1>Monte Carlo integration</h1>
+          <span>random sampling · area estimate · convergence</span>
+          <span class="beta-badge" data-tip="Production testing is live" tabindex="0">Beta</span>
+        </div>
+        <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
+      </div>
+      <div class="latex-row">
+        <img id="latexImage" alt="Monte Carlo formula">
+      </div>
+    </header>
+
+    <main class="layout mc-layout">
+      <aside class="panel glass">
+        <label class="section-label">FUNCTION</label>
+        <input id="exprInput" class="math-expr" list="functionHints" value="sin(x)" autocomplete="off">
+        <datalist id="functionHints"></datalist>
+
+        <label class="section-label">PRESETS</label>
+        <div id="presets" class="preset-grid"></div>
+
+        <label class="section-label">INTEGRATION INTERVAL [a, b]</label>
+        <div class="row">
+          <input id="aInput" type="number" value="0" step="0.25">
+          <input id="bInput" type="number" value="3.141592653589793" step="0.25">
+        </div>
+
+        <label class="section-label">SAMPLES N <span id="nValue">10000</span></label>
+        <input id="nInput" type="range" min="100" max="50000" value="10000" step="100">
+
+        <label class="section-label">RANDOM SEED</label>
+        <div class="row">
+          <input id="seedInput" type="number" value="184729" step="1">
+          <button id="seedRandomBtn" class="btn btn-ghost" type="button" title="New random seed">↻</button>
+        </div>
+
+        <label class="section-label">ANIMATION PACE</label>
+        <div class="mc-speed-row" role="group" aria-label="Animation pace">
+          <button type="button" class="mc-speed-btn" data-speed="slow">Slow</button>
+          <button type="button" class="mc-speed-btn is-active" data-speed="normal">Normal</button>
+          <button type="button" class="mc-speed-btn" data-speed="fast">Fast</button>
+        </div>
+
+        <label class="section-label">PLOT X RANGE</label>
+        <div class="row">
+          <input id="xminInput" type="number" value="-0.5" step="0.5">
+          <input id="xmaxInput" type="number" value="3.8" step="0.5">
+        </div>
+
+        <div class="btn-row">
+          <button id="animateBtn" class="btn btn-primary">Animate</button>
+          <button id="pauseBtn" class="btn btn-secondary">Pause</button>
+          <button id="resetBtn" class="btn btn-ghost">Reset</button>
+        </div>
+
+        <div id="status" class="status">ready.</div>
+      </aside>
+
+      <section class="plot-wrap glass">
+        <canvas id="plotCanvas"></canvas>
+        <div id="phaseLabel" class="mc-phase-label" hidden>Random samples</div>
+      </section>
+
+      <aside class="panel glass mc-info" id="statsPanel" aria-label="Live Monte Carlo results">
+        <div class="mc-info-heading">Live results</div>
+        <div class="mc-experiment" id="experimentState">
+          <div class="mc-exp-row"><span>f(x)</span><code id="expExpr">—</code></div>
+          <div class="mc-exp-row"><span>[a, b]</span><code id="expBounds">—</code></div>
+          <div class="mc-exp-row"><span>N</span><code id="expN">—</code></div>
+          <div class="mc-exp-row"><span>Seed</span><code id="expSeed">—</code></div>
+        </div>
+        <div class="mc-stats">
+          <div class="mc-stat">
+            <span class="mc-stat-label">Samples</span>
+            <span class="mc-stat-value" id="statSamples">—</span>
+          </div>
+          <div class="mc-stat">
+            <span class="mc-stat-label">Inside</span>
+            <span class="mc-stat-value" id="statInside">—</span>
+          </div>
+          <div class="mc-stat">
+            <span class="mc-stat-label">Ratio</span>
+            <span class="mc-stat-value" id="statRatio">—</span>
+          </div>
+          <div class="mc-stat">
+            <span class="mc-stat-label">Estimate</span>
+            <span class="mc-stat-value" id="statEstimate">—</span>
+          </div>
+          <div class="mc-stat">
+            <span class="mc-stat-label">Error</span>
+            <span class="mc-stat-value" id="statError">—</span>
+          </div>
+          <div class="mc-meter" id="areaMeter" aria-hidden="true">
+            <div class="mc-meter-track">
+              <div class="mc-meter-exact" id="meterExact"></div>
+              <div class="mc-meter-dot" id="meterDot"></div>
+            </div>
+            <div class="mc-meter-labels">
+              <span id="meterLo">—</span>
+              <span id="meterMid">estimate</span>
+              <span id="meterHi">—</span>
+            </div>
+          </div>
+          <canvas id="convCanvas" class="mc-conv" width="280" height="96" hidden></canvas>
+          <div class="mc-final" id="finalPanel" hidden>
+            <div class="mc-final-title">Monte Carlo</div>
+            <div class="mc-final-row"><span>Estimate</span><strong id="finalEstimate">—</strong></div>
+            <div class="mc-final-row"><span>Reference</span><strong id="finalRef">—</strong></div>
+            <div class="mc-final-row"><span>Error</span><strong id="finalError">—</strong></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="../core/nav.js"></script>
+  <script src="../core/latex.js"></script>
+  <script src="../core/math-input.js"></script>
+  <script src="../core/scale-bar.js"></script>
+  <script src="../core/graph.js"></script>
+  <script src="../core/function-preview.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

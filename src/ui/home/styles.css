@@ -392,11 +392,19 @@ body {
   font-weight: 600;
 }
 
+.viz-card-sub .math sub,
 .viz-card-sub .math sup {
   font-size: 0.72em;
   line-height: 0;
-  vertical-align: super;
   font-style: italic;
+}
+
+.viz-card-sub .math sub {
+  vertical-align: sub;
+}
+
+.viz-card-sub .math sup {
+  vertical-align: super;
 }
 
 .viz-card:active {

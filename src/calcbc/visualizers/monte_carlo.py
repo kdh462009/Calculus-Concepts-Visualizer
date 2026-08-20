@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""
+Monte Carlo integration visualizer backend.
+
+Python prepares the mathematical sampling envelope only:
+  parse f, sample the curve, bounds, ymax box, reference integral.
+
+JavaScript owns the experiment:
+  seeded PRNG, (x, y) generation, classification against the curve,
+  animation, counters, and convergence rendering.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+
+from calcbc.graph import (
+    compute_function_preview,
+    launch_app,
+    parse_expr,
+    plot_payload,
+    safe_eval,
+    sample_domain,
+)
+from calcbc.latex_formulas import (
+    monte_carlo_latex,
+    monte_carlo_latex_box,
+    monte_carlo_latex_simple,
+    render_formula,
+)
+
+FUNCTION_HINTS = [
+    "sin(x)",
+    "x^2",
+    "e^(-x^2)",
+    "1/(1+x^2)",
+    "sqrt(x)",
+    "cos(x)+1.2",
+    "x*(2-x)",
+]
+
+PRESETS = [
+    ("sin(x)", "sin(x)", 0.0, 3.141592653589793),
+    ("x²", "x^2", 0.0, 2.0),
+    ("bell", "e^(-x^2)", -1.5, 1.5),
+    ("1/(1+x²)", "1/(1+x^2)", 0.0, 4.0),
+    ("√x", "sqrt(x)", 0.0, 4.0),
+    ("hump", "x*(2-x)", 0.0, 2.0),
+]
+
+N_MIN = 100
+N_MAX = 50000
+N_DEFAULT = 10000
+CURVE_SAMPLES = 2400
+BOX_PAD = 0.035  # tight enough that under-curve density reads clearly
+
+
+def _eval_for_integral(expr, xs: np.ndarray) -> np.ndarray:
+    return safe_eval(expr, xs, clip=None, break_jumps=False)
+
+
+def _reject_if_singular(xs: np.ndarray, ys: np.ndarray) -> None:
+    if xs.size < 8:
+        raise ValueError("Integral could not be estimated on this interval.")
+    interior = ys[1:-1]
+    if np.any(~np.isfinite(interior)):
+        raise ValueError(
+            "f is undefined or unbounded inside (a, b). "
+            "Pick a closed interval where f stays finite."
+        )
+    finite = ys[np.isfinite(ys)]
+    if finite.size < max(10, xs.size // 3):
+        raise ValueError("Integral could not be estimated on this interval.")
+
+
+def _high_res_integral(expr, a: float, b: float) -> float:
+    xs = np.linspace(a, b, 24000)
+    ys = _eval_for_integral(expr, xs)
+    _reject_if_singular(xs, ys)
+    lo, hi = 0, ys.size - 1
+    while lo <= hi and not np.isfinite(ys[lo]):
+        lo += 1
+    while hi >= lo and not np.isfinite(ys[hi]):
+        hi -= 1
+    if hi - lo + 1 < 8:
+        raise ValueError("Integral could not be estimated on this interval.")
+    value = float(np.trapezoid(ys[lo : hi + 1], xs[lo : hi + 1]))
+    if not np.isfinite(value):
+        raise ValueError("Integral could not be estimated on this interval.")
+    return value
+
+
+def _require_nonnegative(ys: np.ndarray) -> None:
+    finite = ys[np.isfinite(ys)]
+    if finite.size == 0:
+        raise ValueError("f has no finite values on [a, b].")
+    floor = float(np.min(finite))
+    if floor < -1e-6:
+        raise ValueError(
+            "This visualizer currently estimates area for f(x) ≥ 0 on [a, b]. "
+            "Try a nonnegative function (or shift it upward)."
+        )
+
+
+def _bounding_box(a: float, b: float, curve_y: np.ndarray) -> dict:
+    finite = curve_y[np.isfinite(curve_y)]
+    y_hi = float(np.max(finite)) if finite.size else 1.0
+    if y_hi < 1e-9:
+        y_hi = 1.0
+    pad = max(y_hi * BOX_PAD, 0.03)
+    return {
+        "x0": float(a),
+        "x1": float(b),
+        "y0": 0.0,
+        "y1": float(y_hi + pad),
+        "yMax": float(y_hi),
+    }
+
+
+class MonteCarloApi:
+    def get_bootstrap(self):
+        return {
+            "hints": FUNCTION_HINTS,
+            "presets": PRESETS,
+            "nMin": N_MIN,
+            "nMax": N_MAX,
+            "nDefault": N_DEFAULT,
+            "latexPng": render_formula(monte_carlo_latex_simple(), wide=True),
+        }
+
+    def _attach_formula(self, result: dict, a: float, b: float) -> None:
+        result["latexPng"] = render_formula(monte_carlo_latex_simple(), wide=True)
+        result["latexPngBox"] = render_formula(monte_carlo_latex_box(a, b), wide=True)
+        result["latexPngFull"] = render_formula(monte_carlo_latex(a, b), wide=True)
+
+    def preview(self, payload):
+        result = compute_function_preview(payload)
+        if not result.get("ok"):
+            return result
+        try:
+            a = float((payload or {}).get("a", 0.0))
+            b = float((payload or {}).get("b", np.pi))
+            if a < b:
+                self._attach_formula(result, a, b)
+        except Exception:
+            pass
+        return result
+
+    def compute(self, payload):
+        """Return curve + sampling box + reference. No random samples."""
+        try:
+            data = payload or {}
+            expr_text = str(data.get("expr") or "").strip()
+            if not expr_text:
+                return {"ok": False, "error": "Please enter a function."}
+
+            a = float(data.get("a", 0.0))
+            b = float(data.get("b", np.pi))
+            xmin = float(data.get("xmin", min(a, b) - 0.75))
+            xmax = float(data.get("xmax", max(a, b) + 0.75))
+            n = int(data.get("n", N_DEFAULT) or N_DEFAULT)
+            n = int(np.clip(n, N_MIN, N_MAX))
+
+            if a >= b:
+                return {"ok": False, "error": "Interval must satisfy a < b."}
+            if xmin >= xmax:
+                return {"ok": False, "error": "xmin must be < xmax."}
+
+            expr = parse_expr(expr_text)
+            # Dense curve on [a, b] so JS can interpolate f(x) while classifying.
+            curve_x = np.linspace(a, b, CURVE_SAMPLES)
+            curve_y = _eval_for_integral(expr, curve_x)
+            _reject_if_singular(curve_x, curve_y)
+            _require_nonnegative(curve_y)
+
+            box = _bounding_box(a, b, curve_y)
+            integral_ref = _high_res_integral(expr, a, b)
+
+            x_vals = sample_domain(xmin, xmax, 1800)
+            y_true = safe_eval(expr, x_vals, clip=1.0e9)
+            # Keep plot framing tight to the sampling box so under-curve density reads.
+            y_pad = max((box["y1"] - box["y0"]) * 0.04, 0.04)
+            y_lo = box["y0"] - y_pad
+            y_hi = box["y1"] + y_pad
+
+            return plot_payload(
+                x_vals,
+                y_true,
+                x_range=[xmin, xmax],
+                y_range=[y_lo, y_hi],
+                extra={
+                    "expr": expr_text,
+                    "interval": [a, b],
+                    "box": box,
+                    "boxArea": float((box["x1"] - box["x0"]) * (box["y1"] - box["y0"])),
+                    "curveX": [float(v) for v in curve_x],
+                    "curveY": [
+                        None if not np.isfinite(v) else float(v) for v in curve_y
+                    ],
+                    "integralRef": integral_ref,
+                    "n": n,
+                    "latexPng": render_formula(monte_carlo_latex_simple(), wide=True),
+                    "latexPngBox": render_formula(monte_carlo_latex_box(a, b), wide=True),
+                    "latexPngFull": render_formula(monte_carlo_latex(a, b), wide=True),
+                },
+            )
+        except Exception as exc:
+            return {"ok": False, "error": f"{exc}"}
+
+
+def main():
+    launch_app(
+        MonteCarloApi(),
+        "ui/monte_carlo/index.html",
+        title="Monte Carlo Integration",
+    )
+
+
+if __name__ == "__main__":
+    main()
