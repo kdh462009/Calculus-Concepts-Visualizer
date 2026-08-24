@@ -4,11 +4,17 @@ const METHOD_META = {
   rk4: { color: "#2ee8bb", width: 2.7, label: "RK4" },
 };
 
+const TARGET_FPS = 90;
+const FRAME_MS = 1000 / TARGET_FPS;
+const F_CLIP = 1e6;
+const MAX_STEPS = 1600;
+
 const state = {
   data: null,
   params: null,
   x0: 0,
   y0: 1,
+  f: null,
   animating: false,
   paused: false,
   rafId: null,
@@ -17,6 +23,10 @@ const state = {
   stepIndex: 0,
   maxSteps: 0,
   draggingIC: false,
+  pendingIc: null,
+  liveRafId: null,
+  liveLastTs: 0,
+  liveAccum: 0,
   clickStart: null,
   fieldTimer: null,
   ivpTimer: null,
@@ -93,7 +103,250 @@ function stopAnimation() {
   updateHeader();
 }
 
+function stopLiveIcLoop() {
+  if (state.liveRafId) cancelAnimationFrame(state.liveRafId);
+  state.liveRafId = null;
+  state.liveLastTs = 0;
+  state.liveAccum = 0;
+}
+
+function compileF(src) {
+  if (!src || typeof src !== "string") {
+    state.f = null;
+    return;
+  }
+  try {
+    const fn = new Function("x", "y", `"use strict"; const v = (${src}); return v;`);
+    state.f = (xv, yv) => {
+      const v = Number(fn(xv, yv));
+      if (!Number.isFinite(v) || Math.abs(v) > F_CLIP) return NaN;
+      return v;
+    };
+  } catch {
+    state.f = null;
+  }
+}
+
+function evalF(xv, yv) {
+  if (!state.f) return NaN;
+  try {
+    return state.f(xv, yv);
+  } catch {
+    return NaN;
+  }
+}
+
+function stepEuler(xn, yn, h) {
+  const k = evalF(xn, yn);
+  if (!Number.isFinite(k)) return [NaN, NaN, NaN];
+  return [xn + h, yn + h * k, k];
+}
+
+function stepMidpoint(xn, yn, h) {
+  const k1 = evalF(xn, yn);
+  if (!Number.isFinite(k1)) return [NaN, NaN, NaN];
+  const k2 = evalF(xn + 0.5 * h, yn + 0.5 * h * k1);
+  if (!Number.isFinite(k2)) return [NaN, NaN, NaN];
+  return [xn + h, yn + h * k2, k1];
+}
+
+function stepRk4(xn, yn, h) {
+  const k1 = evalF(xn, yn);
+  if (!Number.isFinite(k1)) return [NaN, NaN, NaN];
+  const k2 = evalF(xn + 0.5 * h, yn + 0.5 * h * k1);
+  if (!Number.isFinite(k2)) return [NaN, NaN, NaN];
+  const k3 = evalF(xn + 0.5 * h, yn + 0.5 * h * k2);
+  if (!Number.isFinite(k3)) return [NaN, NaN, NaN];
+  const k4 = evalF(xn + h, yn + h * k3);
+  if (!Number.isFinite(k4)) return [NaN, NaN, NaN];
+  return [xn + h, yn + (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4), k1];
+}
+
+const STEPPERS = {
+  euler: stepEuler,
+  midpoint: stepMidpoint,
+  rk4: stepRk4,
+};
+
+function inside(xv, yv, xLo, xHi, yLo, yHi) {
+  return Number.isFinite(xv)
+    && Number.isFinite(yv)
+    && xv >= xLo
+    && xv <= xHi
+    && yv >= yLo
+    && yv <= yHi;
+}
+
+function tooSteep(slope, h, ySpan) {
+  if (!Number.isFinite(slope)) return true;
+  if (Math.abs(slope) > 80) return true;
+  return Math.abs(h * slope) > Math.max(0.35 * ySpan, 1);
+}
+
+function integrateBranch(x0, y0, h, xLimit, yLo, yHi, stepper, ySpan) {
+  const xs = [x0];
+  const ys = [y0];
+  const slopes = [evalF(x0, y0)];
+  let xn = x0;
+  let yn = y0;
+  const goingRight = h > 0;
+  for (let i = 0; i < MAX_STEPS; i += 1) {
+    if (goingRight && xn >= xLimit) break;
+    if (!goingRight && xn <= xLimit) break;
+    if (!inside(xn, yn, Math.min(x0, xLimit) - Math.abs(h), Math.max(x0, xLimit) + Math.abs(h), yLo, yHi)) {
+      break;
+    }
+    const slopeNow = evalF(xn, yn);
+    if (tooSteep(slopeNow, h, ySpan)) break;
+    const [xNext, yNext, slope] = stepper(xn, yn, h);
+    if (!Number.isFinite(xNext) || !Number.isFinite(yNext)) break;
+    if (Math.abs(yNext) > 1e8 || tooSteep(slope, h, ySpan)) break;
+    xs.push(xNext);
+    ys.push(yNext);
+    slopes.push(Number.isFinite(slope) ? slope : null);
+    xn = xNext;
+    yn = yNext;
+    if (yn < yLo || yn > yHi) break;
+  }
+  return { x: xs, y: ys, slopes };
+}
+
+function integrateMethod(name, x0, y0, h, view) {
+  const stepper = STEPPERS[name];
+  const xmin = view.xmin;
+  const xmax = view.xmax;
+  const ymin = view.ymin;
+  const ymax = view.ymax;
+  const xPad = Math.max((xmax - xmin) * 0.08, Math.abs(h));
+  const yPad = Math.max((ymax - ymin) * 0.65, 1);
+  const yLo = ymin - yPad;
+  const yHi = ymax + yPad;
+  const ySpan = Math.max(ymax - ymin, 1e-6);
+  return {
+    forward: integrateBranch(x0, y0, h, xmax + xPad, yLo, yHi, stepper, ySpan),
+    backward: integrateBranch(x0, y0, -h, xmin - xPad, yLo, yHi, stepper, ySpan),
+  };
+}
+
+function rebuildTicks() {
+  if (!state.f || !state.data || !viewer) return false;
+  const n = Math.max(6, Math.min(36, Number(el.gridInput.value) || 16));
+  const { xmin, xmax, ymin, ymax } = viewer.view;
+  const tickX = [];
+  const tickY = [];
+  const tickSlope = [];
+  if (n >= 2) {
+    const dx = (xmax - xmin) / (n - 1);
+    const dy = (ymax - ymin) / (n - 1);
+    for (let j = 0; j < n; j += 1) {
+      const yv = ymin + j * dy;
+      for (let i = 0; i < n; i += 1) {
+        const xv = xmin + i * dx;
+        const slope = evalF(xv, yv);
+        if (!Number.isFinite(slope)) continue;
+        tickX.push(xv);
+        tickY.push(yv);
+        tickSlope.push(slope);
+      }
+    }
+  }
+  state.data = {
+    ...state.data,
+    tickX,
+    tickY,
+    tickSlope,
+    gridN: n,
+  };
+  return true;
+}
+
+function rebuildSolutions() {
+  if (!state.f || !state.data || !viewer) return false;
+  const view = viewer.view;
+  const h = stepH();
+  const methods = selectedMethods();
+  const solutions = {};
+  for (let i = 0; i < methods.length; i += 1) {
+    const name = methods[i];
+    solutions[name] = integrateMethod(name, state.x0, state.y0, h, view);
+  }
+  const slope = evalF(state.x0, state.y0);
+  state.data = {
+    ...state.data,
+    x0: state.x0,
+    y0: state.y0,
+    h,
+    solutions,
+    methods,
+    slopeAtIC: Number.isFinite(slope) ? slope : null,
+  };
+  return true;
+}
+
+function applyLiveSolutions() {
+  if (!rebuildSolutions()) return false;
+  updateHeader();
+  drawScene();
+  return true;
+}
+
+function applyLiveView() {
+  if (!state.f || !state.data) return false;
+  rebuildTicks();
+  rebuildSolutions();
+  updateHeader();
+  drawScene();
+  return true;
+}
+
+function flushPendingIc() {
+  if (!state.pendingIc) return;
+  const { x, y } = state.pendingIc;
+  state.pendingIc = null;
+  const v = viewer.view;
+  state.x0 = clamp(x, v.xmin, v.xmax);
+  state.y0 = clamp(y, v.ymin, v.ymax);
+  syncIcInputs();
+  if (!applyLiveSolutions()) {
+    updateHeader();
+    drawScene();
+    scheduleCompute({ debounceMs: 16, solutionsOnly: true });
+  }
+}
+
+function liveIcLoop(ts) {
+  if (!state.draggingIC) {
+    state.liveRafId = null;
+    return;
+  }
+  const dt = state.liveLastTs ? ts - state.liveLastTs : FRAME_MS;
+  state.liveLastTs = ts;
+  state.liveAccum += dt;
+  let due = false;
+  while (state.liveAccum >= FRAME_MS) {
+    state.liveAccum -= FRAME_MS;
+    due = true;
+  }
+  if (due) flushPendingIc();
+  state.liveRafId = requestAnimationFrame(liveIcLoop);
+}
+
+function startLiveIcLoop() {
+  if (state.liveRafId) return;
+  state.liveLastTs = 0;
+  state.liveAccum = FRAME_MS;
+  state.liveRafId = requestAnimationFrame(liveIcLoop);
+}
+
+function queueLiveIc(x, y) {
+  state.pendingIc = { x, y };
+  startLiveIcLoop();
+}
+
 function eventToWorld(event) {
+  if (typeof viewer.clientToWorld === "function") {
+    return viewer.clientToWorld(event.clientX, event.clientY);
+  }
   const rect = viewer.canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   const sx = (event.clientX - rect.left) * dpr;
@@ -121,10 +374,11 @@ function setIc(x0, y0, { recompute = true } = {}) {
   state.x0 = clamp(x0, v.xmin, v.xmax);
   state.y0 = clamp(y0, v.ymin, v.ymax);
   syncIcInputs();
+  if (applyLiveSolutions()) return;
   updateHeader();
   drawScene();
   if (recompute) {
-    scheduleCompute({ debounceMs: state.draggingIC ? 16 : 0, solutionsOnly: state.draggingIC });
+    scheduleCompute({ debounceMs: state.draggingIC ? 16 : 0, solutionsOnly: true });
   }
 }
 
@@ -319,7 +573,6 @@ function drawScene() {
   drawSolutions();
   drawEulerHop();
   drawIc();
-  viewer.notifyView();
 }
 
 function animationMaxSteps() {
@@ -377,16 +630,49 @@ async function computeNow(options = {}) {
     return false;
   }
   const gen = ++state.computeGen;
-  const viewAtStart = viewKey();
   state.inFlight = true;
   if (!state.draggingIC) setStatus("computing slope field…");
   try {
     const result = await window.pywebview.api.compute_slope_field(payload);
     if (gen !== state.computeGen) return false;
-    if (viewAtStart !== viewKey()) return false;
     if (!result?.ok) {
       setStatus(`error: ${result?.error || "could not compute."}`);
       return false;
+    }
+    compileF(result.fJs);
+    if (!solutionsOnly) {
+      state.params = payload;
+      LatexDisplay.setImage(el.latexImage, result.latexPng);
+      viewer.setData(
+        { xRange: result.xRange, yRange: result.yRange },
+        payload,
+        { preserveView: true },
+      );
+      if (!viewer._snapView) viewer.rememberSnapView(viewer.view);
+    }
+    if (!state.data) state.data = result;
+    else if (!solutionsOnly) {
+      state.data = {
+        ...state.data,
+        expr: result.expr,
+        fJs: result.fJs,
+        latexPng: result.latexPng,
+      };
+    }
+    state.lastViewKey = viewKey();
+    if (applyLiveView()) {
+      const n = state.data.tickX?.length || 0;
+      if (state.draggingIC) {
+        setStatus(`initial condition (${formatNum(state.x0)}, ${formatNum(state.y0)}); release to settle.`);
+      } else {
+        setStatus(`slope field ready · ${n} ticks · click or drag the white point.`);
+      }
+      return true;
+    }
+    if (state.draggingIC) {
+      applyLiveSolutions();
+      setStatus(`initial condition (${formatNum(state.x0)}, ${formatNum(state.y0)}); release to settle.`);
+      return true;
     }
     if (solutionsOnly && state.data?.tickX?.length) {
       state.data = {
@@ -400,23 +686,11 @@ async function computeNow(options = {}) {
       };
     } else {
       state.data = result;
-      state.params = payload;
-      state.lastViewKey = viewKey();
-      LatexDisplay.setImage(el.latexImage, result.latexPng);
-      viewer.setData(
-        { xRange: result.xRange, yRange: result.yRange },
-        payload,
-        { preserveView: true },
-      );
     }
     updateHeader();
     drawScene();
     const n = state.data.tickX?.length || 0;
-    if (state.draggingIC) {
-      setStatus(`initial condition (${formatNum(state.x0)}, ${formatNum(state.y0)}); release to settle.`);
-    } else {
-      setStatus(`slope field ready · ${n} ticks · click or drag the white point.`);
-    }
+    setStatus(`slope field ready · ${n} ticks · click or drag the white point.`);
     return true;
   } catch (err) {
     if (gen === state.computeGen) setStatus(String(err));
@@ -452,6 +726,7 @@ function viewKey() {
 function onViewChange() {
   const key = viewKey();
   if (key === state.lastViewKey) return;
+  if (state.f && state.data) return;
   clearTimeout(state.fieldTimer);
   state.fieldTimer = setTimeout(() => {
     if (viewKey() === state.lastViewKey) return;
@@ -485,13 +760,15 @@ function wireCanvas() {
       if (event.button !== 0) return;
       if (icHit(event)) {
         event.stopImmediatePropagation();
-        state.draggingIC = true;
         stopAnimation();
+        state.draggingIC = true;
         canvas.style.cursor = "grabbing";
+        const [x, y] = eventToWorld(event);
+        queueLiveIc(x, y);
+        setStatus("dragging initial condition…");
         return;
       }
       state.clickStart = { x: event.clientX, y: event.clientY };
-      event.stopPropagation();
     },
     true,
   );
@@ -499,15 +776,17 @@ function wireCanvas() {
   window.addEventListener("mousemove", (event) => {
     if (!state.draggingIC) return;
     const [x, y] = eventToWorld(event);
-    setIc(x, y);
+    queueLiveIc(x, y);
   });
 
   window.addEventListener("mouseup", (event) => {
     if (state.draggingIC) {
+      const [x, y] = eventToWorld(event);
+      state.pendingIc = { x, y };
+      stopLiveIcLoop();
       state.draggingIC = false;
       canvas.style.cursor = "crosshair";
-      const [x, y] = eventToWorld(event);
-      setIc(x, y, { recompute: true });
+      flushPendingIc();
       setStatus("initial condition set. press Animate to watch the steps.");
       return;
     }
@@ -556,6 +835,10 @@ function wireInteractions() {
   });
   el.resetBtn.addEventListener("click", () => {
     stopAnimation();
+    stopLiveIcLoop();
+    state.draggingIC = false;
+    state.pendingIc = null;
+    state.f = null;
     state.data = null;
     state.x0 = 0;
     state.y0 = 1;
@@ -564,6 +847,7 @@ function wireInteractions() {
     el.exprInput.dispatchEvent(new Event("input", { bubbles: true }));
     viewer.clearData();
     viewer.resetView({ xmin: -4, xmax: 4, ymin: -4, ymax: 4 });
+    viewer.rememberSnapView({ xmin: -4, xmax: 4, ymin: -4, ymax: 4 });
     updateHeader();
     setCounter("");
     setStatus("reset.");
@@ -576,12 +860,14 @@ function wireInteractions() {
   });
   el.hInput.addEventListener("change", () => {
     stopAnimation();
-    scheduleCompute({ debounceMs: 0 });
+    if (!applyLiveSolutions()) scheduleCompute({ debounceMs: 0 });
   });
   el.gridInput.addEventListener("input", () => {
     el.gridValue.textContent = el.gridInput.value;
   });
-  el.gridInput.addEventListener("change", () => scheduleCompute({ debounceMs: 0 }));
+  el.gridInput.addEventListener("change", () => {
+    if (!applyLiveView()) scheduleCompute({ debounceMs: 0 });
+  });
   el.speedInput.addEventListener("input", () => {
     el.speedValue.textContent = `${el.speedInput.value} ms`;
   });
@@ -590,7 +876,7 @@ function wireInteractions() {
     box.addEventListener("change", () => {
       if (box === el.showEuler || box === el.showMidpoint || box === el.showRk4) {
         stopAnimation();
-        scheduleCompute({ debounceMs: 0 });
+        if (!applyLiveSolutions()) scheduleCompute({ debounceMs: 0 });
         return;
       }
       drawScene();
@@ -606,6 +892,7 @@ function wireInteractions() {
 
   el.exprInput.addEventListener("input", () => {
     stopAnimation();
+    state.f = null;
     scheduleCompute({ debounceMs: 220 });
   });
   el.exprInput.addEventListener("change", () => scheduleCompute({ debounceMs: 0 }));
@@ -649,11 +936,20 @@ async function bootstrap() {
   viewer = new GraphViewer($("plotCanvas"), {
     initialView: { xmin: -4, xmax: 4, ymin: -4, ymax: 4 },
   });
+  viewer.rememberSnapView({ xmin: -4, xmax: 4, ymin: -4, ymax: 4 });
   viewer.canvas.style.cursor = "crosshair";
   viewer.setRedrawHandler(() => {
     if (!state.data) {
       viewer.drawGrid();
       return;
+    }
+    const key = viewKey();
+    if (state.f && key !== state.lastViewKey) {
+      stopAnimation();
+      state.lastViewKey = key;
+      rebuildTicks();
+      rebuildSolutions();
+      updateHeader();
     }
     drawScene();
   });

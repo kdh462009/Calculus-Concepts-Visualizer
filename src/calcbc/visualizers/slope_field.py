@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 import sympy as sp
+from sympy.printing.jscode import jscode
 
 from calcbc.graph import classroom_str, launch_app, parse_user_expr, to_js_array
 from calcbc.latex_formulas import render_formula, slope_field_header_latex
@@ -301,9 +302,15 @@ class SlopeFieldApi:
                         f, name, x0, y0, h, xmin, xmax, ymin, ymax
                     )
 
+            try:
+                f_js = jscode(expr)
+            except Exception:
+                f_js = ""
+
             return {
                 "ok": True,
                 "expr": classroom_str(expr),
+                "fJs": f_js,
                 "xRange": [xmin, xmax],
                 "yRange": [ymin, ymax],
                 "x0": x0,
