@@ -206,8 +206,17 @@ def render_latex_png(
         ha="left",
     )
     canvas = FigureCanvasAgg(fig)
+    canvas.draw()
     buf = io.BytesIO()
-    canvas.print_png(buf)
+    fig.savefig(
+        buf,
+        format="png",
+        dpi=200,
+        bbox_inches="tight",
+        pad_inches=0.08,
+        facecolor="none",
+        transparent=True,
+    )
     encoded = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 

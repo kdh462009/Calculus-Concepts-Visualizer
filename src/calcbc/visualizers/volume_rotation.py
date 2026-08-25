@@ -53,7 +53,7 @@ def _numeric_integral(xs: np.ndarray, ys: np.ndarray) -> float:
 def _volume_formula(axis: str) -> str:
     if axis == "x":
         return "V = π ∫[a,b] (f(x))^2 dx"
-    return "V = 2π ∫[a,b] |x| |f(x)| dx (shell method)"
+    return "V = π ∫ (x(y))^2 dy (about the y-axis)"
 
 
 def _volume_latex(a: float, b: float, axis: str) -> str:
@@ -104,11 +104,14 @@ class VolumeRotationApi:
             xb = x_bounds[valid_bounds]
             yb = y_bounds[valid_bounds]
 
-            area_abs = _numeric_integral(xb, np.abs(yb))
             if axis == "x":
+                area_abs = _numeric_integral(xb, np.abs(yb))
                 volume = math.pi * _numeric_integral(xb, yb * yb)
+                area_formula = "A = ∫[a,b] |f(x)| dx"
             else:
-                volume = 2.0 * math.pi * _numeric_integral(xb, np.abs(xb) * np.abs(yb))
+                area_abs = abs(_numeric_integral(yb, np.abs(xb)))
+                volume = math.pi * abs(_numeric_integral(yb, xb * xb))
+                area_formula = "A = ∫ |x| dy (between curve and y-axis)"
 
             max_abs_y = float(np.nanmax(np.abs(y_all[np.isfinite(y_all)]))) if np.any(np.isfinite(y_all)) else 1.0
             max_abs_x = max(abs(xmin), abs(xmax))
@@ -124,10 +127,13 @@ class VolumeRotationApi:
                 "yBound": to_js_array(y_bounds),
                 "area": area_abs,
                 "volume": volume,
-                "areaFormula": "A = ∫[a,b] |f(x)| dx",
+                "areaFormula": area_formula,
                 "volumeFormula": _volume_formula(axis),
                 "latexPng": render_formula(_volume_latex(a, b, axis), wide=True),
-                "assumption": "Area uses |f(x)|; y-axis rotation uses shell radius |x|.",
+                "assumption": (
+                    "x-axis uses disks under y=f(x). "
+                    "y-axis uses washers from the y-axis to the curve."
+                ),
                 "scaleHints": {
                     "maxAbsX": float(max_abs_x),
                     "maxAbsY": float(max_abs_y if max_abs_y > 1e-8 else 1.0),

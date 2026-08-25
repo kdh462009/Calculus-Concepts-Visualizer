@@ -23,8 +23,8 @@ def latex_endpoint(v: float) -> str:
 
 
 def render_formula(latex_body: str, *, color: str = "#f5c842", wide: bool = False) -> str:
-    figsize = (18.0, 0.9) if wide else (14.0, 0.85)
-    return render_latex_png(latex_body, color=color, figsize=figsize)
+    figsize = (12.0, 0.95) if wide else (10.0, 0.9)
+    return render_latex_png(latex_body, color=color, figsize=figsize, fontsize=22.0)
 
 
 def arc_length_latex(a: float, b: float, deriv) -> str:
@@ -44,7 +44,8 @@ def volume_formulas_latex(a: float, b: float, axis: str) -> str:
     if axis == "x":
         volume = rf"V = \pi \int_{{{a_ltx}}}^{{{b_ltx}}} \left(f(x)\right)^2\, dx"
     else:
-        volume = rf"V = 2\pi \int_{{{a_ltx}}}^{{{b_ltx}}} \left|x\right|\left|f(x)\right|\, dx"
+        area = rf"A = \int_{{f({a_ltx})}}^{{f({b_ltx})}} \left|x\right|\, dy"
+        volume = rf"V = \pi \int_{{f({a_ltx})}}^{{f({b_ltx})}} \left(x(y)\right)^2\, dy"
     return rf"{area} \qquad {volume}"
 
 

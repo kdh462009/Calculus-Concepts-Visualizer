@@ -1,4 +1,5 @@
-const DEFAULT_ZOOM = 1.4;
+const DEFAULT_ZOOM = 1.25;
+const FILL = 0.34;
 
 const state = {
   data: null,
@@ -28,11 +29,7 @@ function setStatus(text) {
 }
 
 function snapVolumeView() {
-  state.viewOffsetX = 0;
-  state.viewOffsetY = 0;
-  state.zoom = DEFAULT_ZOOM;
-  state.camYaw = 0;
-  state.camPitch = 0;
+  applyHomeCamera();
 }
 
 function syncViewLockChrome() {
@@ -107,8 +104,14 @@ class VolumeRenderer {
   }
 
   project(point, scale, yaw, pitch) {
-    const r = this.rotatePoint(point.x, point.y, point.z, yaw, pitch);
-    const perspective = 700 / (700 + r.z + 340);
+    const r = this.rotatePoint(
+      point.x - (this.focusX || 0),
+      point.y - (this.focusY || 0),
+      point.z - (this.focusZ || 0),
+      yaw,
+      pitch,
+    );
+    const perspective = 1600 / (1600 + r.z + 280);
     return {
       x: this.w * 0.5 + this.offsetX + r.x * scale * perspective,
       y: this.h * 0.5 + this.offsetY - r.y * scale * perspective,
@@ -134,36 +137,83 @@ class VolumeRenderer {
     return { x: x * Math.cos(theta), y, z: x * Math.sin(theta) };
   }
 
+  drawLabelPill(text, x, y, color) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.font = "700 15px -apple-system, BlinkMacSystemFont, sans-serif";
+    const padX = 8;
+    const w = ctx.measureText(text).width;
+    const h = 24;
+    const bx = x - (w + padX * 2) / 2;
+    const by = y - h / 2;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(bx, by, w + padX * 2, h, 10);
+    } else {
+      ctx.rect(bx, by, w + padX * 2, h);
+    }
+    ctx.fillStyle = "rgba(8, 12, 26, 0.9)";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.fillStyle = "#f4f7ff";
+    ctx.fillText(text, bx + padX, by + 17);
+    ctx.restore();
+  }
+
   drawAxes(scale, yaw, pitch, data) {
     const ctx = this.ctx;
-    const hints = data.scaleHints || {};
-    const axisLenX = Math.max(Math.abs(data.xRange[0]), Math.abs(data.xRange[1]), hints.maxAbsX || 1) * 1.2;
-    const axisLenY = Math.max(hints.maxAbsY || 1, 1) * 1.25;
-    const axisLenZ = Math.max(hints.maxAbsY || hints.maxAbsX || 1, 1) * 1.25;
+    const a = Number(data.bounds?.[0] ?? data.xRange?.[0] ?? -1);
+    const b = Number(data.bounds?.[1] ?? data.xRange?.[1] ?? 1);
+    const { lo, hi } = profileYRange(data);
+    const radius = Math.max(Math.abs(a), Math.abs(b), 1) * 1.2;
+    const xLo = Math.min(a, data.xRange?.[0] ?? a, 0) - 0.35;
+    const xHi = Math.max(b, data.xRange?.[1] ?? b, 0) + 0.45;
+    const yLo = Math.min(lo, 0) - 0.25;
+    const yHi = Math.max(hi, 1) * 1.12;
+    const aroundY = data.axis === "y";
 
     const drawAxis = (from, to, color, label) => {
       const p0 = this.project(from, scale, yaw, pitch);
       const p1 = this.project(to, scale, yaw, pitch);
+      ctx.save();
       ctx.strokeStyle = color;
-      ctx.lineWidth = 1.3;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.moveTo(p0.x, p0.y);
       ctx.lineTo(p1.x, p1.y);
       ctx.stroke();
-      ctx.fillStyle = color;
-      ctx.font = "13px -apple-system, BlinkMacSystemFont, sans-serif";
-      ctx.fillText(label, p1.x + 4, p1.y - 3);
+      ctx.shadowBlur = 0;
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      const len = Math.hypot(dx, dy) || 1;
+      this.drawLabelPill(label, p1.x + (dx / len) * 18, p1.y + (dy / len) * 18, color);
+      ctx.restore();
     };
 
-    drawAxis({ x: -axisLenX, y: 0, z: 0 }, { x: axisLenX, y: 0, z: 0 }, "#6fb8ff", "x");
-    drawAxis({ x: 0, y: -axisLenY, z: 0 }, { x: 0, y: axisLenY, z: 0 }, "#8ef6c7", "y");
-    drawAxis({ x: 0, y: 0, z: -axisLenZ }, { x: 0, y: 0, z: axisLenZ }, "#d7a8ff", "z");
+    if (aroundY) {
+      drawAxis({ x: -radius, y: 0, z: 0 }, { x: radius, y: 0, z: 0 }, "#7ec4ff", "x");
+      drawAxis({ x: 0, y: yLo, z: 0 }, { x: 0, y: yHi, z: 0 }, "#8ef6c7", "y");
+      drawAxis({ x: 0, y: 0, z: -radius }, { x: 0, y: 0, z: radius }, "#d7a8ff", "z");
+    } else {
+      drawAxis({ x: xLo, y: 0, z: 0 }, { x: xHi, y: 0, z: 0 }, "#7ec4ff", "x");
+      drawAxis({ x: 0, y: yLo, z: 0 }, { x: 0, y: yHi, z: 0 }, "#8ef6c7", "y");
+      drawAxis({ x: 0, y: 0, z: -Math.max(hi, 1) * 0.9 }, { x: 0, y: 0, z: Math.max(hi, 1) * 0.9 }, "#d7a8ff", "z");
+    }
   }
 
   drawCurve2D(data, scale, yaw, pitch) {
     const ctx = this.ctx;
     ctx.strokeStyle = "#2ee8bb";
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 2.6;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.shadowColor = "rgba(46, 232, 187, 0.35)";
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     let started = false;
     for (let i = 0; i < data.x.length; i += 1) {
@@ -182,24 +232,35 @@ class VolumeRenderer {
       }
     }
     ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
   drawAreaGuide(data, profile, scale, yaw, pitch) {
     const ctx = this.ctx;
     if (!profile.length) return;
 
-    const axis = data.axis === "y" ? "y" : "x";
-    const maxY = 1.02 * (data.scaleHints.maxAbsY || 1);
-
+    // x-axis: between the curve and the x-axis.
+    // y-axis: between the curve and the y-axis (above y=x^2 on [0, b]).
     ctx.beginPath();
-    const p0 = this.project({ x: profile[0].x, y: 0, z: 0 }, scale, yaw, pitch);
-    ctx.moveTo(p0.x, p0.y);
-    for (let i = 0; i < profile.length; i += 1) {
-      const p = this.project({ x: profile[i].x, y: profile[i].y, z: 0 }, scale, yaw, pitch);
-      ctx.lineTo(p.x, p.y);
+    if (data.axis === "y") {
+      const pAxis0 = this.project({ x: 0, y: profile[0].y, z: 0 }, scale, yaw, pitch);
+      ctx.moveTo(pAxis0.x, pAxis0.y);
+      for (let i = 0; i < profile.length; i += 1) {
+        const p = this.project({ x: profile[i].x, y: profile[i].y, z: 0 }, scale, yaw, pitch);
+        ctx.lineTo(p.x, p.y);
+      }
+      const pAxis1 = this.project({ x: 0, y: profile[profile.length - 1].y, z: 0 }, scale, yaw, pitch);
+      ctx.lineTo(pAxis1.x, pAxis1.y);
+    } else {
+      const p0 = this.project({ x: profile[0].x, y: 0, z: 0 }, scale, yaw, pitch);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i = 0; i < profile.length; i += 1) {
+        const p = this.project({ x: profile[i].x, y: profile[i].y, z: 0 }, scale, yaw, pitch);
+        ctx.lineTo(p.x, p.y);
+      }
+      const pN = this.project({ x: profile[profile.length - 1].x, y: 0, z: 0 }, scale, yaw, pitch);
+      ctx.lineTo(pN.x, pN.y);
     }
-    const pN = this.project({ x: profile[profile.length - 1].x, y: 0, z: 0 }, scale, yaw, pitch);
-    ctx.lineTo(pN.x, pN.y);
     ctx.closePath();
     ctx.fillStyle = "rgba(245, 200, 66, 0.18)";
     ctx.fill();
@@ -207,45 +268,32 @@ class VolumeRenderer {
     ctx.lineWidth = 1.1;
     ctx.stroke();
 
-    const a = data.bounds[0];
-    const b = data.bounds[1];
-    const pa0 = this.project({ x: a, y: 0, z: 0 }, scale, yaw, pitch);
-    const pa1 = this.project({ x: a, y: maxY, z: 0 }, scale, yaw, pitch);
-    const pb0 = this.project({ x: b, y: 0, z: 0 }, scale, yaw, pitch);
-    const pb1 = this.project({ x: b, y: maxY, z: 0 }, scale, yaw, pitch);
+    const first = profile[0];
+    const last = profile[profile.length - 1];
     ctx.strokeStyle = "rgba(245, 200, 66, 0.6)";
     ctx.setLineDash([5, 4]);
     ctx.beginPath();
-    ctx.moveTo(pa0.x, pa0.y);
-    ctx.lineTo(pa1.x, pa1.y);
-    ctx.moveTo(pb0.x, pb0.y);
-    ctx.lineTo(pb1.x, pb1.y);
+    if (data.axis === "y") {
+      const a0 = this.project({ x: 0, y: first.y, z: 0 }, scale, yaw, pitch);
+      const a1 = this.project({ x: first.x, y: first.y, z: 0 }, scale, yaw, pitch);
+      const b0 = this.project({ x: 0, y: last.y, z: 0 }, scale, yaw, pitch);
+      const b1 = this.project({ x: last.x, y: last.y, z: 0 }, scale, yaw, pitch);
+      ctx.moveTo(a0.x, a0.y);
+      ctx.lineTo(a1.x, a1.y);
+      ctx.moveTo(b0.x, b0.y);
+      ctx.lineTo(b1.x, b1.y);
+    } else {
+      const pa0 = this.project({ x: first.x, y: 0, z: 0 }, scale, yaw, pitch);
+      const pa1 = this.project({ x: first.x, y: first.y, z: 0 }, scale, yaw, pitch);
+      const pb0 = this.project({ x: last.x, y: 0, z: 0 }, scale, yaw, pitch);
+      const pb1 = this.project({ x: last.x, y: last.y, z: 0 }, scale, yaw, pitch);
+      ctx.moveTo(pa0.x, pa0.y);
+      ctx.lineTo(pa1.x, pa1.y);
+      ctx.moveTo(pb0.x, pb0.y);
+      ctx.lineTo(pb1.x, pb1.y);
+    }
     ctx.stroke();
     ctx.setLineDash([]);
-
-    const rotColor = axis === "x" ? "#6fb8ff" : "#8ef6c7";
-    const rotLabel = axis === "x" ? "rotation axis (x)" : "rotation axis (y)";
-    const rotFrom =
-      axis === "x"
-        ? { x: Math.min(a, b) - 0.2, y: 0, z: 0 }
-        : { x: 0, y: 0, z: 0 };
-    const rotTo =
-      axis === "x"
-        ? { x: Math.max(a, b) + 0.2, y: 0, z: 0 }
-        : { x: 0, y: maxY, z: 0 };
-    const rp0 = this.project(rotFrom, scale, yaw, pitch);
-    const rp1 = this.project(rotTo, scale, yaw, pitch);
-    ctx.strokeStyle = rotColor;
-    ctx.lineWidth = 2.4;
-    ctx.setLineDash([8, 5]);
-    ctx.beginPath();
-    ctx.moveTo(rp0.x, rp0.y);
-    ctx.lineTo(rp1.x, rp1.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = rotColor;
-    ctx.font = "12px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillText(rotLabel, rp1.x + 6, rp1.y - 4);
   }
 
   drawSurface(data, profile, maxTheta, scale, yaw, pitch) {
@@ -300,10 +348,17 @@ class VolumeRenderer {
   draw(data, sweepAngle, yaw, pitch, offsetX, offsetY, zoom) {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.w, this.h);
-    ctx.fillStyle = "rgba(10, 16, 32, 0.96)";
+    const bg = ctx.createRadialGradient(this.w * 0.5, this.h * 0.42, 20, this.w * 0.5, this.h * 0.5, Math.max(this.w, this.h) * 0.72);
+    bg.addColorStop(0, "#152038");
+    bg.addColorStop(1, "#0a101e");
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, this.w, this.h);
     this.offsetX = offsetX || 0;
     this.offsetY = offsetY || 0;
+    const focus = contentFocus(data);
+    this.focusX = focus.x;
+    this.focusY = focus.y;
+    this.focusZ = focus.z;
 
     if (!data) {
       ctx.fillStyle = "#94a3d9";
@@ -313,12 +368,8 @@ class VolumeRenderer {
       return;
     }
 
-    const hints = data.scaleHints || {};
-    const worldX = Math.max(Math.abs(data.xRange[0]), Math.abs(data.xRange[1]), hints.maxAbsX || 1);
-    const worldY = Math.max(hints.maxAbsY || 1, 1);
-    const worldZ = Math.max(worldY, worldX * 0.9, 1);
-    const worldSize = Math.max(worldX, worldY, worldZ);
-    const scale = Math.min(this.w, this.h) * 0.36 * Math.max(0.45, Math.min(2.2, zoom || 1)) / Math.max(worldSize, 1);
+    const worldSize = volumeWorldSize(data);
+    const scale = Math.min(this.w, this.h) * FILL * Math.max(0.45, Math.min(2.2, zoom || 1)) / Math.max(worldSize, 1);
 
     const profile = this.buildProfile(data);
     this.drawAxes(scale, yaw, pitch, data);
@@ -338,15 +389,64 @@ function stopAnimation() {
   el.pauseBtn.textContent = "Pause";
 }
 
-const VOLUME_PERSP = 700 / (700 + 340);
+const VOLUME_PERSP = 1600 / (1600 + 280);
+
+function currentAxis() {
+  return state.data?.axis === "y" || el.axisInput?.value === "y" ? "y" : "x";
+}
+
+function homeCamera(axis = currentAxis()) {
+  // Keep +x to the right (cos(yaw) > 0). Large yaw made the solid look mirrored.
+  if (axis === "y") return { yaw: 0.42, pitch: 0.16 };
+  return { yaw: 0, pitch: 0 };
+}
+
+function applyHomeCamera() {
+  const cam = homeCamera();
+  state.camYaw = cam.yaw;
+  state.camPitch = cam.pitch;
+  state.viewOffsetX = 0;
+  state.viewOffsetY = 0;
+  state.zoom = DEFAULT_ZOOM;
+}
+
+function profileYRange(data) {
+  const ys = data?.yBound || [];
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i < ys.length; i += 1) {
+    const y = ys[i];
+    if (typeof y === "number" && Number.isFinite(y)) {
+      lo = Math.min(lo, y);
+      hi = Math.max(hi, y);
+    }
+  }
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { lo: 0, hi: 1 };
+  return { lo, hi };
+}
+
+function contentFocus(data) {
+  if (!data) return { x: 0, y: 0, z: 0 };
+  const a = Number(data.bounds?.[0] ?? 0);
+  const b = Number(data.bounds?.[1] ?? 1);
+  const { lo, hi } = profileYRange(data);
+  if (data.axis === "y") {
+    return { x: 0, y: (lo + hi) / 2, z: 0 };
+  }
+  return { x: (a + b) / 2, y: 0, z: 0 };
+}
 
 function volumeWorldSize(data) {
   if (!data) return 2;
-  const hints = data.scaleHints || {};
-  const worldX = Math.max(Math.abs(data.xRange?.[0] || 0), Math.abs(data.xRange?.[1] || 0), hints.maxAbsX || 1);
-  const worldY = Math.max(hints.maxAbsY || 1, 1);
-  const worldZ = Math.max(worldY, worldX * 0.9, 1);
-  return Math.max(worldX, worldY, worldZ, 1);
+  const a = Number(data.bounds?.[0] ?? 0);
+  const b = Number(data.bounds?.[1] ?? 1);
+  const { lo, hi } = profileYRange(data);
+  const ySpan = Math.max(Math.abs(hi - lo), Math.abs(hi), 1);
+  if (data.axis === "y") {
+    const radius = Math.max(Math.abs(a), Math.abs(b), 1);
+    return Math.max(radius * 2.05, ySpan * 1.2);
+  }
+  return Math.max(Math.abs(b - a), ySpan, 1) * 1.12;
 }
 
 function volumePixelScale() {
@@ -354,15 +454,16 @@ function volumePixelScale() {
   const zoom = Math.max(0.45, Math.min(2.2, state.zoom || 1));
   const w = renderer?.w || 1;
   const h = renderer?.h || 1;
-  return Math.min(w, h) * 0.36 * zoom / worldSize;
+  return Math.min(w, h) * FILL * zoom / worldSize;
 }
 
 function volumeGetView() {
   const k = Math.max(volumePixelScale() * VOLUME_PERSP, 1e-6);
   const halfW = (renderer?.w || 1) * 0.5 / k;
   const halfH = (renderer?.h || 1) * 0.5 / k;
-  const cx = -(state.viewOffsetX || 0) / k;
-  const cy = (state.viewOffsetY || 0) / k;
+  const focus = contentFocus(state.data);
+  const cx = focus.x - (state.viewOffsetX || 0) / k;
+  const cy = focus.y + (state.viewOffsetY || 0) / k;
   return {
     xmin: cx - halfW,
     xmax: cx + halfW,
@@ -384,12 +485,13 @@ function volumeSetView(view) {
   const scaleFromY = h / (spanY * VOLUME_PERSP);
   const scale = Math.min(scaleFromX, scaleFromY);
   const worldSize = volumeWorldSize(state.data);
-  state.zoom = Math.max(0.45, Math.min(2.2, scale * worldSize / (Math.min(w, h) * 0.36)));
+  state.zoom = Math.max(0.45, Math.min(2.2, scale * worldSize / (Math.min(w, h) * FILL)));
   const k = volumePixelScale() * VOLUME_PERSP;
+  const focus = contentFocus(state.data);
   const cx = (view.xmin + view.xmax) / 2;
   const cy = (view.ymin + view.ymax) / 2;
-  state.viewOffsetX = -cx * k;
-  state.viewOffsetY = cy * k;
+  state.viewOffsetX = -(cx - focus.x) * k;
+  state.viewOffsetY = (cy - focus.y) * k;
   drawCurrentFrame();
 }
 
@@ -423,13 +525,24 @@ function loop(ts) {
   const eased = easeOutCubic(phase);
 
   state.sweepAngle = Math.min(Math.PI * 2, Math.PI * 2 * eased);
-  state.camPitch = lerp(0, 0.92, eased);
-  state.camYaw = lerp(0, 0.7, eased);
-
-  if (phase >= 1) {
-    const spin = (state.elapsed - revolutionMs) / 7000;
-    state.camYaw = 0.7 + spin * Math.PI * 2;
-    state.sweepAngle = Math.PI * 2;
+  const home = homeCamera();
+  if (currentAxis() === "y") {
+    state.camPitch = lerp(home.pitch, 0.22, eased);
+    state.camYaw = home.yaw;
+    if (phase >= 1) {
+      const spin = (state.elapsed - revolutionMs) / 7000;
+      state.camPitch = 0.22;
+      state.camYaw = home.yaw + 0.28 * Math.sin(spin * Math.PI * 2);
+      state.sweepAngle = Math.PI * 2;
+    }
+  } else {
+    state.camPitch = lerp(0, 0.92, eased);
+    state.camYaw = lerp(0, 0.7, eased);
+    if (phase >= 1) {
+      const spin = (state.elapsed - revolutionMs) / 7000;
+      state.camYaw = 0.7 + spin * Math.PI * 2;
+      state.sweepAngle = Math.PI * 2;
+    }
   }
 
   drawCurrentFrame();
@@ -449,6 +562,12 @@ function payloadFromInputs() {
   };
 }
 
+function syncAxisChip(data) {
+  if (!el.axisChip) return;
+  const axis = data?.axis === "y" ? "y" : "x";
+  el.axisChip.textContent = `About the ${axis}-axis`;
+}
+
 function renderReadouts(data) {
   LatexDisplay.setImage(el.latexImage, data.latexPng);
   LatexDisplay.renderReadout(el.readoutImage, {
@@ -457,6 +576,7 @@ function renderReadouts(data) {
     volume: data.volume,
     axis: data.axis,
   });
+  syncAxisChip(data);
 }
 
 let previewTimer = null;
@@ -486,11 +606,7 @@ async function computeModel(options = {}) {
   state.data = result;
   state.elapsed = 0;
   state.sweepAngle = 0;
-  state.camPitch = 0;
-  state.camYaw = 0;
-  state.viewOffsetX = 0;
-  state.viewOffsetY = 0;
-  state.zoom = DEFAULT_ZOOM;
+  applyHomeCamera();
   renderReadouts(result);
   drawCurrentFrame();
   const axisLabel = payload.axis === "y" ? "y-axis" : "x-axis";
@@ -512,11 +628,7 @@ async function startAnimation() {
   state.lastTs = 0;
   state.elapsed = 0;
   state.sweepAngle = 0;
-  state.camPitch = 0;
-  state.camYaw = 0;
-  state.viewOffsetX = 0;
-  state.viewOffsetY = 0;
-  state.zoom = DEFAULT_ZOOM;
+  applyHomeCamera();
   setStatus("animating rotation...");
   state.rafId = requestAnimationFrame(loop);
 }
@@ -539,6 +651,8 @@ function wireInteractions() {
     if (state.viewLocked) return;
     if (state.animating) {
       stopAnimation();
+      applyHomeCamera();
+      drawCurrentFrame();
       setStatus("animation stopped. drag to move view.");
     }
     drag.active = true;
@@ -561,8 +675,8 @@ function wireInteractions() {
       state.viewOffsetX += dx;
       state.viewOffsetY += dy;
     } else {
-      state.camYaw += dx * 0.01;
-      state.camPitch = Math.max(pitchMin, Math.min(pitchMax, state.camPitch + dy * 0.01));
+      state.camYaw -= dx * 0.0075;
+      state.camPitch = Math.max(pitchMin, Math.min(pitchMax, state.camPitch + dy * 0.0075));
     }
     drawCurrentFrame();
   });
@@ -628,11 +742,7 @@ function wireInteractions() {
     stopAnimation();
     state.elapsed = 0;
     state.sweepAngle = 0;
-    state.camYaw = 0;
-    state.camPitch = 0;
-    state.viewOffsetX = 0;
-    state.viewOffsetY = 0;
-    state.zoom = DEFAULT_ZOOM;
+    applyHomeCamera();
     drawCurrentFrame();
     setStatus("view reset.");
   });
@@ -660,6 +770,7 @@ async function bootstrap() {
   el.status = $("status");
   el.latexImage = $("latexImage");
   el.readoutImage = $("readoutImage");
+  el.axisChip = $("axisChip");
 
   renderer = new VolumeRenderer($("volumeCanvas"));
   renderer.scaleBar = window.ScaleBar?.mount(renderer.canvas.parentElement, {

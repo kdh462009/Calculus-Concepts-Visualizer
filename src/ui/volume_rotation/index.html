@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Volume Rotation Visualizer</title>
   <link rel="stylesheet" href="../core/styles.css">
+  <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="../core/transitions.css">
   <script src="../core/transitions.js"></script>
 </head>
-<body>
+<body class="volume-page">
   <div class="app-shell">
     <header class="header">
       <div class="header-top">
@@ -18,12 +19,14 @@
         </div>
         <button id="homeBtn" class="btn-home" type="button" title="Back to visualizers">Home</button>
       </div>
-      <div id="formulaLine" class="error-bound">Area and volume formulas for the current bounds and axis.</div>
-      <div class="latex-row">
-        <img id="latexImage" alt="Area and volume formulas">
-      </div>
-      <div class="latex-row">
-        <img id="readoutImage" alt="Area and volume values" hidden>
+      <div class="volume-formula-strip">
+        <div class="latex-row">
+          <img id="latexImage" alt="Area and volume formulas">
+        </div>
+        <div class="volume-formula-divider" aria-hidden="true"></div>
+        <div class="latex-row">
+          <img id="readoutImage" alt="Area and volume values" hidden>
+        </div>
       </div>
     </header>
 
@@ -67,6 +70,9 @@
 
       <section class="plot-wrap glass">
         <canvas id="volumeCanvas"></canvas>
+        <div class="volume-hud">
+          <span id="axisChip" class="volume-chip">About the x-axis</span>
+        </div>
       </section>
     </main>
   </div>
