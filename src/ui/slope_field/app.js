@@ -659,8 +659,11 @@ async function computeNow(options = {}) {
         latexPng: result.latexPng,
       };
     }
-    state.lastViewKey = viewKey();
-    if (applyLiveView()) {
+    // Only mark the view as live-synced when f compiled. Failed/empty jscode
+    // leaves state.f null; stamping lastViewKey first would make onViewChange
+    // treat this view as current and skip pan/zoom Python recomputes.
+    if (state.f && applyLiveView()) {
+      state.lastViewKey = viewKey();
       const n = state.data.tickX?.length || 0;
       if (state.draggingIC) {
         setStatus(`initial condition (${formatNum(state.x0)}, ${formatNum(state.y0)}); release to settle.`);
@@ -669,8 +672,8 @@ async function computeNow(options = {}) {
       }
       return true;
     }
-    if (state.draggingIC) {
-      applyLiveSolutions();
+    if (state.draggingIC && state.f && applyLiveSolutions()) {
+      state.lastViewKey = viewKey();
       setStatus(`initial condition (${formatNum(state.x0)}, ${formatNum(state.y0)}); release to settle.`);
       return true;
     }
@@ -687,6 +690,7 @@ async function computeNow(options = {}) {
     } else {
       state.data = result;
     }
+    state.lastViewKey = viewKey();
     updateHeader();
     drawScene();
     const n = state.data.tickX?.length || 0;
@@ -726,6 +730,7 @@ function viewKey() {
 function onViewChange() {
   const key = viewKey();
   if (key === state.lastViewKey) return;
+  // Live ticks/solutions already follow the camera in the redraw handler.
   if (state.f && state.data) return;
   clearTimeout(state.fieldTimer);
   state.fieldTimer = setTimeout(() => {
