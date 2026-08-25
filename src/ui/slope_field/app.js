@@ -31,6 +31,7 @@ const state = {
   fieldTimer: null,
   ivpTimer: null,
   lastViewKey: "",
+  lastServerViewKey: "",
   inFlight: false,
   queued: false,
   queuedSolutionsOnly: false,
@@ -690,7 +691,10 @@ async function computeNow(options = {}) {
     } else {
       state.data = result;
     }
-    state.lastViewKey = viewKey();
+    if (state.f) {
+      state.lastViewKey = viewKey();
+    }
+    state.lastServerViewKey = viewKey();
     updateHeader();
     drawScene();
     const n = state.data.tickX?.length || 0;
@@ -729,12 +733,12 @@ function viewKey() {
 
 function onViewChange() {
   const key = viewKey();
-  if (key === state.lastViewKey) return;
-  // Live ticks/solutions already follow the camera in the redraw handler.
   if (state.f && state.data) return;
+  if (key === state.lastServerViewKey) return;
   clearTimeout(state.fieldTimer);
   state.fieldTimer = setTimeout(() => {
-    if (viewKey() === state.lastViewKey) return;
+    if (state.f) return;
+    if (viewKey() === state.lastServerViewKey) return;
     stopAnimation();
     scheduleCompute({ debounceMs: 0 });
   }, 130);

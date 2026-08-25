@@ -50,6 +50,51 @@ def _numeric_integral(xs: np.ndarray, ys: np.ndarray) -> float:
     return float(np.trapezoid(ys[finite], xs[finite]))
 
 
+def _invert_to_y(xb: np.ndarray, yb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Sample x as a function of y on a monotonic grid (washer method).
+
+    Interpolates along the polyline (x, f(x)). Where several x values share a
+    height, keep the one farthest from the y-axis (region from the axis to the curve).
+    """
+    finite = np.isfinite(xb) & np.isfinite(yb)
+    x = np.asarray(xb[finite], dtype=float)
+    y = np.asarray(yb[finite], dtype=float)
+    if x.size < 10:
+        raise ValueError("Could not invert y = f(x) on this interval.")
+    y_lo = float(np.min(y))
+    y_hi = float(np.max(y))
+    if not np.isfinite(y_lo) or not np.isfinite(y_hi) or abs(y_hi - y_lo) < 1e-12:
+        raise ValueError("y = f(x) is too flat to integrate with respect to y.")
+    n = int(min(1200, max(80, x.size // 2)))
+    y_grid = np.linspace(y_lo, y_hi, n)
+    x_at = np.full(n, np.nan)
+    for i in range(x.size - 1):
+        y0 = float(y[i])
+        y1 = float(y[i + 1])
+        x0 = float(x[i])
+        x1 = float(x[i + 1])
+        dy = y1 - y0
+        if abs(dy) < 1e-15:
+            continue
+        lo = min(y0, y1)
+        hi = max(y0, y1)
+        mask = (y_grid >= lo) & (y_grid <= hi)
+        if not np.any(mask):
+            continue
+        t = (y_grid[mask] - y0) / dy
+        x_seg = x0 + t * (x1 - x0)
+        prev = x_at[mask]
+        better = np.isnan(prev) | (np.abs(x_seg) >= np.abs(prev))
+        if not np.any(better):
+            continue
+        idx = np.flatnonzero(mask)[better]
+        x_at[idx] = x_seg[better]
+    good = np.isfinite(x_at)
+    if np.count_nonzero(good) < 10:
+        raise ValueError("Could not invert y = f(x) on this interval.")
+    return y_grid[good], x_at[good]
+
+
 def _volume_formula(axis: str) -> str:
     if axis == "x":
         return "V = π ∫[a,b] (f(x))^2 dx"
@@ -109,8 +154,9 @@ class VolumeRotationApi:
                 volume = math.pi * _numeric_integral(xb, yb * yb)
                 area_formula = "A = ∫[a,b] |f(x)| dx"
             else:
-                area_abs = abs(_numeric_integral(yb, np.abs(xb)))
-                volume = math.pi * abs(_numeric_integral(yb, xb * xb))
+                y_inv, x_inv = _invert_to_y(xb, yb)
+                area_abs = _numeric_integral(y_inv, np.abs(x_inv))
+                volume = math.pi * _numeric_integral(y_inv, x_inv * x_inv)
                 area_formula = "A = ∫ |x| dy (between curve and y-axis)"
 
             max_abs_y = float(np.nanmax(np.abs(y_all[np.isfinite(y_all)]))) if np.any(np.isfinite(y_all)) else 1.0
