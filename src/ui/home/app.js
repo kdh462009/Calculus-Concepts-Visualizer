@@ -511,18 +511,35 @@ async function maybeEnforceSupportOrUpdate() {
   await maybeOfferUpdate();
 }
 
+async function waitForStartupUpdate(timeoutMs = 2500) {
+  if (window.__startupUpdateChecked) return window.__startupUpdateInfo || null;
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (window.__startupUpdateChecked) return window.__startupUpdateInfo || null;
+    await wait(40);
+  }
+  return window.__startupUpdateInfo || null;
+}
+
 async function maybeOfferUpdate() {
   try {
     if (window.__sspSoftlocked) return;
-    // Auto-offer only once per app session (home reloads on navigate back).
     try {
       if (sessionStorage.getItem("cvAutoUpdateChecked") === "1") return;
+    } catch {
+      /* private mode */
+    }
+    let info = await waitForStartupUpdate();
+    if (!info && !window.__startupUpdateChecked) {
+      if (!window.pywebview?.api?.check_for_update) return;
+      const checker = window.checkForUpdateWithRetry || (() => window.pywebview.api.check_for_update());
+      info = await checker(2);
+    }
+    try {
       sessionStorage.setItem("cvAutoUpdateChecked", "1");
     } catch {
-      /* private mode — still attempt once this page load */
+      /* ignore */
     }
-    if (!window.pywebview?.api?.check_for_update) return;
-    const info = await window.pywebview.api.check_for_update();
     if (!info?.update) return;
     showUpdateModal(info);
   } catch {

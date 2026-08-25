@@ -75,6 +75,30 @@ function restoreVersionLabelSoon(ms = 1800) {
   }, ms);
 }
 
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function checkForUpdateWithRetry(attempts = 3) {
+  if (typeof window.pywebview?.api?.check_for_update !== "function") {
+    return null;
+  }
+  let last = null;
+  const n = Math.max(1, attempts);
+  for (let i = 0; i < n; i += 1) {
+    try {
+      last = await window.pywebview.api.check_for_update();
+      if (last?.checked || last?.update) return last;
+    } catch (err) {
+      last = { ok: false, checked: false, update: false, error: String(err) };
+    }
+    if (i < n - 1) await waitMs(350 * (i + 1));
+  }
+  return last;
+}
+
+window.checkForUpdateWithRetry = checkForUpdateWithRetry;
+
 async function runManualUpdateCheck() {
   if (versionCheckBusy) return;
   if (typeof window.pywebview?.api?.check_for_update !== "function") {
@@ -85,7 +109,7 @@ async function runManualUpdateCheck() {
   versionCheckBusy = true;
   setVersionLabel("Checking…");
   try {
-    const info = await window.pywebview.api.check_for_update();
+    const info = await checkForUpdateWithRetry(3);
     if (info?.update) {
       if (typeof window.showUpdateModal === "function") {
         window.showUpdateModal(info);
@@ -548,9 +572,7 @@ async function enforceSupportWindow() {
 
     let updateInfo = null;
     try {
-      if (typeof window.pywebview.api.check_for_update === "function") {
-        updateInfo = await window.pywebview.api.check_for_update();
-      }
+      updateInfo = await checkForUpdateWithRetry(3);
     } catch {
       /* offline — still softlock */
     }

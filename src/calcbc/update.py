@@ -14,7 +14,9 @@ import json
 import platform
 import re
 import ssl
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import date
 from typing import Any
@@ -30,8 +32,14 @@ RELEASES_LIST_API = (
     f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases?per_page=50"
 )
 RELEASES_PAGE = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+RELEASES_ATOM = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases.atom"
+RELEASE_BY_TAG_API = (
+    f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/tags/"
+)
 USER_AGENT = f"CalcBCVisualizers/{__version__} (+https://github.com/{GITHUB_OWNER}/{GITHUB_REPO})"
-REQUEST_TIMEOUT_S = 6.0
+REQUEST_TIMEOUT_S = 8.0
+SOURCE_ATTEMPTS = 2
+RETRY_SLEEP_S = 0.2
 SUPPORT_MONTHS = 6
 SOFTLOCK_MESSAGE = (
     "This version is out of date and as a result from current SSP coverage, "
@@ -98,19 +106,31 @@ def support_expires_on() -> date:
 
 def check_support_status() -> dict[str, Any]:
     """Local six-month support window from this build's release date."""
-    release = build_release_date()
-    expires = support_expires_on()
-    today = date.today()
-    expired = today >= expires
-    return {
-        "ok": True,
-        "expired": expired,
-        "currentVersion": current_version(),
-        "releaseDate": release.isoformat(),
-        "expiresOn": expires.isoformat(),
-        "supportMonths": SUPPORT_MONTHS,
-        "message": SOFTLOCK_MESSAGE if expired else "",
-    }
+    current = current_version()
+    try:
+        release = build_release_date()
+        expires = support_expires_on()
+        today = date.today()
+        expired = today >= expires
+        return {
+            "ok": True,
+            "expired": expired,
+            "currentVersion": current,
+            "releaseDate": release.isoformat(),
+            "expiresOn": expires.isoformat(),
+            "supportMonths": SUPPORT_MONTHS,
+            "message": SOFTLOCK_MESSAGE if expired else "",
+        }
+    except Exception:
+        return {
+            "ok": False,
+            "expired": False,
+            "currentVersion": current,
+            "releaseDate": "",
+            "expiresOn": "",
+            "supportMonths": SUPPORT_MONTHS,
+            "message": "",
+        }
 
 
 def platform_key() -> str:
@@ -190,31 +210,56 @@ def replace_instructions(key: str | None = None) -> str:
     return "Download the latest release for your platform and replace this installation."
 
 
-def _ssl_context() -> ssl.SSLContext:
-    """Prefer certifi's CA bundle (needed on many macOS Python installs)."""
+def _ssl_contexts() -> list[ssl.SSLContext]:
+    """certifi first (py2app/macOS), then the system store."""
+    contexts: list[ssl.SSLContext] = []
     try:
         import certifi
 
-        return ssl.create_default_context(cafile=certifi.where())
+        contexts.append(ssl.create_default_context(cafile=certifi.where()))
     except Exception:
-        return ssl.create_default_context()
+        pass
+    try:
+        contexts.append(ssl.create_default_context())
+    except Exception:
+        pass
+    return contexts or [ssl.create_default_context()]
+
+
+def _http_get(url: str, *, accept: str) -> tuple[bytes, str]:
+    """GET with SSL fallbacks and a short retry. Returns (body, final_url)."""
+    headers = {
+        "Accept": accept,
+        "User-Agent": USER_AGENT,
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    last_error: Exception | None = None
+    for ctx in _ssl_contexts():
+        for attempt in range(SOURCE_ATTEMPTS):
+            try:
+                req = urllib.request.Request(url, headers=headers, method="GET")
+                with urllib.request.urlopen(
+                    req, timeout=REQUEST_TIMEOUT_S, context=ctx
+                ) as resp:
+                    code = int(resp.getcode() or 200)
+                    if code >= 400:
+                        raise urllib.error.HTTPError(
+                            url, code, "HTTP error", resp.headers, None
+                        )
+                    body = resp.read()
+                    final = str(getattr(resp, "geturl", lambda: url)() or url)
+                    return body, final
+            except Exception as exc:
+                last_error = exc
+                time.sleep(RETRY_SLEEP_S * (attempt + 1))
+    if last_error:
+        raise last_error
+    raise OSError(f"GET failed: {url}")
 
 
 def _github_get(url: str) -> Any:
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": USER_AGENT,
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-        method="GET",
-    )
-    with urllib.request.urlopen(
-        req, timeout=REQUEST_TIMEOUT_S, context=_ssl_context()
-    ) as resp:
-        raw = resp.read().decode("utf-8", errors="replace")
-    return json.loads(raw)
+    raw, _final = _http_get(url, accept="application/vnd.github+json")
+    return json.loads(raw.decode("utf-8", errors="replace"))
 
 
 def _release_tag(release: dict[str, Any]) -> str:
@@ -240,22 +285,124 @@ def _pick_highest_version_release(releases: list[Any]) -> dict[str, Any] | None:
     return best
 
 
+def _minimal_release(tag: str, html_url: str = "") -> dict[str, Any]:
+    tag = str(tag).strip()
+    page = html_url.strip() or release_notes_url(tag)
+    return {"tag_name": tag, "name": tag, "html_url": page, "assets": []}
+
+
+def _tags_from_text(text: str) -> list[str]:
+    found: list[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(r"/releases/tag/([^\"'<\s?#]+)", text or ""):
+        tag = urllib.parse.unquote(match.group(1)).strip()
+        if not tag or tag in seen:
+            continue
+        seen.add(tag)
+        found.append(tag)
+    return found
+
+
+def _highest_tag(tags: list[str]) -> str:
+    best = ""
+    best_ver: tuple[int, ...] = (0,)
+    for tag in tags:
+        ver = normalize_version(tag)
+        if not best or ver > best_ver:
+            best = tag
+            best_ver = ver
+    return best
+
+
+def _release_from_atom(xml_text: str) -> dict[str, Any] | None:
+    tag = _highest_tag(_tags_from_text(xml_text))
+    if not tag:
+        return None
+    return _minimal_release(tag)
+
+
+def _release_from_latest_html(final_url: str, body_text: str) -> dict[str, Any] | None:
+    tags = _tags_from_text(final_url) + _tags_from_text(body_text)
+    tag = _highest_tag(tags)
+    if not tag:
+        return None
+    html_url = final_url if "/releases/tag/" in final_url else release_notes_url(tag)
+    return _minimal_release(tag, html_url)
+
+
+def _enrich_assets(release: dict[str, Any]) -> dict[str, Any]:
+    assets = release.get("assets")
+    if isinstance(assets, list) and assets:
+        return release
+    tag = _release_tag(release)
+    if not tag:
+        return release
+    stripped = tag.lstrip("vV")
+    candidates = [tag]
+    if stripped and stripped != tag:
+        candidates.append(stripped)
+        candidates.append(f"v{stripped}")
+    elif stripped:
+        candidates.append(f"v{stripped}")
+    for candidate in candidates:
+        try:
+            data = _github_get(RELEASE_BY_TAG_API + urllib.parse.quote(candidate, safe=""))
+        except Exception:
+            continue
+        if isinstance(data, dict) and isinstance(data.get("assets"), list) and data["assets"]:
+            merged = dict(release)
+            merged.update({k: data[k] for k in ("assets", "html_url", "tag_name", "name") if k in data})
+            return merged
+    return release
+
+
+def _fetch_from_list_api() -> dict[str, Any] | None:
+    data = _github_get(RELEASES_LIST_API)
+    if isinstance(data, list):
+        return _pick_highest_version_release(data)
+    return None
+
+
+def _fetch_from_latest_api() -> dict[str, Any] | None:
+    data = _github_get(RELEASES_LATEST_API)
+    return data if isinstance(data, dict) and _release_tag(data) else None
+
+
+def _fetch_from_atom() -> dict[str, Any] | None:
+    raw, _final = _http_get(
+        RELEASES_ATOM,
+        accept="application/atom+xml, application/xml, text/xml",
+    )
+    return _release_from_atom(raw.decode("utf-8", errors="replace"))
+
+
+def _fetch_from_html() -> dict[str, Any] | None:
+    raw, final = _http_get(RELEASES_PAGE, accept="text/html,application/xhtml+xml")
+    return _release_from_latest_html(final, raw.decode("utf-8", errors="replace"))
+
+
 def _fetch_latest_release() -> dict[str, Any] | None:
     """
-    Resolve the highest published version (by semver), not merely the
-    chronologically next / most-recently-published GitHub “latest” pointer.
+    Resolve the highest published version (by semver). Tries GitHub JSON APIs,
+    then the public atom feed, then the HTML latest-release redirect — so a
+    rate-limit or TLS hiccup on one channel does not hide an update.
     """
-    try:
-        data = _github_get(RELEASES_LIST_API)
-        if isinstance(data, list):
-            picked = _pick_highest_version_release(data)
-            if picked:
+    for fetch in (
+        _fetch_from_list_api,
+        _fetch_from_latest_api,
+        _fetch_from_atom,
+        _fetch_from_html,
+    ):
+        try:
+            picked = fetch()
+        except Exception:
+            continue
+        if picked:
+            try:
+                return _enrich_assets(picked)
+            except Exception:
                 return picked
-    except Exception:
-        pass
-
-    data = _github_get(RELEASES_LATEST_API)
-    return data if isinstance(data, dict) else None
+    return None
 
 
 def check_for_update() -> dict[str, Any]:
@@ -295,6 +442,9 @@ def check_for_update() -> dict[str, Any]:
         download_url = pick_download_url(assets, key) or RELEASES_PAGE
         if not is_allowed_download_url(download_url):
             download_url = RELEASES_PAGE
+        release_url = str(release.get("html_url") or "").strip() or RELEASES_PAGE
+        if not is_allowed_download_url(release_url):
+            release_url = RELEASES_PAGE
 
         support = check_support_status()
         return {
@@ -306,7 +456,7 @@ def check_for_update() -> dict[str, Any]:
             "latestTag": tag,
             "platform": key,
             "downloadUrl": download_url,
-            "releaseUrl": str(release.get("html_url") or RELEASES_PAGE),
+            "releaseUrl": release_url,
             "instructions": replace_instructions(key),
             "releaseDate": support.get("releaseDate"),
             "supportExpiresOn": support.get("expiresOn"),
