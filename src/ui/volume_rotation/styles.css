@@ -1,5 +1,5 @@
 .volume-page .app-shell {
-  padding: 10px 14px 8px;
+  padding: 12px 16px 10px;
 }
 
 .volume-page .header {
@@ -74,67 +74,9 @@
   flex-shrink: 0;
 }
 
-.volume-page .layout {
-  grid-template-columns: 268px 1fr;
-  gap: 10px;
-}
-
-.volume-page .panel {
-  padding: 10px 12px 12px;
-}
-
-.volume-page .section-label {
-  margin: 10px 2px 5px;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-}
-
-.volume-page .section-label:first-child {
-  margin-top: 0;
-}
-
-.volume-page .math-input {
-  min-height: 48px;
-  padding: 22px 10px 8px;
-  font-size: 15px;
-}
-
-.volume-page input[type="number"],
-.volume-page select {
-  padding: 7px 9px;
-  font-size: 13px;
-  border-radius: 9px;
-}
-
-.volume-page .preset-grid {
-  gap: 5px;
-}
-
-.volume-page .preset-btn {
-  padding: 6px 8px;
-  font-size: 12px;
-  border-radius: 9px;
-}
-
-.volume-page .btn {
-  padding: 8px 8px;
-  border-radius: 10px;
-  font-size: 13px;
-}
-
-.volume-page .btn-row {
-  margin-top: 12px;
-}
-
-.volume-page .status {
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
 .volume-page .plot-wrap {
-  padding: 6px;
-  background: rgba(10, 14, 28, 0.72);
+  padding: 8px;
+  background: transparent;
 }
 
 .volume-page .plot-wrap canvas {

@@ -77,15 +77,15 @@
     rgba(245, 200, 66, 0.2) 72%,
     transparent 100%
   );
-  animation: woosh-streak-back 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: woosh-streak-back 0.13s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .woosh-overlay.back.active .woosh-cover {
-  animation: woosh-cover-back 0.2s linear forwards;
+  animation: woosh-cover-back 0.13s linear forwards;
 }
 
 .woosh-overlay.back.active .woosh-glow {
-  animation: woosh-glow-pulse 0.2s ease-out forwards;
+  animation: woosh-glow-pulse 0.13s ease-out forwards;
 }
 
 @keyframes woosh-streak-forward {
@@ -160,7 +160,7 @@
 }
 
 .app-shell.woosh-exit-back {
-  animation: woosh-exit-back 0.18s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  animation: woosh-exit-back 0.13s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
   transform-origin: center center;
   will-change: transform, opacity;
 }
@@ -209,13 +209,32 @@ html.woosh-pending-back::before {
   opacity: 1;
 }
 
+html.woosh-enter-active::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: radial-gradient(1200px 700px at 10% -20%, #1b2d59 0%, #0a1020 60%);
+  animation: woosh-enter-cover-fade 0.14s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes woosh-enter-cover-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 .app-shell.woosh-enter-forward {
   animation: woosh-enter-forward 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
 
 .app-shell.woosh-enter-back {
-  animation: woosh-enter-back 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: woosh-enter-back 0.14s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   will-change: transform, opacity;
 }
 
@@ -255,5 +274,10 @@ html.woosh-pending-back::before {
     transform: none;
     opacity: 1;
     filter: none;
+  }
+
+  html.woosh-enter-active::before {
+    animation: none !important;
+    opacity: 0 !important;
   }
 }

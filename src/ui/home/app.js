@@ -86,6 +86,42 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function subjectIndex(subjectId) {
+  return Math.max(0, hub.subjects.findIndex((subject) => subject.id === subjectId));
+}
+
+function unitIndex(unit) {
+  return Math.max(0, hub.groups.findIndex((group) => group.unit === unit));
+}
+
+function wireTogglePress(node) {
+  if (!node || node.dataset.pressWired === "1") return;
+  node.dataset.pressWired = "1";
+  const clear = () => node.classList.remove("is-pressing");
+  node.addEventListener("mousedown", (event) => {
+    if (event.button !== 0 || prefersReducedMotion()) return;
+    node.classList.add("is-pressing");
+  });
+  node.addEventListener("mouseup", clear);
+  node.addEventListener("mouseleave", clear);
+  node.addEventListener("blur", clear);
+}
+
+function animateHubSwitch({ scope = "unit", direction = 0 } = {}) {
+  const main = $("hubMain");
+  if (!main || prefersReducedMotion()) return;
+  main.classList.remove(
+    "is-switching",
+    "is-switching-subject",
+    "is-switching-unit",
+    "is-switching-forward",
+    "is-switching-back",
+  );
+  void main.offsetWidth;
+  main.classList.add("is-switching", scope === "subject" ? "is-switching-subject" : "is-switching-unit");
+  main.classList.add(direction >= 0 ? "is-switching-forward" : "is-switching-back");
+}
+
 async function playCardPress(card) {
   if (!card || prefersReducedMotion()) return;
   card.classList.remove("is-pressing");
@@ -166,53 +202,97 @@ function applyHubFocus() {
   activeSubject?.focus();
 }
 
+function createSubjectTab(subject) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "subject-tab";
+  btn.setAttribute("role", "tab");
+  btn.setAttribute("aria-controls", "hubMain");
+  btn.dataset.subject = subject.id;
+  btn.innerHTML = `
+    <span class="subject-tab-symbol">${escapeHtml(subject.symbol || "")}</span>
+    <span class="subject-tab-copy">
+      <span class="subject-tab-title">${escapeHtml(subject.title)}</span>
+      <span class="subject-tab-sub">${escapeHtml(subject.subtitle || "")}</span>
+    </span>
+  `;
+  wireTogglePress(btn);
+  btn.addEventListener("click", () => selectSubject(subject.id));
+  return btn;
+}
+
+function createUnitChip(group) {
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "unit-chip";
+  chip.setAttribute("role", "tab");
+  chip.setAttribute("aria-controls", "vizStage");
+  chip.dataset.unit = String(group.unit);
+  chip.innerHTML = `
+    <span class="unit-chip-num">${group.unit}</span>
+    <span class="unit-chip-name">${escapeHtml(unitChipName(group))}</span>
+  `;
+  wireTogglePress(chip);
+  chip.addEventListener("click", () => selectUnit(group.unit));
+  return chip;
+}
+
 function renderSubjects() {
   const rail = $("subjectRail");
   if (!rail) return;
-  rail.replaceChildren();
+
+  const existing = new Map(
+    [...rail.querySelectorAll(".subject-tab")].map((btn) => [btn.dataset.subject, btn]),
+  );
+
   hub.subjects.forEach((subject) => {
     const active = subject.id === hub.subjectId;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `subject-tab${active ? " is-active" : ""}`;
-    btn.setAttribute("role", "tab");
+    let btn = existing.get(subject.id);
+    if (!btn) {
+      btn = createSubjectTab(subject);
+      rail.appendChild(btn);
+    } else {
+      existing.delete(subject.id);
+    }
+    btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-selected", active ? "true" : "false");
-    btn.setAttribute("aria-controls", "hubMain");
-    btn.dataset.subject = subject.id;
-    btn.innerHTML = `
-      <span class="subject-tab-symbol">${escapeHtml(subject.symbol || "")}</span>
-      <span class="subject-tab-copy">
-        <span class="subject-tab-title">${escapeHtml(subject.title)}</span>
-        <span class="subject-tab-sub">${escapeHtml(subject.subtitle || "")}</span>
-      </span>
-    `;
-    btn.addEventListener("click", () => selectSubject(subject.id));
-    rail.appendChild(btn);
+    if (active) btn.classList.remove("is-pressing");
+  });
+
+  existing.forEach((btn) => btn.remove());
+}
+
+function renderUnitRail() {
+  const rail = $("unitRail");
+  if (!rail) return;
+
+  const sig = hub.groups.map((group) => group.unit).join(",");
+  if (rail.dataset.groupSig !== sig) {
+    rail.dataset.groupSig = sig;
+    rail.replaceChildren();
+    hub.groups.forEach((group) => {
+      const chip = createUnitChip(group);
+      chip.classList.toggle("is-active", group.unit === hub.unit);
+      chip.setAttribute("aria-selected", group.unit === hub.unit ? "true" : "false");
+      rail.appendChild(chip);
+    });
+    return;
+  }
+
+  rail.querySelectorAll(".unit-chip").forEach((chip) => {
+    const unit = Number(chip.dataset.unit);
+    const active = unit === hub.unit;
+    chip.classList.toggle("is-active", active);
+    chip.setAttribute("aria-selected", active ? "true" : "false");
+    if (active) chip.classList.remove("is-pressing");
   });
 }
 
 function renderUnits() {
-  const rail = $("unitRail");
   const stage = $("vizStage");
-  if (!rail || !stage) return;
+  if (!stage) return;
 
-  rail.replaceChildren();
-  hub.groups.forEach((group) => {
-    const active = group.unit === hub.unit;
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = `unit-chip${active ? " is-active" : ""}`;
-    chip.setAttribute("role", "tab");
-    chip.setAttribute("aria-selected", active ? "true" : "false");
-    chip.setAttribute("aria-controls", "vizStage");
-    chip.dataset.unit = String(group.unit);
-    chip.innerHTML = `
-      <span class="unit-chip-num">${group.unit}</span>
-      <span class="unit-chip-name">${escapeHtml(unitChipName(group))}</span>
-    `;
-    chip.addEventListener("click", () => selectUnit(group.unit, -1));
-    rail.appendChild(chip);
-  });
+  renderUnitRail();
 
   const group = currentGroup();
   if (!group) {
@@ -272,15 +352,21 @@ function renderHub() {
 }
 
 function selectSubject(subjectId) {
+  if (hub.subjectId === subjectId) return;
+  const direction = subjectIndex(subjectId) - subjectIndex(hub.subjectId);
   loadSubject(subjectId, -1);
   renderHub();
+  animateHubSwitch({ scope: "subject", direction });
 }
 
 function selectUnit(unit, cardIndex = -1) {
+  if (hub.unit === unit && cardIndex === -1) return;
+  const direction = cardIndex === -1 ? unitIndex(unit) - unitIndex(hub.unit) : 0;
   hub.unit = unit;
   hub.cardIndex = cardIndex;
   sessionStorage.setItem(unitStorageKey(hub.subjectId), String(unit));
   renderHub();
+  if (cardIndex === -1) animateHubSwitch({ scope: "unit", direction });
 }
 
 function moveSubject(delta) {
@@ -387,15 +473,123 @@ async function readCatalog() {
   }
 }
 
-async function bootstrap() {
-  document.querySelector(".launcher-shell")?.classList.remove("opening-pending");
-  document.documentElement.classList.remove("woosh-pending-forward", "woosh-pending-back");
+const CATALOG_CACHE_KEY = "cvCatalogCache";
 
-  VizTransition.initPageTransition();
+function loadCatalogCache() {
+  try {
+    const raw = sessionStorage.getItem(CATALOG_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
-  hub.subjects = await readCatalog();
+function saveCatalogCache(subjects) {
+  try {
+    if (Array.isArray(subjects) && subjects.length) {
+      sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(subjects));
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function catalogFingerprint(subjects) {
+  if (!Array.isArray(subjects)) return "";
+  return subjects.map((subject) => {
+    const vizIds = (subject.visualizers || []).map((viz) => viz.id).join(",");
+    return `${subject.id}|${vizIds}`;
+  }).join(";");
+}
+
+function paintHubFromSubjects(subjects) {
+  if (!Array.isArray(subjects) || !subjects.length) return false;
+  hub.subjects = subjects;
   loadSubject(resolveSelectedSubject(hub.subjects), -1);
   renderHub();
+  return true;
+}
+
+function revealHomeShell() {
+  document.querySelector(".viz-hub")?.classList.remove("hub-pending");
+  document.querySelector(".launcher-shell")?.classList.remove("opening-pending");
+}
+
+function finishHomeEnterTransition() {
+  const dir = sessionStorage.getItem("vizTransitionDir");
+  if (dir !== "forward" && dir !== "back") {
+    document.documentElement.classList.remove("woosh-pending-forward", "woosh-pending-back", "woosh-enter-active");
+    revealHomeShell();
+    if (typeof window.stampDeferredHomeFooter === "function") {
+      window.stampDeferredHomeFooter();
+      window.stampDeferredHomeFooter = null;
+    }
+    return;
+  }
+
+  if (!hub.subjects.length) {
+    document.documentElement.classList.remove("woosh-pending-forward", "woosh-pending-back", "woosh-enter-active");
+    sessionStorage.removeItem("vizTransitionDir");
+    revealHomeShell();
+    if (typeof window.stampDeferredHomeFooter === "function") {
+      window.stampDeferredHomeFooter();
+      window.stampDeferredHomeFooter = null;
+    }
+    return;
+  }
+
+  const play = () => {
+    revealHomeShell();
+    if (typeof window.VizTransition?.playWooshEnter === "function") {
+      sessionStorage.removeItem("vizTransitionDir");
+      window.VizTransition.playWooshEnter(dir);
+      return;
+    }
+    document.documentElement.classList.remove("woosh-pending-forward", "woosh-pending-back", "woosh-enter-active");
+    sessionStorage.removeItem("vizTransitionDir");
+    if (typeof window.stampDeferredHomeFooter === "function") {
+      window.stampDeferredHomeFooter();
+      window.stampDeferredHomeFooter = null;
+    }
+  };
+
+  requestAnimationFrame(play);
+}
+
+async function bootstrap() {
+  const cachedSubjects = loadCatalogCache();
+  const cachedFp = catalogFingerprint(cachedSubjects);
+  const hadCache = paintHubFromSubjects(cachedSubjects);
+  const dir = sessionStorage.getItem("vizTransitionDir");
+  const isReturnNav = dir === "forward" || dir === "back";
+  let entered = false;
+
+  if (hadCache && isReturnNav && !window.__homeEnterPlayed) {
+    finishHomeEnterTransition();
+    entered = true;
+    window.__homeEnterPlayed = true;
+  }
+
+  hub.subjects = await readCatalog();
+  if (hub.subjects.length) {
+    saveCatalogCache(hub.subjects);
+  }
+  loadSubject(resolveSelectedSubject(hub.subjects), -1);
+
+  const freshFp = catalogFingerprint(hub.subjects);
+  if (!hadCache || freshFp !== cachedFp) {
+    renderHub();
+  } else {
+    renderSubjects();
+    renderUnitRail();
+    applyHubFocus();
+  }
+
+  if (!entered && !window.__homeEnterPlayed) {
+    finishHomeEnterTransition();
+  }
+
   wireHubKeys();
   maybeEnforceSupportOrUpdate();
 }
@@ -594,6 +788,9 @@ async function syncDisplayedVersion() {
     if (changelogUrl) {
       document.querySelectorAll("[data-app-changelog]").forEach((node) => {
         node.setAttribute("href", changelogUrl);
+        if (node.closest("#appInfoModal")) {
+          node.textContent = `Changelog for Version ${version}`;
+        }
       });
     }
   } catch {
@@ -606,3 +803,12 @@ whenApiReady(() => {
   syncDisplayedVersion();
   bootstrap();
 });
+
+if (document.body?.dataset.page === "home") {
+  const dir = sessionStorage.getItem("vizTransitionDir");
+  const painted = paintHubFromSubjects(loadCatalogCache());
+  if (painted && (dir === "back" || dir === "forward") && !window.__homeEnterPlayed) {
+    finishHomeEnterTransition();
+    window.__homeEnterPlayed = true;
+  }
+}

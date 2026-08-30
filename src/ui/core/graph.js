@@ -112,6 +112,7 @@ class GraphViewer {
       isLocked: () => this.viewLocked,
       onLock: () => this.lockView(),
       onUnlock: () => this.unlockView(),
+      onSnap: () => this.applySnapView(),
     });
   }
 
@@ -185,7 +186,6 @@ class GraphViewer {
   }
 
   lockView() {
-    this.applySnapView();
     this.viewLocked = true;
     this.syncLockChrome();
   }

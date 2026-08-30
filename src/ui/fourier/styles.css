@@ -80,6 +80,16 @@
   position: relative;
   z-index: 1;
   min-height: 0;
+  align-items: center;
+}
+
+.fourier-shell > .fourier-top,
+.fourier-shell > .fourier-stage,
+.fourier-shell > .fourier-kbd,
+.fourier-shell > .credit-row {
+  width: min(var(--viz-frame-max, 1180px), 100%);
+  max-width: 100%;
+  flex-shrink: 0;
 }
 
 .fourier-top {
@@ -197,7 +207,7 @@
   min-height: 0;
   display: flex;
   border: 1px solid var(--fourier-border);
-  border-radius: 16px;
+  border-radius: var(--viz-glass-radius, 18px);
   overflow: hidden;
   background: rgba(8, 10, 18, 0.35);
 }
@@ -217,7 +227,8 @@
 }
 
 .fourier-panel {
-  width: min(320px, 34vw);
+  width: var(--viz-panel-width, 336px);
+  max-width: var(--viz-panel-width, 336px);
   flex-shrink: 0;
   padding: 1rem 1rem 1.25rem;
   overflow-y: auto;

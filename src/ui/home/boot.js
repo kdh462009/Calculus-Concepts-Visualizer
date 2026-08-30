@@ -14,6 +14,13 @@
   ];
   const UPDATE_STEP_NAME = "updates";
   const LOAD_STEPS = CORE_ASSETS.length + 1;
+  const RETURN_FAST_URLS = new Set([
+    "../core/styles.css",
+    "../core/transitions.css",
+    "../core/transitions.js",
+    "../core/nav.js",
+    "./app.js",
+  ]);
 
   function $(id) {
     return document.getElementById(id);
@@ -179,6 +186,19 @@
     return info;
   }
 
+  async function loadReturnHomeFast() {
+    const priority = CORE_ASSETS.filter((asset) => RETURN_FAST_URLS.has(asset.url));
+    const deferred = CORE_ASSETS.filter((asset) => !RETURN_FAST_URLS.has(asset.url));
+
+    await Promise.all(priority.filter((asset) => asset.kind === "css").map(loadAsset));
+    for (const asset of priority.filter((asset) => asset.kind === "js")) {
+      await loadAsset(asset);
+    }
+    deferred.forEach((asset) => {
+      loadAsset(asset);
+    });
+  }
+
   async function start() {
     const splash = $("openingSplash");
     const shell = document.querySelector(".launcher-shell");
@@ -186,19 +206,12 @@
     const started = performance.now();
 
     if (pendingNav) {
-      shell?.classList.remove("opening-pending");
       splash?.remove();
-      await loadCoreAssets();
+      await loadReturnHomeFast();
       runStartupUpdateCheck().then((info) => {
         window.__startupUpdateInfo = info;
         window.__startupUpdateChecked = true;
       });
-      if (typeof window.VizTransition?.initPageTransition === "function") {
-        window.VizTransition.initPageTransition();
-      } else {
-        document.documentElement.classList.remove("woosh-pending-forward", "woosh-pending-back");
-        sessionStorage.removeItem("vizTransitionDir");
-      }
       return;
     }
 

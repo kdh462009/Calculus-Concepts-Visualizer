@@ -30,17 +30,20 @@ function syncViewLockChrome() {
   renderer?.scaleBar?.root?.classList.toggle("is-view-locked", state.viewLocked);
 }
 
-function lockLimitView() {
+function snapLimitView() {
   if (state.snapView) {
     state.view = { ...state.snapView };
   } else if (state.data) {
     renderer?.fitView(state.data);
     if (state.view) state.snapView = { ...state.view };
   }
-  state.viewLocked = true;
-  syncViewLockChrome();
   drawCurrentFrame();
   scheduleLimitCoverage();
+}
+
+function lockLimitView() {
+  state.viewLocked = true;
+  syncViewLockChrome();
 }
 
 function unlockLimitView() {
@@ -710,6 +713,7 @@ async function bootstrap() {
     isLocked: () => state.viewLocked,
     onLock: () => lockLimitView(),
     onUnlock: () => unlockLimitView(),
+    onSnap: () => snapLimitView(),
   });
   drawCurrentFrame();
 

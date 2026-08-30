@@ -501,15 +501,18 @@ function syncViewLockChrome() {
   renderer?.scaleBar?.root?.classList.toggle("is-view-locked", state.viewLocked);
 }
 
-function lockParametricView() {
+function snapParametricView() {
   if (state.snapView) {
     state.view = { ...state.snapView };
   } else if (state.data) {
     applyDataView(state.data);
   }
+  renderer?.draw();
+}
+
+function lockParametricView() {
   state.viewLocked = true;
   syncViewLockChrome();
-  renderer?.draw();
 }
 
 function unlockParametricView() {
@@ -642,6 +645,7 @@ async function bootstrap() {
     isLocked: () => state.viewLocked,
     onLock: () => lockParametricView(),
     onUnlock: () => unlockParametricView(),
+    onSnap: () => snapParametricView(),
   });
   renderer.draw();
 

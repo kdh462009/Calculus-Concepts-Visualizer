@@ -11,6 +11,7 @@
 
 const TRANSITION_KEY = "vizTransitionDir";
 const WOOSH_MS = 200;
+const BACK_NAV_AT_MS = 72;
 
 function ensureOverlay() {
   let overlay = document.getElementById("wooshOverlay");
@@ -76,20 +77,38 @@ function playWooshOut(direction, options = {}) {
 }
 
 function playWooshEnter(direction) {
-  document.documentElement.classList.remove(`woosh-pending-${direction}`);
-
-  if (prefersReducedMotion()) return;
-
+  const pendingClass = `woosh-pending-${direction}`;
   const shell = document.querySelector(".app-shell");
-  if (!shell) return;
+  if (!shell) {
+    document.documentElement.classList.remove(pendingClass, "woosh-enter-active");
+    return;
+  }
+
+  if (prefersReducedMotion()) {
+    document.documentElement.classList.remove(pendingClass, "woosh-enter-active");
+    if (typeof window.stampDeferredHomeFooter === "function") {
+      window.stampDeferredHomeFooter();
+      window.stampDeferredHomeFooter = null;
+    }
+    return;
+  }
 
   const enterClass = `woosh-enter-${direction}`;
+  document.documentElement.classList.add("woosh-enter-active");
   shell.classList.add(enterClass);
-  shell.addEventListener(
-    "animationend",
-    () => shell.classList.remove(enterClass),
-    { once: true },
-  );
+  // Commit enter start state while woosh-pending still hides the shell.
+  void shell.offsetWidth;
+  document.documentElement.classList.remove(pendingClass);
+
+  const finish = () => {
+    shell.classList.remove(enterClass);
+    document.documentElement.classList.remove("woosh-enter-active");
+    if (typeof window.stampDeferredHomeFooter === "function") {
+      window.stampDeferredHomeFooter();
+      window.stampDeferredHomeFooter = null;
+    }
+  };
+  shell.addEventListener("animationend", finish, { once: true });
 }
 
 function initPageTransition() {
@@ -98,8 +117,12 @@ function initPageTransition() {
   const shell = document.querySelector(".app-shell");
   if (!shell) return;
   sessionStorage.removeItem(TRANSITION_KEY);
-  // Start immediately when shell exists; delaying until bootstrap causes a hitch.
   playWooshEnter(dir);
+}
+
+function shouldDeferHomeEnter() {
+  const dir = sessionStorage.getItem(TRANSITION_KEY);
+  return document.body?.dataset.page === "home" && (dir === "forward" || dir === "back");
 }
 
 let _navigating = false;
@@ -151,8 +174,12 @@ async function navigateWithWoosh(direction, navigateFn) {
   try {
     sessionStorage.setItem(TRANSITION_KEY, direction);
     const wooshOutPromise = playWooshOut(direction, { holdVisualState: true });
-    // Start navigation before the full woosh completes to avoid a visible pause.
-    await Promise.race([wooshOutPromise, wait(Math.floor(WOOSH_MS * 0.4))]);
+    if (direction === "back") {
+      // Cover is opaque early; navigate before the full streak finishes.
+      await Promise.race([wooshOutPromise, wait(BACK_NAV_AT_MS)]);
+    } else {
+      await Promise.race([wooshOutPromise, wait(Math.floor(WOOSH_MS * 0.4))]);
+    }
     const pending = navigateFn();
     if (pending && typeof pending.then === "function") {
       pending.then(
@@ -199,11 +226,18 @@ window.VizTransition = {
   navigateWithWoosh,
   abortNavigation,
   initPageTransition,
+  playWooshEnter,
 };
 
-// Run enter transition as soon as DOM is ready so it isn't delayed by app bootstrap.
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initPageTransition, { once: true });
-} else {
+function maybeInitPageTransition() {
+  if (shouldDeferHomeEnter()) return;
   initPageTransition();
+}
+
+// Run enter transition as soon as DOM is ready on visualizer pages.
+// Home defers until the hub has rendered (see home/app.js bootstrap).
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", maybeInitPageTransition, { once: true });
+} else {
+  maybeInitPageTransition();
 }

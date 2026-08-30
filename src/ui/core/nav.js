@@ -17,44 +17,110 @@ const APP_LOGO_URL = (() => {
   return "../core/logo.png";
 })();
 
+function ensureAppInfoModal() {
+  if (document.getElementById("appInfoModal")) return;
+  const root = document.createElement("div");
+  root.id = "appInfoModal";
+  root.className = "app-info-modal";
+  root.hidden = true;
+  root.innerHTML = `
+    <div class="app-info-backdrop" data-app-info-dismiss></div>
+    <div class="app-info-card" role="dialog" aria-modal="true" aria-labelledby="appInfoTitle">
+      <button type="button" class="app-info-close" data-app-info-dismiss aria-label="Close">×</button>
+      <h2 id="appInfoTitle">About Concept Visualizers</h2>
+      <section class="app-info-section">
+        <h3>Release notes</h3>
+        <p>
+          <a href="${changelogHrefFor(window.APP_VERSION)}" class="app-changelog" data-external="true" data-app-changelog title="Release notes for this version">Changelog for Version ${window.APP_VERSION}</a>
+        </p>
+      </section>
+      <section class="app-info-section">
+        <h3>License</h3>
+        <p>
+          Licensed under
+          <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a>
+          (Attribution-NonCommercial-ShareAlike 4.0 International).
+        </p>
+      </section>
+      <section class="app-info-section">
+        <h3>SSP / Terms of Service</h3>
+        <p>
+          Covered by the
+          <a href="https://knivier.com/tos-ssp.html" data-external="true">Knivier SSP/ToS</a>
+          (Open Source Restricted with educational exceptions).
+          Accredited classroom and nonprofit educational use is permitted under the
+          <a href="https://knivier.com/tos-ssp.html#exceptions" data-external="true">exception policy</a>.
+          Commercial redistribution, relicensing, or use outside those exceptions requires separate permission.
+        </p>
+      </section>
+      <section class="app-info-section">
+        <h3>Source</h3>
+        <p>
+          <a href="https://github.com/kdh462009/Calculus-Concepts-Visualizer" data-external="true">GitHub repository</a>
+        </p>
+      </section>
+      <section class="app-info-extras" hidden></section>
+    </div>
+  `;
+  document.body.appendChild(root);
+}
+
+function openAppInfoModal() {
+  ensureAppInfoModal();
+  const modal = document.getElementById("appInfoModal");
+  if (!modal || !modal.hidden) return;
+  modal.hidden = false;
+  document.body.classList.add("app-info-open");
+  modal.querySelector(".app-info-close")?.focus();
+}
+
+function closeAppInfoModal() {
+  const modal = document.getElementById("appInfoModal");
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  document.body.classList.remove("app-info-open");
+}
+
+window.openAppInfoModal = openAppInfoModal;
+window.closeAppInfoModal = closeAppInfoModal;
+
 function stampAppFooter() {
   const shell = document.querySelector(".app-shell");
   if (!shell) return;
   if (document.documentElement.dataset.appFooterStamped === "1") return;
 
+  ensureAppInfoModal();
   const extras = [...document.querySelectorAll("[data-credit-extra]")];
   const footer = document.createElement("footer");
   footer.className = "credit-row";
   shell.appendChild(footer);
 
   footer.innerHTML = `
-    <span>Made with ❤️ by Agniva, Donghui, Manya, and Adam · <button type="button" class="app-version" data-app-version data-check-updates title="Check for updates">Version ${window.APP_VERSION}</button> · <a href="${changelogHrefFor(window.APP_VERSION)}" class="app-changelog" data-external="true" data-app-changelog title="Release notes for this version">Changelog</a></span>
-    <span class="credit-legal">
-      Licensed under
-      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en" data-external="true" rel="license">CC BY-NC-SA 4.0</a> 
-      (Attribution-NonCommercial-ShareAlike 4.0 International)
-      ·
-      <a href="https://github.com/kdh462009/Calculus-Concepts-Visualizer" data-external="true">GitHub</a>
-      · Covered by the
-      <a href="https://knivier.com/tos-ssp.html" data-external="true">Knivier SSP/ToS (Open Source Restricted with educational exceptions)</a>
-    </span>
+    <span class="credit-primary">Made with ❤️ by Agniva, Donghui, and Manya · <button type="button" class="app-version" data-app-version data-check-updates title="Check for updates">Version ${window.APP_VERSION}</button> · <button type="button" class="app-info-btn" data-app-info title="About, license, and release notes" aria-label="About and legal information"><span aria-hidden="true">i</span></button></span>
   `;
 
-  const legal = footer.querySelector(".credit-legal");
-  extras.forEach((extra) => {
-    extra.removeAttribute("data-credit-extra");
-    footer.insertBefore(extra, legal);
-  });
+  const extrasHost = document.querySelector("#appInfoModal .app-info-extras");
+  if (extrasHost && extras.length) {
+    extrasHost.hidden = false;
+    extras.forEach((extra) => {
+      extra.removeAttribute("data-credit-extra");
+      extrasHost.appendChild(extra);
+    });
+  }
 
   document.documentElement.dataset.appFooterStamped = "1";
 }
 
 function stampAppVersion() {
+  const version = window.APP_VERSION;
   document.querySelectorAll("[data-app-version]").forEach((el) => {
-    el.textContent = `Version ${window.APP_VERSION}`;
+    el.textContent = `Version ${version}`;
   });
   document.querySelectorAll("[data-app-changelog]").forEach((el) => {
-    el.setAttribute("href", changelogHrefFor(window.APP_VERSION));
+    el.setAttribute("href", changelogHrefFor(version));
+    if (el.closest("#appInfoModal")) {
+      el.textContent = `Changelog for Version ${version}`;
+    }
   });
 }
 
@@ -145,7 +211,23 @@ document.addEventListener("click", (event) => {
   if (versionBtn) {
     event.preventDefault();
     runManualUpdateCheck();
+    return;
   }
+  if (node?.closest?.("[data-app-info]")) {
+    event.preventDefault();
+    openAppInfoModal();
+    return;
+  }
+  if (node?.closest?.("[data-app-info-dismiss]")) {
+    event.preventDefault();
+    closeAppInfoModal();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const modal = document.getElementById("appInfoModal");
+  if (modal && !modal.hidden) closeAppInfoModal();
 });
 
 function stampAppLogo() {
@@ -174,7 +256,13 @@ function stampAppLogo() {
 }
 
 function stampChrome() {
-  stampAppFooter();
+  const pending = sessionStorage.getItem("vizTransitionDir");
+  const isHome = document.body?.dataset.page === "home";
+  if (isHome && (pending === "back" || pending === "forward")) {
+    window.stampDeferredHomeFooter = stampAppFooter;
+  } else {
+    stampAppFooter();
+  }
   stampAppVersion();
   stampAppLogo();
 }

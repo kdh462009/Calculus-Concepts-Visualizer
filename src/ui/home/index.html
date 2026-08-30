@@ -5,6 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Calculus Concept Visualizers</title>
   <link rel="stylesheet" href="./styles.css">
+  <style>
+    /* Critical: hide home shell before transitions.css loads on return navigation */
+    html.woosh-pending-forward .app-shell,
+    html.woosh-pending-back .app-shell {
+      opacity: 0;
+      pointer-events: none;
+    }
+    html.woosh-pending-forward .app-shell {
+      transform: translateX(8%) scale(0.98);
+    }
+    html.woosh-pending-back .app-shell {
+      transform: translateX(-8%) scale(0.98);
+    }
+    html.woosh-pending-forward::before,
+    html.woosh-pending-back::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      background: radial-gradient(1200px 700px at 10% -20%, #1b2d59 0%, #0a1020 60%);
+      opacity: 1;
+    }
+    .launcher-shell.opening-pending {
+      opacity: 0;
+      transform: translateY(16px) scale(0.98);
+    }
+    .viz-hub.hub-pending .subject-rail,
+    .viz-hub.hub-pending .hub-main {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+  <script>
+    (function applyPendingWoosh() {
+      var dir = sessionStorage.getItem("vizTransitionDir");
+      if (dir === "forward" || dir === "back") {
+        document.documentElement.classList.add("woosh-pending-" + dir);
+      }
+    })();
+  </script>
 </head>
 <body data-page="home">
   <div class="ambient-bg" aria-hidden="true">
@@ -33,15 +74,14 @@
 
   <div class="app-shell launcher-shell opening-pending">
     <header class="header launcher-header">
-      <img class="app-logo" src="../core/logo.png" alt="" width="44" height="44">
-      <div class="title-row">
+      <div class="launcher-brand">
+        <img class="app-logo" src="../core/logo.png" alt="" width="44" height="44">
         <h1>Concept Visualizers</h1>
-        <p class="opening-sub">Pick a subject</p>
       </div>
     </header>
 
     <main class="launcher-panel" aria-label="Available visualizers">
-      <div class="viz-hub glass">
+        <div class="viz-hub glass hub-pending">
         <nav id="subjectRail" class="subject-rail" role="tablist" aria-label="Subjects"></nav>
         <div id="hubMain" class="hub-main">
           <nav id="unitRail" class="unit-rail" role="tablist" aria-label="Units"></nav>

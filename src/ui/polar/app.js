@@ -602,16 +602,19 @@ function syncViewLockChrome() {
   renderer?.scaleBar?.root?.classList.toggle("is-view-locked", state.viewLocked);
 }
 
-function lockPolarView() {
+function snapPolarView() {
   if (state.snapView) {
     state.view = { ...state.snapView };
     renderer?.lockAspect?.(0, 0, { captureScale: true });
   } else if (state.data) {
     applyDataView(state.data);
   }
+  renderer?.draw();
+}
+
+function lockPolarView() {
   state.viewLocked = true;
   syncViewLockChrome();
-  renderer?.draw();
 }
 
 function unlockPolarView() {
@@ -771,6 +774,7 @@ async function bootstrap() {
     isLocked: () => state.viewLocked,
     onLock: () => lockPolarView(),
     onUnlock: () => unlockPolarView(),
+    onSnap: () => snapPolarView(),
   });
   renderer.draw();
 

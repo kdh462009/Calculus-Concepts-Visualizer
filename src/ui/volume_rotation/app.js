@@ -38,10 +38,8 @@ function syncViewLockChrome() {
 }
 
 function lockVolumeView() {
-  snapVolumeView();
   state.viewLocked = true;
   syncViewLockChrome();
-  drawCurrentFrame();
 }
 
 function unlockVolumeView() {
@@ -781,6 +779,10 @@ async function bootstrap() {
     isLocked: () => state.viewLocked,
     onLock: () => lockVolumeView(),
     onUnlock: () => unlockVolumeView(),
+    onSnap: () => {
+      snapVolumeView();
+      drawCurrentFrame();
+    },
   });
   drawCurrentFrame();
 
