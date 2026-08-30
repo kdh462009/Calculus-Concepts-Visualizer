@@ -84,12 +84,219 @@ function closeAppInfoModal() {
 window.openAppInfoModal = openAppInfoModal;
 window.closeAppInfoModal = closeAppInfoModal;
 
+let pendingVersionCheckInfo = null;
+let versionCheckAutoOpenTimer = null;
+
+function ensureVersionCheckModal() {
+  if (document.getElementById("versionCheckModal")) return;
+  const root = document.createElement("div");
+  root.id = "versionCheckModal";
+  root.className = "version-check-modal";
+  root.hidden = true;
+  root.innerHTML = `
+    <div class="version-check-backdrop" data-version-check-dismiss></div>
+    <div class="version-check-card" role="dialog" aria-modal="true" aria-labelledby="versionCheckTitle">
+      <button type="button" class="version-check-close" data-version-check-dismiss aria-label="Close">×</button>
+      <h2 id="versionCheckTitle">Checking for updates</h2>
+      <div class="version-check-progress-wrap" data-version-check-progress-wrap>
+        <div class="version-check-progress-track">
+          <div class="version-check-progress-bar" data-version-check-progress-bar style="width: 0%"></div>
+        </div>
+      </div>
+      <p class="version-check-status" data-version-check-status aria-live="polite">Connecting to release servers…</p>
+      <div class="version-check-body" data-version-check-body hidden></div>
+      <div class="version-check-actions" data-version-check-actions hidden></div>
+    </div>
+  `;
+  document.body.appendChild(root);
+
+  root.querySelectorAll("[data-version-check-dismiss]").forEach((node) => {
+    node.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeVersionCheckModal();
+    });
+  });
+
+  root.addEventListener("click", (event) => {
+    const action = event.target instanceof Element
+      ? event.target.closest("[data-version-check-action]")
+      : null;
+    if (!action) return;
+    event.preventDefault();
+    const kind = action.getAttribute("data-version-check-action");
+    if (kind === "download") {
+      openExternalUrl(pendingVersionCheckInfo?.downloadUrl || "");
+      closeVersionCheckModal();
+      return;
+    }
+    if (kind === "changelog-current") {
+      openExternalUrl(changelogHrefFor(window.APP_VERSION));
+      closeVersionCheckModal();
+      return;
+    }
+    if (kind === "changelog-latest") {
+      const latest = pendingVersionCheckInfo?.latestVersion || pendingVersionCheckInfo?.latestTag;
+      openExternalUrl(
+        pendingVersionCheckInfo?.releaseUrl
+          || changelogHrefFor(latest)
+          || "https://github.com/kdh462009/Calculus-Concepts-Visualizer/releases/latest",
+      );
+      closeVersionCheckModal();
+      return;
+    }
+    if (kind === "retry") {
+      closeVersionCheckModal();
+      runManualUpdateCheck();
+      return;
+    }
+    if (kind === "close") closeVersionCheckModal();
+  });
+}
+
+function openExternalUrl(url) {
+  const target = String(url || "").trim();
+  if (!target) return;
+  if (window.pywebview?.api?.open_update_download) {
+    window.pywebview.api.open_update_download(target);
+    return;
+  }
+  if (window.pywebview?.api?.open_external) {
+    window.pywebview.api.open_external(target);
+    return;
+  }
+  window.open(target, "_blank", "noopener");
+}
+
+function closeVersionCheckModal() {
+  if (versionCheckAutoOpenTimer) {
+    clearTimeout(versionCheckAutoOpenTimer);
+    versionCheckAutoOpenTimer = null;
+  }
+  const modal = document.getElementById("versionCheckModal");
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  document.body.classList.remove("version-check-open");
+  pendingVersionCheckInfo = null;
+}
+
+function setVersionCheckUi({
+  title,
+  status,
+  progress = null,
+  bodyHtml = "",
+  actionsHtml = "",
+  showProgress = true,
+}) {
+  ensureVersionCheckModal();
+  const modal = document.getElementById("versionCheckModal");
+  const titleEl = modal.querySelector("#versionCheckTitle");
+  const statusEl = modal.querySelector("[data-version-check-status]");
+  const bodyEl = modal.querySelector("[data-version-check-body]");
+  const actionsEl = modal.querySelector("[data-version-check-actions]");
+  const progressWrap = modal.querySelector("[data-version-check-progress-wrap]");
+  const progressBar = modal.querySelector("[data-version-check-progress-bar]");
+
+  if (titleEl) titleEl.textContent = title;
+  if (statusEl) statusEl.textContent = status;
+  if (progressWrap) progressWrap.hidden = !showProgress;
+  if (progressBar && progress !== null) {
+    progressBar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+  }
+  if (bodyEl) {
+    bodyEl.innerHTML = bodyHtml;
+    bodyEl.hidden = !bodyHtml;
+  }
+  if (actionsEl) {
+    actionsEl.innerHTML = actionsHtml;
+    actionsEl.hidden = !actionsHtml;
+  }
+}
+
+function openVersionCheckChecking() {
+  ensureVersionCheckModal();
+  const modal = document.getElementById("versionCheckModal");
+  modal.hidden = false;
+  document.body.classList.add("version-check-open");
+  setVersionCheckUi({
+    title: "Checking for updates",
+    status: "Connecting to release servers…",
+    progress: 8,
+    bodyHtml: "",
+    actionsHtml: "",
+    showProgress: true,
+  });
+}
+
+function renderVersionCheckResult(info) {
+  const current = info?.currentVersion || window.APP_VERSION;
+  if (info?.update) {
+    pendingVersionCheckInfo = info;
+    const latest = info.latestVersion || info.latestTag || "—";
+    setVersionCheckUi({
+      title: "Update available",
+      status: `Version ${latest} is ready to download.`,
+      progress: 100,
+      showProgress: false,
+      bodyHtml: `
+        <p>You’re running <strong>Version ${current}</strong>.</p>
+        <p class="version-check-note">${info.instructions || "Download the latest release and replace your current installation."}</p>
+      `,
+      actionsHtml: `
+        <button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="download">Download update</button>
+        <button type="button" class="version-check-btn" data-version-check-action="changelog-latest">Changelog for Version ${latest}</button>
+        <button type="button" class="version-check-btn version-check-btn-ghost" data-version-check-action="close">Close</button>
+      `,
+    });
+    return;
+  }
+
+  if (info?.checked) {
+    setVersionCheckUi({
+      title: "You’re up to date",
+      status: `Version ${current} is the latest release.`,
+      progress: 100,
+      showProgress: false,
+      bodyHtml: `<p>Opening release notes for Version ${current}…</p>`,
+      actionsHtml: `
+        <button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="changelog-current">View changelog now</button>
+        <button type="button" class="version-check-btn version-check-btn-ghost" data-version-check-action="close">Close</button>
+      `,
+    });
+    versionCheckAutoOpenTimer = setTimeout(() => {
+      versionCheckAutoOpenTimer = null;
+      openExternalUrl(changelogHrefFor(current));
+      closeVersionCheckModal();
+    }, 1100);
+    return;
+  }
+
+  const offline = typeof window.pywebview?.api?.check_for_update !== "function";
+  setVersionCheckUi({
+    title: offline ? "Update check unavailable" : "Couldn’t check for updates",
+    status: offline
+      ? "This page isn’t connected to the app updater."
+      : (info?.error ? String(info.error) : "Release servers did not respond."),
+    progress: 100,
+    showProgress: false,
+    bodyHtml: offline
+      ? `<p>You can still read release notes for <strong>Version ${current}</strong>.</p>`
+      : `<p>Check your connection and try again.</p>`,
+    actionsHtml: offline
+      ? `<button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="changelog-current">View changelog</button>
+         <button type="button" class="version-check-btn version-check-btn-ghost" data-version-check-action="close">Close</button>`
+      : `<button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="retry">Try again</button>
+         <button type="button" class="version-check-btn" data-version-check-action="changelog-current">View current changelog</button>
+         <button type="button" class="version-check-btn version-check-btn-ghost" data-version-check-action="close">Close</button>`,
+  });
+}
+
 function stampAppFooter() {
   const shell = document.querySelector(".app-shell");
   if (!shell) return;
   if (document.documentElement.dataset.appFooterStamped === "1") return;
 
   ensureAppInfoModal();
+  ensureVersionCheckModal();
   const extras = [...document.querySelectorAll("[data-credit-extra]")];
   const footer = document.createElement("footer");
   footer.className = "credit-row";
@@ -125,41 +332,51 @@ function stampAppVersion() {
 }
 
 let versionCheckBusy = false;
-let versionCheckResetTimer = null;
-
-function setVersionLabel(text) {
-  document.querySelectorAll("[data-app-version]").forEach((el) => {
-    el.textContent = text;
-  });
-}
-
-function restoreVersionLabelSoon(ms = 1800) {
-  if (versionCheckResetTimer) clearTimeout(versionCheckResetTimer);
-  versionCheckResetTimer = setTimeout(() => {
-    stampAppVersion();
-    versionCheckBusy = false;
-  }, ms);
-}
 
 function waitMs(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function checkForUpdateWithRetry(attempts = 3) {
+const VERSION_CHECK_LABELS = [
+  "Connecting to release servers…",
+  "Checking published versions…",
+  "Verifying your build…",
+];
+
+async function checkForUpdateWithRetry(attempts = 3, options = {}) {
+  const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
   if (typeof window.pywebview?.api?.check_for_update !== "function") {
     return null;
   }
   let last = null;
   const n = Math.max(1, attempts);
   for (let i = 0; i < n; i += 1) {
+    onProgress?.({
+      attempt: i + 1,
+      total: n,
+      label: VERSION_CHECK_LABELS[i] || VERSION_CHECK_LABELS[VERSION_CHECK_LABELS.length - 1],
+      ratio: (i + 0.15) / n,
+    });
     try {
       last = await window.pywebview.api.check_for_update();
+      onProgress?.({
+        attempt: i + 1,
+        total: n,
+        label: last?.update ? "Update found." : "Release info received.",
+        ratio: (i + 1) / n,
+      });
       if (last?.checked || last?.update) return last;
     } catch (err) {
       last = { ok: false, checked: false, update: false, error: String(err) };
     }
     if (i < n - 1) await waitMs(350 * (i + 1));
   }
+  onProgress?.({
+    attempt: n,
+    total: n,
+    label: "Finishing up…",
+    ratio: 1,
+  });
   return last;
 }
 
@@ -167,41 +384,36 @@ window.checkForUpdateWithRetry = checkForUpdateWithRetry;
 
 async function runManualUpdateCheck() {
   if (versionCheckBusy) return;
-  if (typeof window.pywebview?.api?.check_for_update !== "function") {
-    setVersionLabel("Unavailable");
-    restoreVersionLabelSoon();
-    return;
-  }
   versionCheckBusy = true;
-  setVersionLabel("Checking…");
+  openVersionCheckChecking();
   try {
-    const info = await checkForUpdateWithRetry(3);
-    if (info?.update) {
-      if (typeof window.showUpdateModal === "function") {
-        window.showUpdateModal(info);
-        stampAppVersion();
-        versionCheckBusy = false;
-      } else {
-        setVersionLabel(`Update ${info.latestVersion || ""}`.trim());
-        try {
-          await window.pywebview.api.open_update_download(info.downloadUrl || "");
-        } catch {
-          /* ignore */
-        }
-        restoreVersionLabelSoon(2200);
-      }
-      return;
-    }
-    if (info?.checked) {
-      setVersionLabel("Up to date");
-      restoreVersionLabelSoon();
-      return;
-    }
-    setVersionLabel("Check failed");
-    restoreVersionLabelSoon();
-  } catch {
-    setVersionLabel("Check failed");
-    restoreVersionLabelSoon();
+    const info = await checkForUpdateWithRetry(3, {
+      onProgress: ({ label, ratio }) => {
+        setVersionCheckUi({
+          title: "Checking for updates",
+          status: label,
+          progress: Math.round(12 + ratio * 78),
+          bodyHtml: "",
+          actionsHtml: "",
+          showProgress: true,
+        });
+      },
+    });
+    setVersionCheckUi({
+      title: "Checking for updates",
+      status: "Done.",
+      progress: 100,
+      bodyHtml: "",
+      actionsHtml: "",
+      showProgress: true,
+    });
+    await waitMs(180);
+    renderVersionCheckResult(info);
+  } catch (err) {
+    renderVersionCheckResult({ ok: false, checked: false, update: false, error: String(err) });
+  } finally {
+    versionCheckBusy = false;
+    stampAppVersion();
   }
 }
 
@@ -226,6 +438,11 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
+  const versionModal = document.getElementById("versionCheckModal");
+  if (versionModal && !versionModal.hidden) {
+    closeVersionCheckModal();
+    return;
+  }
   const modal = document.getElementById("appInfoModal");
   if (modal && !modal.hidden) closeAppInfoModal();
 });

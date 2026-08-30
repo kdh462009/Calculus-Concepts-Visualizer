@@ -487,6 +487,7 @@ function payloadFromInputs() {
 }
 
 function applyDataView(data, { rememberSnap = true } = {}) {
+  if (state.viewLocked) return;
   state.view = {
     xmin: data.xRange[0],
     xmax: data.xRange[1],

@@ -227,11 +227,13 @@ class GraphViewer {
         ymin: data.yRange[0],
         ymax: data.yRange[1],
       };
-      this.rememberSnapView(fitted);
       if (this.viewLocked) {
-        this.applySnapView();
+        this.clampView();
+        this.redraw();
+        this.notifyView();
         return;
       }
+      this.rememberSnapView(fitted);
       this.view = { ...fitted };
       this.clampView();
       this.notifyView();

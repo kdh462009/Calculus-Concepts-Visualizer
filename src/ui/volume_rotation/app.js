@@ -604,7 +604,7 @@ async function computeModel(options = {}) {
   state.data = result;
   state.elapsed = 0;
   state.sweepAngle = 0;
-  applyHomeCamera();
+  if (!state.viewLocked) applyHomeCamera();
   renderReadouts(result);
   drawCurrentFrame();
   const axisLabel = payload.axis === "y" ? "y-axis" : "x-axis";
@@ -626,7 +626,7 @@ async function startAnimation() {
   state.lastTs = 0;
   state.elapsed = 0;
   state.sweepAngle = 0;
-  applyHomeCamera();
+  if (!state.viewLocked) applyHomeCamera();
   setStatus("animating rotation...");
   state.rafId = requestAnimationFrame(loop);
 }
@@ -649,7 +649,7 @@ function wireInteractions() {
     if (state.viewLocked) return;
     if (state.animating) {
       stopAnimation();
-      applyHomeCamera();
+      if (!state.viewLocked) applyHomeCamera();
       drawCurrentFrame();
       setStatus("animation stopped. drag to move view.");
     }

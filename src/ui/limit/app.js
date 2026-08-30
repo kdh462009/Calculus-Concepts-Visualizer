@@ -91,6 +91,7 @@ class LimitRenderer {
   }
 
   fitView(data, { rememberSnap = true } = {}) {
+    if (state.viewLocked) return;
     if (!data) {
       state.view = null;
       if (rememberSnap) state.snapView = null;

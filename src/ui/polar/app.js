@@ -103,6 +103,7 @@ class PolarRenderer {
   /** Keep equal world units per pixel so polar rings stay circular.
    * Uses a remembered world-per-pixel scale so resize does not ratchet zoom-out. */
   lockAspect(anchorX = null, anchorY = null, { captureScale = false } = {}) {
+    if (state.viewLocked) return;
     const v = state.view;
     const p = this.plotArea();
     if (!(p.width > 0 && p.height > 0)) return;
@@ -587,6 +588,7 @@ function payloadFromInputs() {
 }
 
 function applyDataView(data, { rememberSnap = true } = {}) {
+  if (state.viewLocked) return;
   state.view = {
     xmin: data.xRange[0],
     xmax: data.xRange[1],

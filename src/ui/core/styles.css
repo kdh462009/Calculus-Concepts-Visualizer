@@ -871,6 +871,192 @@ body.app-info-open > .ambient-bg {
   color: #f0f3ff;
 }
 
+body.version-check-open > .app-shell,
+body.version-check-open > .ambient-bg {
+  filter: blur(5px);
+  transition: filter 160ms ease;
+}
+
+.version-check-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 91;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.version-check-modal[hidden] {
+  display: none !important;
+}
+
+.version-check-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 10, 22, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.version-check-card {
+  position: relative;
+  z-index: 1;
+  width: min(460px, 100%);
+  padding: 22px 22px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(159, 182, 255, 0.28);
+  background: linear-gradient(165deg, rgba(28, 38, 68, 0.98), rgba(16, 24, 44, 0.98));
+  box-shadow: 0 18px 48px rgba(4, 8, 20, 0.55);
+  color: #e8eaf6;
+}
+
+.version-check-card h2 {
+  margin: 0 28px 12px 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.version-check-progress-wrap {
+  margin-bottom: 12px;
+}
+
+.version-check-progress-wrap[hidden] {
+  display: none !important;
+}
+
+.version-check-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(8, 12, 28, 0.72);
+  border: 1px solid rgba(159, 182, 255, 0.22);
+}
+
+.version-check-progress-bar {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6f8fff 0%, #9db3ff 45%, #c6d4ff 100%);
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.version-check-progress-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 100%
+  );
+  transform: translateX(-120%);
+  animation: version-check-shimmer 1.1s ease-in-out infinite;
+}
+
+@keyframes version-check-shimmer {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+.version-check-status {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #c8d0ea;
+}
+
+.version-check-body {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #c8d0ea;
+}
+
+.version-check-body p {
+  margin: 0 0 8px;
+}
+
+.version-check-body p:last-child {
+  margin-bottom: 0;
+}
+
+.version-check-body strong {
+  color: #f0f3ff;
+}
+
+.version-check-note {
+  color: #aeb8d8;
+  font-size: 12px;
+}
+
+.version-check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.version-check-btn {
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  border: 1px solid rgba(159, 182, 255, 0.32);
+  background: rgba(36, 50, 86, 0.82);
+  color: #dfe6ff;
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
+}
+
+.version-check-btn:hover {
+  background: rgba(52, 68, 112, 0.92);
+  border-color: rgba(183, 200, 255, 0.52);
+  color: #f0f3ff;
+}
+
+.version-check-btn-primary {
+  background: rgba(124, 156, 255, 0.92);
+  border-color: rgba(183, 197, 255, 0.55);
+  color: #0b1224;
+}
+
+.version-check-btn-primary:hover {
+  background: rgba(148, 176, 255, 0.98);
+  color: #08101f;
+}
+
+.version-check-btn-ghost {
+  background: transparent;
+  border-color: rgba(159, 182, 255, 0.24);
+  color: #aeb8d8;
+}
+
+.version-check-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(159, 182, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(8, 12, 28, 0.45);
+  color: #c8d0ea;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+
+.version-check-close:hover {
+  background: rgba(24, 34, 62, 0.85);
+  border-color: rgba(183, 200, 255, 0.45);
+  color: #f0f3ff;
+}
+
 .header-top {
   display: flex;
   align-items: center;
