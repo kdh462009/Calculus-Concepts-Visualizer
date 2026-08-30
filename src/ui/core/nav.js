@@ -1,4 +1,4 @@
-window.APP_VERSION = "1.3";
+window.APP_VERSION = "1.3.1";
 
 const RELEASE_NOTES_BASE =
   "https://github.com/kdh462009/Calculus-Concepts-Visualizer/releases/tag/";
@@ -85,7 +85,6 @@ window.openAppInfoModal = openAppInfoModal;
 window.closeAppInfoModal = closeAppInfoModal;
 
 let pendingVersionCheckInfo = null;
-let versionCheckAutoOpenTimer = null;
 
 function ensureVersionCheckModal() {
   if (document.getElementById("versionCheckModal")) return;
@@ -149,7 +148,6 @@ function ensureVersionCheckModal() {
       runManualUpdateCheck();
       return;
     }
-    if (kind === "close") closeVersionCheckModal();
   });
 }
 
@@ -168,10 +166,6 @@ function openExternalUrl(url) {
 }
 
 function closeVersionCheckModal() {
-  if (versionCheckAutoOpenTimer) {
-    clearTimeout(versionCheckAutoOpenTimer);
-    versionCheckAutoOpenTimer = null;
-  }
   const modal = document.getElementById("versionCheckModal");
   if (!modal || modal.hidden) return;
   modal.hidden = true;
@@ -234,17 +228,13 @@ function renderVersionCheckResult(info) {
     const latest = info.latestVersion || info.latestTag || "—";
     setVersionCheckUi({
       title: "Update available",
-      status: `Version ${latest} is ready to download.`,
+      status: `Version ${latest} is available · you're on ${current}`,
       progress: 100,
       showProgress: false,
-      bodyHtml: `
-        <p>You’re running <strong>Version ${current}</strong>.</p>
-        <p class="version-check-note">${info.instructions || "Download the latest release and replace your current installation."}</p>
-      `,
+      bodyHtml: `<p class="version-check-note">Download and replace your current installation.</p>`,
       actionsHtml: `
-        <button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="download">Download update</button>
-        <button type="button" class="version-check-btn" data-version-check-action="changelog-latest">Changelog for Version ${latest}</button>
-        <button type="button" class="version-check-btn version-check-btn-ghost" data-version-check-action="close">Close</button>
+        <button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="download">Download</button>
+        <button type="button" class="version-check-btn" data-version-check-action="changelog-latest">Changelog</button>
       `,
     });
     return;
@@ -252,41 +242,31 @@ function renderVersionCheckResult(info) {
 
   if (info?.checked) {
     setVersionCheckUi({
-      title: "You’re up to date",
+      title: "Up to date",
       status: `Version ${current} is the latest release.`,
       progress: 100,
       showProgress: false,
-      bodyHtml: `<p>Opening release notes for Version ${current}…</p>`,
+      bodyHtml: "",
       actionsHtml: `
-        <button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="changelog-current">View changelog now</button>
-        <button type="button" class="version-check-btn version-check-btn-ghost" data-version-check-action="close">Close</button>
+        <button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="changelog-current">Changelog</button>
       `,
     });
-    versionCheckAutoOpenTimer = setTimeout(() => {
-      versionCheckAutoOpenTimer = null;
-      openExternalUrl(changelogHrefFor(current));
-      closeVersionCheckModal();
-    }, 1100);
     return;
   }
 
   const offline = typeof window.pywebview?.api?.check_for_update !== "function";
   setVersionCheckUi({
-    title: offline ? "Update check unavailable" : "Couldn’t check for updates",
+    title: offline ? "Update check unavailable" : "Couldn't check for updates",
     status: offline
-      ? "This page isn’t connected to the app updater."
+      ? "Not connected to the app updater."
       : (info?.error ? String(info.error) : "Release servers did not respond."),
     progress: 100,
     showProgress: false,
-    bodyHtml: offline
-      ? `<p>You can still read release notes for <strong>Version ${current}</strong>.</p>`
-      : `<p>Check your connection and try again.</p>`,
+    bodyHtml: "",
     actionsHtml: offline
-      ? `<button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="changelog-current">View changelog</button>
-         <button type="button" class="version-check-btn version-check-btn-ghost" data-version-check-action="close">Close</button>`
+      ? `<button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="changelog-current">Changelog</button>`
       : `<button type="button" class="version-check-btn version-check-btn-primary" data-version-check-action="retry">Try again</button>
-         <button type="button" class="version-check-btn" data-version-check-action="changelog-current">View current changelog</button>
-         <button type="button" class="version-check-btn version-check-btn-ghost" data-version-check-action="close">Close</button>`,
+         <button type="button" class="version-check-btn" data-version-check-action="changelog-current">Changelog</button>`,
   });
 }
 

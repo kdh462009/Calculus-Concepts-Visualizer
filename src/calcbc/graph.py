@@ -217,6 +217,7 @@ def render_latex_png(
         facecolor="none",
         transparent=True,
     )
+    buf.seek(0)
     encoded = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 

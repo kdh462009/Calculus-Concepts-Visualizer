@@ -733,7 +733,9 @@ function viewKey() {
 
 function onViewChange() {
   const key = viewKey();
-  if (state.f && state.data) return;
+  // Live JS slope eval handles pan/zoom in the redraw handler; server recompute
+  // is only needed when jscode compilation failed (state.f is null).
+  if (state.f) return;
   if (key === state.lastServerViewKey) return;
   clearTimeout(state.fieldTimer);
   state.fieldTimer = setTimeout(() => {

@@ -970,22 +970,14 @@ body.version-check-open > .ambient-bg {
 }
 
 .version-check-body {
-  margin-top: 12px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #c8d0ea;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #aeb8d8;
 }
 
 .version-check-body p {
-  margin: 0 0 8px;
-}
-
-.version-check-body p:last-child {
-  margin-bottom: 0;
-}
-
-.version-check-body strong {
-  color: #f0f3ff;
+  margin: 0;
 }
 
 .version-check-note {
@@ -997,7 +989,12 @@ body.version-check-open > .ambient-bg {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 14px;
+}
+
+.version-check-actions:not([hidden]) .version-check-btn {
+  flex: 1 1 0;
+  min-width: 7.5rem;
 }
 
 .version-check-btn {

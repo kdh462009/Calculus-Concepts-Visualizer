@@ -194,9 +194,7 @@
     for (const asset of priority.filter((asset) => asset.kind === "js")) {
       await loadAsset(asset);
     }
-    deferred.forEach((asset) => {
-      loadAsset(asset);
-    });
+    await Promise.all(deferred.map(loadAsset));
   }
 
   async function start() {
